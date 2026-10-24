@@ -1,0 +1,293 @@
+@import "tailwindcss";
+
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --blue: #007aff;
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --gray: #8e8e93;
+  --sep: rgba(60, 60, 67, 0.18);
+  --label2: rgba(60, 60, 67, 0.6);
+  --label3: rgba(60, 60, 67, 0.3);
+  --bg-grouped: #f2f2f7;
+  --sat: 54px; /* 상태바 높이 */
+  --sab: 34px; /* 홈 인디케이터 영역 */
+}
+
+@layer base {
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+body {
+  font-family: var(--font);
+  background: #0b0b0c;
+  color: #000;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+input,
+textarea,
+select {
+  font: inherit;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+}
+
+/* ───── 데스크톱 무대 ───── */
+.stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(1200px 700px at 50% 40%, #1d1e21 0%, #0c0c0d 60%, #070708 100%);
+}
+.device {
+  position: relative;
+  width: 433px;
+  height: 892px;
+  border-radius: 74px;
+  padding: 20px;
+  /* 내추럴 티타늄 */
+  background: linear-gradient(145deg, #8c8a86 0%, #5b5a57 18%, #3b3a38 50%, #6e6c68 82%, #9a9893 100%);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.25),
+    inset 0 0 0 4px #2a2a2a,
+    inset 0 0 0 7px #121212,
+    0 40px 90px rgba(0, 0, 0, 0.6),
+    0 10px 30px rgba(0, 0, 0, 0.5);
+  transform-origin: center center;
+  flex-shrink: 0;
+}
+.device::before {
+  /* 블랙 베젤 */
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 67px;
+  background: #000;
+}
+.device .btn {
+  position: absolute;
+  width: 4px;
+  background: linear-gradient(90deg, #4a4946, #8a8884);
+  border-radius: 2px;
+}
+.screen {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  border-radius: 55px;
+  overflow: hidden;
+  background: #000;
+  isolation: isolate;
+  transform: translateZ(0);
+}
+/* 모바일: 프레임 없이 전체 화면 */
+.mobile .stage {
+  background: #000;
+}
+.mobile .screen {
+  width: 100vw;
+  height: 100dvh;
+  border-radius: 0;
+}
+
+/* ───── 아이콘 ───── */
+.app-icon {
+  border-radius: 22.5%;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+
+/* ───── 애니메이션 ───── */
+@keyframes appOpen {
+  from {
+    transform: scale(0.18);
+    opacity: 0;
+    border-radius: 40px;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+    border-radius: 0;
+  }
+}
+.app-open {
+  animation: appOpen 0.38s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.push {
+  animation: slideIn 0.34s cubic-bezier(0.25, 0.9, 0.3, 1) both;
+}
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.sheet {
+  animation: sheetUp 0.36s cubic-bezier(0.25, 0.9, 0.3, 1) both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade {
+  animation: fadeIn 0.25s ease both;
+}
+@keyframes bannerIn {
+  from {
+    transform: translateY(-140%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.banner {
+  animation: bannerIn 0.5s cubic-bezier(0.2, 1.1, 0.3, 1) both;
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-12px);
+  }
+  40%,
+  80% {
+    transform: translateX(12px);
+  }
+}
+.shake {
+  animation: shake 0.4s ease;
+}
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgba(52, 199, 89, 0);
+  }
+}
+.ring {
+  animation: pulseRing 1.4s ease-out infinite;
+}
+@keyframes lineIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+.line-in {
+  animation: lineIn 0.6s ease both;
+}
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.blur-bar {
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+.hair-b {
+  box-shadow: inset 0 -0.5px 0 var(--sep);
+}
+.hair-t {
+  box-shadow: inset 0 0.5px 0 var(--sep);
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+/* ───── 에디터 ───── */
+.ed input,
+.ed textarea,
+.ed select {
+  width: 100%;
+  border: 1px solid #d1d1d6;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff;
+  font-size: 14px;
+  outline: none;
+}
+.ed input:focus,
+.ed textarea:focus,
+.ed select:focus {
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+.ed textarea {
+  resize: vertical;
+  line-height: 1.55;
+}
+.ed label {
+  font-size: 12px;
+  color: #6e6e73;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+}
