@@ -78,9 +78,9 @@ export default function Photos() {
   return (
     <div className="absolute inset-0 bg-white">
       {tab === "lib" && (
-        <div className="absolute inset-0 scroll flex flex-col-reverse" style={{ paddingBottom: 140 }}>
+        <div className="absolute inset-0 scroll" style={{ paddingBottom: 140 }}>
           <div>
-            <div style={{ height: "calc(var(--sat) + 70px)" }} />
+            <div style={{ height: "calc(var(--sat) + 66px)" }} />
             {all.length ? (
               <>
                 {grid([...all].reverse())}
@@ -99,19 +99,19 @@ export default function Photos() {
       )}
       {tab === "lib" && (
         <>
-          <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none" style={{ height: "calc(var(--sat) + 80px)", background: all.length ? "linear-gradient(rgba(0,0,0,0.45), transparent)" : "transparent" }} />
-          <div className={`absolute left-[16px] right-[16px] z-10 flex justify-between items-end ${all.length ? "text-white" : "text-black"}`} style={{ top: "calc(var(--sat) + 6px)" }}>
+          <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none blur-bar" style={{ height: "calc(var(--sat) + 62px)", background: "rgba(255,255,255,0.88)" }} />
+          <div className="absolute left-[16px] right-[16px] z-10 flex justify-between items-end text-black" style={{ top: "calc(var(--sat) + 6px)" }}>
             <div>
               <div className="text-[28px] font-bold leading-[32px]">보관함</div>
-              <div className="text-[15px] font-semibold opacity-90">최근 항목</div>
+              <div className="text-[15px] font-semibold text-black/50">최근 항목</div>
             </div>
-            <span className="text-[14px] font-semibold px-[12px] py-[5px] rounded-full blur-bar" style={{ background: "rgba(255,255,255,0.25)" }}>
+            <span className="text-[14px] font-semibold px-[12px] py-[5px] rounded-full bg-black/[0.06] text-[#007AFF]">
               선택
             </span>
           </div>
-          <div className="absolute left-1/2 -translate-x-1/2 z-10 flex p-[3px] rounded-full blur-bar text-[13px] font-semibold" style={{ bottom: "calc(var(--sab) + 64px)", background: "rgba(120,120,128,0.3)" }}>
+          <div className="absolute left-1/2 -translate-x-1/2 z-10 flex p-[3px] rounded-full blur-bar text-[13px] font-semibold" style={{ bottom: "calc(var(--sab) + 64px)", background: "rgba(120,120,128,0.2)" }}>
             {["년", "월", "일", "모든 사진"].map((s, i) => (
-              <span key={s} className="px-[13px] py-[5px] rounded-full" style={{ background: i === 3 ? "rgba(255,255,255,0.9)" : "transparent", color: i === 3 ? "#000" : "#fff" }}>
+              <span key={s} className="px-[13px] py-[5px] rounded-full" style={{ background: i === 3 ? "#fff" : "transparent", color: "#000", boxShadow: i === 3 ? "0 2px 6px rgba(0,0,0,0.12)" : "none" }}>
                 {s}
               </span>
             ))}

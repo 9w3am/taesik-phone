@@ -392,7 +392,6 @@ function Threads({ d }: { d: PhoneData }) {
             </div>
             <div className="flex flex-wrap gap-5 mb-4">
               {app === "messages" && <C label="고정" value={!!t.pinned} onChange={(v) => put({ pinned: v })} />}
-              {app === "messages" && <C label="문자(초록 말풍선)" value={!!t.sms} onChange={(v) => put({ sms: v })} />}
               {app === "kakao" && <C label="알림 끔" value={!!t.muted} onChange={(v) => put({ muted: v })} />}
             </div>
             <ScriptBox t={t} />
@@ -708,7 +707,7 @@ function AiEd({ d }: { d: PhoneData }) {
   const [conf, setConf] = useState(loadAiConf);
   const [target, setTarget] = useState<AiTarget>("thread");
   const [app, setApp] = useState<AppKind>("kakao");
-  const [setting, setSetting] = useState("최태식: 30대 초반, 말수 적고 건조함. 존댓말과 반말을 상대에 따라 철저히 구분.");
+  const [setting, setSetting] = useState("");
   const [relation, setRelation] = useState("");
   const [mood, setMood] = useState("");
   const [extra, setExtra] = useState("");
@@ -777,7 +776,7 @@ function AiEd({ d }: { d: PhoneData }) {
       </div>
       <div className="space-y-3">
         <F label="캐릭터 설정">
-          <textarea rows={3} value={setting} onChange={(e) => setSetting(e.target.value)} />
+          <textarea rows={3} value={setting} placeholder="제작자가 정한 설정만 적으세요. 적지 않은 건 AI가 지어내지 않도록 지시합니다." onChange={(e) => setSetting(e.target.value)} />
         </F>
         <F label="관계 (예: 오래 거래한 정보상, 처음 연락 온 의뢰인)">
           <T value={relation} onChange={setRelation} />

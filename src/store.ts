@@ -41,8 +41,9 @@ export type Note = { id: string; folder: string; title: string; body: string; pi
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
 export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number };
-export type Photo = { id: string; kind?: string; src?: string; caption: string; when: string; album?: string; fav?: boolean };
+export type Photo = { id: string; kind?: string; asset?: string; src?: string; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
+export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string };
 export type IgUser = { handle: string; name: string; bio: string; posts: number; followers: number; following: number; private?: boolean; avatar?: string };
 export type SearchResult = { title: string; url: string; desc: string; source?: string };
 export type Comment = { who: string; text: string };
@@ -87,7 +88,7 @@ export type PhoneData = {
   bank: { name: string; account: string; balance: number; txs: Tx[] };
   songs: Song[];
   photos: Photo[];
-  ig: { me: IgUser; users: IgUser[]; feed: Post[]; stories: string[] };
+  ig: { me: IgUser; users: IgUser[]; feed: Post[]; stories: string[]; storyItems: Story[]; notes: { user: string; text: string }[]; seen?: string[] };
   safari: { tabs: SafariTab[]; history: string[]; favorites: { title: string; url: string }[] };
   alarms: Alarm[];
   places: Place[];

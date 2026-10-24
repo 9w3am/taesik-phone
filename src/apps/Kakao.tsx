@@ -7,6 +7,12 @@ import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
 import { markRead, preview, useAutoBottom, useComposer } from "./Messages";
 
 const BADGE = "#FA5338";
+const EXPLORE = [
+  { name: "야간 탁송·대리 기사방", desc: "당일 현금 정산 · 신원 묻지 않음", members: 412, lock: true },
+  { name: "현금 매입 · 중고차 급매", desc: "명의 이전 상담은 갠톡으로", members: 188, lock: false },
+  { name: "OO동 새벽 동네방", desc: "새벽에 깨어 있는 사람들", members: 96, lock: false },
+  { name: "철거·용역 인력 (일당)", desc: "현장 투입 가능하신 분만", members: 263, lock: true },
+];
 const KBG = "#BACEE0";
 
 function OpenChatIcon({ size = 25 }: { size?: number }) {
@@ -76,11 +82,12 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
             ) : m.kind === "photo" ? (
               <Img src={photoSrc(m.photo || "", d.photos)} className="w-[190px] h-[250px] rounded-[12px]" />
             ) : (
-              <div className="relative px-[11px] py-[8px] text-[15px] leading-[20px] rounded-[14px] whitespace-pre-wrap" style={{ background: mine ? "#FEE500" : "#fff", color: "#191919", wordBreak: "keep-all", overflowWrap: "anywhere" }}>
+              <div className="relative px-[10px] py-[7px] text-[15px] leading-[20px] rounded-[12px] whitespace-pre-wrap" style={{ background: mine ? "#FEE500" : "#fff", color: "#191919", wordBreak: "keep-all", overflowWrap: "anywhere", ...(first ? (mine ? { borderTopRightRadius: 3 } : { borderTopLeftRadius: 3 }) : {}) }}>
                 {first && (
-                  <svg className="absolute top-0" style={mine ? { right: -6 } : { left: -6, transform: "scaleX(-1)" }} width="10" height="12" viewBox="0 0 10 12">
-                    <path d="M0 0h10C7 1 4.5 4 3 10L0 8z" fill={mine ? "#FEE500" : "#fff"} />
-                  </svg>
+                  <span
+                    className="absolute top-0 w-[9px] h-[11px]"
+                    style={{ background: mine ? "#FEE500" : "#fff", ...(mine ? { right: -6, clipPath: "polygon(0 0, 100% 0, 0 100%)" } : { left: -6, clipPath: "polygon(0 0, 100% 0, 100% 100%)" }) }}
+                  />
                 )}
                 {m.text}
               </div>
@@ -168,6 +175,10 @@ export default function Kakao() {
   const d = useData();
   const { appArg } = usePhoneCtx();
   const [tab, setTab] = useState("chats");
+  const [openSeg, setOpenSeg] = useState<"joined" | "explore">("joined");
+  const [join, setJoin] = useState<string | null>(null);
+  const [pw, setPw] = useState("");
+  const [pwBad, setPwBad] = useState(false);
   const [openId, setOpenId] = useState<string | null>((appArg as string) || null);
   const list = d.threads.filter((t) => t.app === "kakao");
   useEffect(() => {
@@ -246,14 +257,35 @@ export default function Kakao() {
               }
             />
             <div className="flex gap-[8px] px-[16px] pb-[10px]">
-              <span className="px-[14px] h-[32px] rounded-full bg-[#191919] text-white text-[14px] font-semibold flex items-center">참여중</span>
-              <span className="px-[14px] h-[32px] rounded-full border border-black/10 text-[14px] flex items-center">탐색</span>
-            </div>
-            {list
-              .filter((t) => t.members)
-              .map((t) => (
-                <ChatRow key={t.id} t={t} onClick={() => setOpenId(t.id)} />
+              {(["joined", "explore"] as const).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setOpenSeg(k)}
+                  className={`px-[14px] h-[32px] rounded-full text-[14px] flex items-center ${openSeg === k ? "bg-[#191919] text-white font-semibold" : "border border-black/10"}`}
+                >
+                  {k === "joined" ? "참여중" : "탐색"}
+                </button>
               ))}
+            </div>
+            {openSeg === "joined" &&
+              list
+                .filter((t) => t.members)
+                .map((t) => <ChatRow key={t.id} t={t} onClick={() => setOpenId(t.id)} />)}
+            {openSeg === "explore" && (
+              <>
+                <div className="px-[16px] pt-[4px] pb-[8px] text-[15px] font-bold">추천 오픈채팅</div>
+                {EXPLORE.map((r) => (
+                  <button key={r.name} onClick={() => setJoin(r.name)} className="w-full flex items-center gap-[12px] px-[16px] py-[8px] text-left active:bg-black/[0.04]">
+                    <KakaoAvatar size={48} group />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[15px] font-semibold truncate">{r.name}</div>
+                      <div className="text-[13px] text-black/45 truncate">{r.desc}</div>
+                      <div className="text-[12px] text-black/35 mt-[2px]">멤버 {r.members}명{r.lock ? " · 비밀번호" : ""}</div>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
           </>
         )}
         {tab === "shop" && (
@@ -323,6 +355,33 @@ export default function Kakao() {
           { id: "more", label: "더보기", icon: <MoreHorizontal size={25} strokeWidth={tab === "more" ? 2.3 : 1.6} /> },
         ]}
       />
+      {join && (
+        <div className="absolute inset-0 z-40 flex items-end fade" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => (setJoin(null), setPw(""))}>
+          <div className="w-full bg-white rounded-t-[18px] px-[20px] pt-[22px] sheet" style={{ paddingBottom: "calc(var(--sab) + 16px)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center">
+              <KakaoAvatar size={64} group />
+              <div className="text-[18px] font-bold mt-[10px] text-center">{join}</div>
+              <div className="text-[13px] text-black/45 mt-[4px]">{EXPLORE.find((r) => r.name === join)?.desc}</div>
+            </div>
+            {EXPLORE.find((r) => r.name === join)?.lock && (
+              <input
+                value={pw}
+                onChange={(e) => (setPw(e.target.value), setPwBad(false))}
+                placeholder="참여 코드 입력"
+                className={`w-full h-[46px] mt-[18px] rounded-[10px] bg-[#F3F3F3] px-[14px] text-[15px] outline-none ${pwBad ? "shake" : ""}`}
+              />
+            )}
+            {pwBad && <div className="text-[13px] text-[#FA5338] mt-[6px] text-center">{EXPLORE.find((r) => r.name === join)?.lock ? "참여 코드가 올바르지 않습니다." : "방장 승인 대기 중입니다. 승인되면 알려드릴게요."}</div>}
+            <button
+              onClick={() => setPwBad(true)}
+              className="w-full h-[50px] mt-[14px] rounded-[10px] text-[16px] font-semibold"
+              style={{ background: "#FEE500", color: "#191919" }}
+            >
+              참여하기
+            </button>
+          </div>
+        </div>
+      )}
       {cur && <Room t={cur} onBack={() => setOpenId(null)} unread={list.filter((x) => x.id !== cur.id).reduce((a, x) => a + x.unread, 0)} />}
     </div>
   );

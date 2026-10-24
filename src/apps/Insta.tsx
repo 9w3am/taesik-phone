@@ -1,7 +1,7 @@
 /* Instagram (2025 하단 탭: 홈 · 릴스 · DM · 검색 · 프로필) */
 import { useEffect, useState } from "react";
-import { Home as HomeI, Clapperboard, Send, Search, Heart, MessageCircle, Bookmark, MoreHorizontal, Plus, ChevronDown, ChevronLeft, Lock, Camera, SquarePen, Phone, Video, Music2, Grid3x3, UserSquare2, Menu } from "lucide-react";
-import { useData, won, type Post, type Thread } from "../store";
+import { Home as HomeI, Clapperboard, Send, Search, Heart, MessageCircle, Bookmark, MoreHorizontal, Plus, ChevronDown, ChevronLeft, Lock, Camera, SquarePen, Phone, Video, Music2, Grid3x3, UserSquare2, Menu, X } from "lucide-react";
+import { useData, update, won, type Post, type Thread } from "../store";
 import { photoSrc } from "../photos";
 import { usePhoneCtx, Img } from "../ui";
 import { markRead, useAutoBottom, useComposer } from "./Messages";
@@ -70,8 +70,82 @@ function PostView({ p }: { p: Post }) {
   );
 }
 
+/* 스토리 뷰어: 위 진행 막대 · 좌우 탭 이동 · 5초 자동 넘김 */
+function StoryViewer({ start, onClose }: { start: number; onClose: () => void }) {
+  const d = useData();
+  const items = d.ig.storyItems;
+  const [i, setI] = useState(start);
+  const [t, setT] = useState(0);
+  const { setStatusDark } = usePhoneCtx();
+  const it = items[i];
+  useEffect(() => {
+    setStatusDark(false);
+    return () => setStatusDark(true);
+  }, [setStatusDark]);
+  useEffect(() => {
+    if (!it) return;
+    update((x) => {
+      x.ig.seen = Array.from(new Set([...(x.ig.seen ?? []), it.id]));
+    });
+    setT(0);
+  }, [i]); // eslint-disable-line
+  useEffect(() => {
+    const iv = setInterval(() => setT((x) => x + 1), 50);
+    return () => clearInterval(iv);
+  }, [i]);
+  useEffect(() => {
+    if (t >= 100) {
+      if (i < items.length - 1) setI(i + 1);
+      else onClose();
+    }
+  }, [t]); // eslint-disable-line
+  if (!it) return null;
+  const same = items.map((x, k) => ({ x, k })).filter((o) => o.x.user === it.user);
+  const img = it.photo ? photoSrc(it.photo, d.photos) : "";
+  return (
+    <div className="fixed inset-0 z-40 bg-black text-white fade">
+      <div className="absolute inset-x-0 top-[50px] bottom-[86px] rounded-[10px] overflow-hidden flex items-center justify-center" style={{ background: img ? "#000" : it.bg }}>
+        {img ? (
+          <img src={img} className="w-full h-full object-cover" alt="" />
+        ) : (
+          <p className="text-center text-[26px] font-bold leading-[36px] px-[30px] whitespace-pre-wrap" style={{ wordBreak: "keep-all", textShadow: "0 1px 8px rgba(0,0,0,0.3)" }}>
+            {it.text}
+          </p>
+        )}
+        <button className="absolute left-0 top-0 bottom-0 w-1/3" aria-label="이전" onClick={() => (i > 0 ? setI(i - 1) : setT(0))} />
+        <button className="absolute right-0 top-0 bottom-0 w-2/3" aria-label="다음" onClick={() => (i < items.length - 1 ? setI(i + 1) : onClose())} />
+      </div>
+      <div className="absolute left-[8px] right-[8px] top-[58px] flex gap-[3px]">
+        {same.map((o) => (
+          <span key={o.k} className="flex-1 h-[2.5px] rounded-full bg-white/35 overflow-hidden">
+            <span className="block h-full bg-white" style={{ width: o.k < i ? "100%" : o.k === i ? `${Math.min(100, t)}%` : "0%" }} />
+          </span>
+        ))}
+      </div>
+      <div className="absolute left-[12px] right-[12px] top-[70px] flex items-center gap-[8px]">
+        <IgAvatar handle={it.user} size={32} />
+        <span className="text-[14px] font-semibold">{it.user}</span>
+        <span className="text-[14px] text-white/70">{it.when}</span>
+        <span className="flex-1" />
+        <MoreHorizontal size={22} />
+        <button onClick={onClose} aria-label="닫기" className="ml-[8px]">
+          <X size={26} strokeWidth={1.8} />
+        </button>
+      </div>
+      <div className="absolute left-[12px] right-[12px] bottom-[34px] flex items-center gap-[14px]">
+        <div className="flex-1 h-[44px] rounded-full border border-white/60 flex items-center px-[16px] text-[14px] text-white/80">메시지 보내기...</div>
+        <Heart size={26} strokeWidth={1.8} />
+        <Send size={25} strokeWidth={1.8} />
+      </div>
+    </div>
+  );
+}
+
 function Feed() {
   const d = useData();
+  const [view, setView] = useState<number | null>(null);
+  const seen = d.ig.seen ?? [];
+  const order = d.ig.stories.filter((h) => d.ig.storyItems.some((x) => x.user === h));
   return (
     <>
       <div className="flex items-center justify-between px-[14px] h-[44px]">
@@ -92,13 +166,25 @@ function Feed() {
           </div>
           <span className="text-[12px] text-black/60">내 스토리</span>
         </div>
-        {d.ig.stories.map((h) => (
-          <div key={h} className="flex flex-col items-center gap-[5px] shrink-0 w-[74px]">
-            <IgAvatar handle={h} size={64} ring />
-            <span className="text-[12px] truncate w-full text-center">{h}</span>
-          </div>
-        ))}
+        {order.map((h) => {
+          const done = d.ig.storyItems.filter((x) => x.user === h).every((x) => seen.includes(x.id));
+          return (
+            <button key={h} onClick={() => setView(d.ig.storyItems.findIndex((x) => x.user === h))} className="flex flex-col items-center gap-[5px] shrink-0 w-[74px]">
+              {done ? (
+                <div className="rounded-full p-[2px] bg-[#DBDBDB]">
+                  <div className="rounded-full p-[2.5px] bg-white">
+                    <IgAvatar handle={h} size={60} />
+                  </div>
+                </div>
+              ) : (
+                <IgAvatar handle={h} size={60} ring />
+              )}
+              <span className={`text-[12px] truncate w-full text-center ${done ? "text-black/50" : ""}`}>{h}</span>
+            </button>
+          );
+        })}
       </div>
+      {view !== null && <StoryViewer start={view} onClose={() => setView(null)} />}
       <div className="h-[0.5px] bg-black/10" />
       {d.ig.feed
         .filter((p) => photoSrc(p.photo, d.photos))
@@ -112,7 +198,7 @@ function Feed() {
             <IgAvatar handle={u.handle} size={44} />
             <div className="flex-1 min-w-0">
               <div className="text-[14px] font-semibold truncate">{u.handle}</div>
-              <div className="text-[13px] text-black/50 truncate">{u.name} · {u.bio}</div>
+              <div className="text-[13px] text-black/50 truncate">{[u.name, u.bio].filter(Boolean).join(" · ") || "회원님을 위한 추천"}</div>
             </div>
             <span className="h-[32px] px-[16px] rounded-[8px] bg-[#0095F6] text-white text-[14px] font-semibold flex items-center">팔로우</span>
           </div>
@@ -237,8 +323,8 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
             className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-black/45 min-w-0"
           />
           {c.canSend && (
-            <button onClick={c.send} className="text-[15px] font-semibold text-[#3797F0]">
-              보내기
+            <button onClick={c.send} aria-label="보내기" className="w-[34px] h-[34px] -mr-[8px] rounded-full bg-[#3797F0] flex items-center justify-center shrink-0">
+              <Send size={17} color="#fff" strokeWidth={2.2} className="-ml-[1px] mt-[1px]" />
             </button>
           )}
         </div>
@@ -269,6 +355,20 @@ function DMs() {
           <Search size={16} />
           검색
         </div>
+      </div>
+      <div className="flex gap-[14px] px-[14px] pt-[30px] pb-[8px] overflow-x-auto no-scrollbar">
+        <div className="flex flex-col items-center shrink-0 w-[76px] relative">
+          <span className="absolute -top-[26px] max-w-[90px] px-[10px] py-[6px] rounded-[16px] bg-white text-[11px] text-black/45 shadow-[0_1px_6px_rgba(0,0,0,0.12)] truncate">노트 남기기...</span>
+          <IgAvatar handle={d.ig.me.handle} size={64} me />
+          <span className="text-[12px] text-black/50 mt-[5px]">내 노트</span>
+        </div>
+        {d.ig.notes.map((n) => (
+          <div key={n.user} className="flex flex-col items-center shrink-0 w-[76px] relative">
+            <span className="absolute -top-[26px] max-w-[96px] px-[10px] py-[6px] rounded-[16px] bg-white text-[11px] shadow-[0_1px_6px_rgba(0,0,0,0.12)] truncate z-10">{n.text}</span>
+            <IgAvatar handle={n.user} size={64} />
+            <span className="text-[12px] mt-[5px] truncate w-full text-center">{n.user}</span>
+          </div>
+        ))}
       </div>
       <div className="flex items-center justify-between px-[14px] pt-[12px] pb-[6px]">
         <span className="text-[16px] font-bold">메시지</span>

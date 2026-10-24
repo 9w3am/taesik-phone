@@ -44,7 +44,8 @@ export function useAutoBottom(dep: unknown) {
 function Bubble({ m, tail, sms }: { m: Msg; tail: boolean; sms?: boolean }) {
   const d = useData();
   const mine = m.from === "me";
-  const bg = mine ? (sms ? "#34C759" : "#007AFF") : "#E9E9EB";
+  const bg = mine ? "#007AFF" : "#E9E9EB";
+  void sms;
   if (m.kind === "photo") {
     const src = photoSrc(m.photo || "", d.photos);
     if (!src) return null;
@@ -56,16 +57,11 @@ function Bubble({ m, tail, sms }: { m: Msg; tail: boolean; sms?: boolean }) {
   }
   return (
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-      <div className="relative max-w-[72%]">
-        <div className="px-[12px] py-[7px] text-[17px] leading-[22px] rounded-[18px] whitespace-pre-wrap break-words" style={{ background: bg, color: mine ? "#fff" : "#000", wordBreak: "keep-all", overflowWrap: "anywhere" }}>
-          {m.text}
-        </div>
-        {tail && (
-          <svg className="absolute bottom-0" style={mine ? { right: -6 } : { left: -6, transform: "scaleX(-1)" }} width="14" height="20" viewBox="0 0 14 20">
-            <path d="M0 2C1 11 5 17 13.5 20 8 20.4 3.5 19.4 0 17.5z" fill={bg} />
-            <rect x="0" y="2" width="6.5" height="16" fill={bg} />
-          </svg>
-        )}
+      <div
+        className={`imsg ${mine ? "me" : "them"} ${tail ? "tail" : ""} max-w-[72%] px-[12px] py-[7px] text-[17px] leading-[22px] rounded-[18px] whitespace-pre-wrap break-words`}
+        style={{ background: bg, color: mine ? "#fff" : "#000", wordBreak: "keep-all", overflowWrap: "anywhere", ["--bub" as string]: bg } as React.CSSProperties}
+      >
+        {m.text}
       </div>
     </div>
   );
@@ -91,12 +87,12 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
               <ChevronRight size={11} className="text-black/40 shrink-0" strokeWidth={3} />
             </div>
           </div>
-          <button className="h-[44px] px-2 text-[#007AFF]">{!t.sms && <Video size={26} strokeWidth={1.8} />}</button>
+          <button className="h-[44px] px-2 text-[#007AFF]">{<Video size={26} strokeWidth={1.8} />}</button>
         </div>
       </div>
       {/* 말풍선 */}
       <div ref={scrollRef} className="flex-1 scroll px-[16px] pt-[10px] pb-[10px]">
-        <div className="text-center text-[11px] text-[#8e8e93] font-medium mb-[10px]">{t.sms ? "문자 메시지" : "iMessage"}</div>
+        <div className="text-center text-[11px] text-[#8e8e93] font-medium mb-[10px]">iMessage</div>
         {t.messages.map((m, i) => {
           if (m.from === "system")
             return (
@@ -111,7 +107,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
           return (
             <div key={m.id} style={{ marginTop: gap }}>
               <Bubble m={m} tail={tail} sms={t.sms} />
-              {i === lastMine && <div className="text-right text-[11px] text-[#8e8e93] font-medium mt-[3px] mr-1">{t.sms ? "전송됨" : "읽음"}</div>}
+              {i === lastMine && <div className="text-right text-[11px] text-[#8e8e93] font-medium mt-[3px] mr-1">읽음</div>}
             </div>
           );
         })}
@@ -133,11 +129,11 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
                 c.send();
               }
             }}
-            placeholder={t.sms ? "문자 메시지" : "iMessage"}
+            placeholder="iMessage"
             className="flex-1 resize-none outline-none bg-transparent text-[17px] leading-[22px] py-[2px] max-h-[88px] placeholder:text-[#c4c4c6]"
           />
           {c.canSend ? (
-            <button onClick={c.send} className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shrink-0" style={{ background: t.sms ? "#34C759" : "#007AFF" }}>
+            <button onClick={c.send} className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shrink-0" style={{ background: "#007AFF" }}>
               <ArrowUp size={19} strokeWidth={3} />
             </button>
           ) : (

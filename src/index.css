@@ -298,3 +298,39 @@ select {
   margin-bottom: 4px;
 }
 }
+
+/* ───── 아이메시지 말풍선 꼬리 (실제 iOS 모양) ───── */
+.imsg {
+  position: relative;
+}
+.imsg.tail::before,
+.imsg.tail::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 20px;
+}
+.imsg.tail.me::before {
+  right: -7px;
+  width: 20px;
+  background: var(--bub);
+  border-bottom-left-radius: 16px 14px;
+}
+.imsg.tail.me::after {
+  right: -26px;
+  width: 26px;
+  background: var(--page, #fff);
+  border-bottom-left-radius: 10px;
+}
+.imsg.tail.them::before {
+  left: -7px;
+  width: 20px;
+  background: var(--bub);
+  border-bottom-right-radius: 16px 14px;
+}
+.imsg.tail.them::after {
+  left: -26px;
+  width: 26px;
+  background: var(--page, #fff);
+  border-bottom-right-radius: 10px;
+}
