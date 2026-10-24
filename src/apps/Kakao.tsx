@@ -43,7 +43,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
     <div className="absolute inset-0 z-30 flex flex-col push" style={{ background: KBG }}>
       <div className="relative z-10" style={{ paddingTop: "var(--sat)", background: KBG }}>
         <div className="h-[48px] flex items-center px-[6px]">
-          <button onClick={onBack} className="flex items-center h-full pr-1">
+          <button data-back onClick={onBack} className="flex items-center h-full pr-1">
             <ChevronLeft size={30} strokeWidth={2} />
             {unread > 0 && <span className="text-[15px] font-medium -ml-1">{unread > 999 ? "999+" : unread}</span>}
           </button>
@@ -74,7 +74,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
             m.kind === "pay" ? (
               <PayCard m={m} mine={mine} />
             ) : m.kind === "photo" ? (
-              <Img src={photoSrc(m.photo || "", d.photos, 480, 640)} className="w-[190px] h-[250px] rounded-[12px]" />
+              <Img src={photoSrc(m.photo || "", d.photos)} className="w-[190px] h-[250px] rounded-[12px]" />
             ) : (
               <div className="relative px-[11px] py-[8px] text-[15px] leading-[20px] rounded-[14px] whitespace-pre-wrap" style={{ background: mine ? "#FEE500" : "#fff", color: "#191919", wordBreak: "keep-all", overflowWrap: "anywhere" }}>
                 {first && (

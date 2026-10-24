@@ -2,21 +2,22 @@
 import { useEffect, useState } from "react";
 import { Home as HomeI, Clapperboard, Send, Search, Heart, MessageCircle, Bookmark, MoreHorizontal, Plus, ChevronDown, ChevronLeft, Lock, Camera, SquarePen, Phone, Video, Music2, Grid3x3, UserSquare2, Menu } from "lucide-react";
 import { useData, won, type Post, type Thread } from "../store";
-import { photoSrc, genPhoto } from "../photos";
+import { photoSrc } from "../photos";
 import { usePhoneCtx, Img } from "../ui";
 import { markRead, useAutoBottom, useComposer } from "./Messages";
 
 const RING = "conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75)";
 const logo = { fontFamily: "'Grand Hotel', 'Snell Roundhand', cursive", fontSize: 31, lineHeight: "34px" };
-const avatarFor = (handle: string) => {
-  let h = 0;
-  for (const c of handle) h = (h * 17 + c.charCodeAt(0)) % 97;
-  const kinds = ["alley", "car", "tunnel", "sky", "rain", "parking"];
-  return genPhoto(`${kinds[h % kinds.length]}:${h + 50}`, 120, 120);
-};
+/** 프로필 사진: ig.users[].avatar 에 사진 id를 넣으면 그 사진, 없으면 인스타 기본 프로필 */
+function useAvatar(handle: string) {
+  const d = useData();
+  const u = d.ig.users.find((x) => x.handle === handle);
+  return u?.avatar ? photoSrc(u.avatar, d.photos) : "";
+}
 
 function IgAvatar({ handle, size = 32, ring = false, me = false }: { handle: string; size?: number; ring?: boolean; me?: boolean }) {
-  const inner = me ? (
+  const src = useAvatar(handle);
+  const inner = me || !src ? (
     <div className="rounded-full bg-[#DBDBDB] flex items-end justify-center overflow-hidden" style={{ width: size, height: size }}>
       <svg viewBox="0 0 40 40" width={size} height={size}>
         <circle cx="20" cy="16" r="7" fill="#fff" />
@@ -24,7 +25,7 @@ function IgAvatar({ handle, size = 32, ring = false, me = false }: { handle: str
       </svg>
     </div>
   ) : (
-    <img src={avatarFor(handle)} className="rounded-full object-cover" style={{ width: size, height: size }} alt="" />
+    <img src={src} className="rounded-full object-cover" style={{ width: size, height: size }} alt="" />
   );
   if (!ring) return inner;
   return (
@@ -45,7 +46,7 @@ function PostView({ p }: { p: Post }) {
         <span className="text-[14px] font-semibold flex-1">{p.user}</span>
         <MoreHorizontal size={20} />
       </div>
-      <Img src={photoSrc(p.photo, d.photos, 720, 900)} className="w-full aspect-[4/5]" onClick={() => setLiked(true)} />
+      <Img src={photoSrc(p.photo, d.photos)} className="w-full aspect-[4/5]" onClick={() => setLiked(true)} />
       <div className="flex items-center gap-[16px] px-[12px] pt-[10px]">
         <button onClick={() => setLiked(!liked)} className="flex items-center gap-[5px] text-[14px] font-semibold">
           <Heart size={25} strokeWidth={1.8} fill={liked ? "#FF3040" : "none"} color={liked ? "#FF3040" : "currentColor"} />
@@ -99,9 +100,24 @@ function Feed() {
         ))}
       </div>
       <div className="h-[0.5px] bg-black/10" />
-      {d.ig.feed.map((p) => (
-        <PostView key={p.id} p={p} />
-      ))}
+      {d.ig.feed
+        .filter((p) => photoSrc(p.photo, d.photos))
+        .map((p) => (
+          <PostView key={p.id} p={p} />
+        ))}
+      <div className="px-[14px] pt-[18px]">
+        <div className="text-[15px] font-semibold">회원님을 위한 추천</div>
+        {d.ig.users.map((u) => (
+          <div key={u.handle} className="flex items-center gap-[12px] py-[9px]">
+            <IgAvatar handle={u.handle} size={44} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-semibold truncate">{u.handle}</div>
+              <div className="text-[13px] text-black/50 truncate">{u.name} · {u.bio}</div>
+            </div>
+            <span className="h-[32px] px-[16px] rounded-[8px] bg-[#0095F6] text-white text-[14px] font-semibold flex items-center">팔로우</span>
+          </div>
+        ))}
+      </div>
     </>
   );
 }
@@ -114,10 +130,17 @@ function Reels() {
     setStatusDark(false);
     return () => setStatusDark(true);
   }, [setStatusDark]);
-  if (!p) return null;
+  if (!p || !photoSrc(p.photo, d.photos))
+    return (
+      <div className="absolute inset-0 bg-black text-white flex flex-col items-center justify-center gap-[10px] text-center px-10">
+        <div className="w-[34px] h-[34px] rounded-full border-[3px] border-white/20 border-t-white/80 animate-spin" />
+        <div className="text-[15px] font-semibold mt-2">릴스를 불러올 수 없습니다</div>
+        <div className="text-[13px] text-white/55">네트워크 연결 상태를 확인하고 다시 시도하세요.</div>
+      </div>
+    );
   return (
     <div className="absolute inset-0 bg-black text-white">
-      <Img src={photoSrc(p.photo, d.photos, 720, 1280)} className="absolute inset-0 w-full h-full" />
+      <Img src={photoSrc(p.photo, d.photos)} className="absolute inset-0 w-full h-full" />
       <div className="absolute inset-0" style={{ background: "linear-gradient(transparent 60%, rgba(0,0,0,0.55))" }} />
       <div className="absolute left-0 right-0 flex justify-between items-center px-[16px]" style={{ top: "calc(var(--sat) + 6px)" }}>
         <span className="text-[22px] font-bold flex items-center gap-1">
@@ -137,7 +160,7 @@ function Reels() {
         <Send size={26} strokeWidth={1.8} />
         <MoreHorizontal size={24} />
         <div className="w-[28px] h-[28px] rounded-[7px] border-2 border-white overflow-hidden">
-          <img src={avatarFor(p.user)} alt="" />
+          <IgAvatar handle={p.user} size={24} />
         </div>
       </div>
       <div className="absolute left-[14px] right-[70px] bottom-[110px]">
@@ -163,7 +186,7 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
     <div className="fixed inset-0 bg-white flex flex-col push z-30">
       <div className="hair-b" style={{ paddingTop: "var(--sat)" }}>
         <div className="h-[50px] flex items-center px-[8px] gap-[10px]">
-          <button onClick={onBack}>
+          <button data-back onClick={onBack}>
             <ChevronLeft size={30} strokeWidth={1.8} />
           </button>
           <IgAvatar handle={t.name} size={30} />
@@ -274,20 +297,29 @@ function DMs() {
 }
 
 function Explore() {
-  const kinds = ["alley", "car", "tunnel", "rain", "parking", "sky", "sketch"];
+  const d = useData();
   return (
     <>
-      <div className="px-[12px] pt-[4px] pb-[8px]">
-        <div className="h-[36px] rounded-[10px] bg-[#EFEFEF] flex items-center gap-[8px] px-[12px] text-black/45 text-[15px]">
+      <div className="px-[12px] pt-[4px] pb-[8px] flex items-center gap-[10px]">
+        <div className="flex-1 h-[36px] rounded-[10px] bg-[#EFEFEF] flex items-center gap-[8px] px-[12px] text-black/45 text-[15px]">
           <Search size={16} />
           검색
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-[1.5px]">
-        {Array.from({ length: 21 }).map((_, i) => (
-          <img key={i} src={genPhoto(`${kinds[i % kinds.length]}:${i + 70}`, 300, i % 10 === 2 ? 600 : 300)} className={`w-full object-cover ${i % 10 === 2 ? "row-span-2 h-full" : "aspect-square"}`} alt="" />
-        ))}
+      <div className="flex justify-between px-[14px] pt-[6px] pb-[4px]">
+        <span className="text-[16px] font-bold">최근 검색 항목</span>
+        <span className="text-[14px] text-[#0095F6]">모두 보기</span>
       </div>
+      {[...d.ig.users].reverse().map((u) => (
+        <div key={u.handle} className="flex items-center gap-[12px] px-[14px] py-[8px]">
+          <IgAvatar handle={u.handle} size={50} />
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-semibold truncate">{u.handle}</div>
+            <div className="text-[13px] text-black/50 truncate">{u.name} · 팔로워 {u.followers.toLocaleString()}명</div>
+          </div>
+          <span className="text-black/40 text-[20px] leading-none">×</span>
+        </div>
+      ))}
     </>
   );
 }

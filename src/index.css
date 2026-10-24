@@ -114,6 +114,13 @@ select {
   background: #000;
   isolation: isolate;
   transform: translateZ(0);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.screen input,
+.screen textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 /* 모바일: 프레임 없이 전체 화면 */
 .mobile .stage {

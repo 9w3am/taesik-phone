@@ -20,14 +20,14 @@ function Viewer({ start, ids, onClose }: { start: number; ids: string[]; onClose
   return (
     <div className="absolute inset-0 z-30 fade" style={{ background: dark ? "#000" : "#fff" }}>
       <div className="absolute inset-0 flex items-center justify-center" onClick={() => setChrome(!chrome)}>
-        <Img src={photoSrc(p.id, d.photos, 900, 1200)} className="w-full max-h-full" style={{ objectFit: "contain", aspectRatio: "3/4" }} />
+        <Img src={photoSrc(p.id, d.photos)} className="w-full max-h-full" style={{ objectFit: "contain", aspectRatio: "3/4" }} />
       </div>
       <button className="absolute left-0 top-[120px] bottom-[120px] w-[30%]" onClick={() => setI(Math.max(0, i - 1))} aria-label="이전" />
       <button className="absolute right-0 top-[120px] bottom-[120px] w-[30%]" onClick={() => setI(Math.min(ids.length - 1, i + 1))} aria-label="다음" />
       {chrome && (
         <>
           <div className="absolute top-0 left-0 right-0 blur-bar flex items-center px-2" style={{ paddingTop: "var(--sat)", background: "rgba(255,255,255,0.88)" }}>
-            <button onClick={onClose} className="h-[44px] flex items-center text-[#007AFF]">
+            <button data-back onClick={onClose} className="h-[44px] flex items-center text-[#007AFF]">
               <ChevronLeft size={30} strokeWidth={2.3} />
             </button>
             <div className="flex-1 text-center -ml-8">
@@ -69,7 +69,7 @@ export default function Photos() {
     <div className="grid grid-cols-3 gap-[1.5px]">
       {ids.map((id, i) => (
         <button key={id} onClick={() => setView({ ids, i })} className="aspect-square overflow-hidden relative">
-          <Img src={photoSrc(id, d.photos, 300, 300)} className="w-full h-full" />
+          <Img src={photoSrc(id, d.photos)} className="w-full h-full" />
           {d.photos.find((p) => p.id === id)?.fav && <Heart size={13} fill="#fff" color="#fff" className="absolute left-[5px] bottom-[5px]" />}
         </button>
       ))}
@@ -81,17 +81,26 @@ export default function Photos() {
         <div className="absolute inset-0 scroll flex flex-col-reverse" style={{ paddingBottom: 140 }}>
           <div>
             <div style={{ height: "calc(var(--sat) + 70px)" }} />
-            {grid([...all].reverse())}
-            <div className="text-center py-[14px]">
-              <div className="text-[15px] font-semibold">사진 {all.length}장</div>
-            </div>
+            {all.length ? (
+              <>
+                {grid([...all].reverse())}
+                <div className="text-center py-[14px]">
+                  <div className="text-[15px] font-semibold">사진 {all.length}장</div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center px-10" style={{ height: 520 }}>
+                <div className="text-[22px] font-bold">사진 없음</div>
+                <div className="text-[15px] text-black/50 mt-[6px] leading-[21px]">이 iPhone으로 찍은 사진과 비디오가 여기에 표시됩니다.</div>
+              </div>
+            )}
           </div>
         </div>
       )}
       {tab === "lib" && (
         <>
-          <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none" style={{ height: "calc(var(--sat) + 80px)", background: "linear-gradient(rgba(0,0,0,0.45), transparent)" }} />
-          <div className="absolute left-[16px] right-[16px] z-10 flex justify-between items-end text-white" style={{ top: "calc(var(--sat) + 6px)" }}>
+          <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none" style={{ height: "calc(var(--sat) + 80px)", background: all.length ? "linear-gradient(rgba(0,0,0,0.45), transparent)" : "transparent" }} />
+          <div className={`absolute left-[16px] right-[16px] z-10 flex justify-between items-end ${all.length ? "text-white" : "text-black"}`} style={{ top: "calc(var(--sat) + 6px)" }}>
             <div>
               <div className="text-[28px] font-bold leading-[32px]">보관함</div>
               <div className="text-[15px] font-semibold opacity-90">최근 항목</div>
@@ -132,7 +141,7 @@ export default function Photos() {
                   ["즐겨찾는 항목", favs],
                 ].map(([name, ids]) => (
                   <button key={name as string} onClick={() => setAlbum(name as string)} className="text-left">
-                    <Img src={(ids as string[])[0] ? photoSrc((ids as string[])[0], d.photos, 400, 400) : ""} className="w-full aspect-square rounded-[8px]" />
+                    <Img src={(ids as string[])[0] ? photoSrc((ids as string[])[0], d.photos) : ""} className="w-full aspect-square rounded-[8px]" />
                     <div className="text-[15px] mt-[6px]">{name as string}</div>
                     <div className="text-[15px] text-black/50">{(ids as string[]).length}</div>
                   </button>
@@ -155,13 +164,14 @@ export default function Photos() {
         <div className="absolute inset-0 scroll" style={{ paddingTop: "calc(var(--sat) + 44px)", paddingBottom: 120 }}>
           <LargeTitle>For You</LargeTitle>
           <div className="px-4 text-[22px] font-bold pb-2">추억</div>
-          <div className="mx-4 rounded-[14px] overflow-hidden relative">
-            <Img src={photoSrc(d.photos[1]?.id ?? "", d.photos, 700, 900)} className="w-full aspect-[4/5]" />
+          {d.photos.length === 0 && <div className="px-4 text-[15px] text-black/50">추억이 아직 없습니다. 사진이 쌓이면 여기에 모아서 보여 줍니다.</div>}
+          {d.photos.length > 0 && <div className="mx-4 rounded-[14px] overflow-hidden relative">
+            <Img src={photoSrc(d.photos[0]?.id ?? "", d.photos)} className="w-full aspect-[4/5]" />
             <div className="absolute bottom-0 left-0 right-0 p-[16px] text-white" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.6))" }}>
               <div className="text-[24px] font-bold">밤</div>
               <div className="text-[15px] opacity-85">최근</div>
             </div>
-          </div>
+          </div>}
         </div>
       )}
       {tab === "search" && (

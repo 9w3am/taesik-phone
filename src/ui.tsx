@@ -1,7 +1,6 @@
 /* 공용 iOS UI 조각 */
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { ChevronLeft, User } from "lucide-react";
-import { genPhoto } from "./photos";
 
 /* 현재 시각 (1초마다 갱신) */
 export function useNow(ms = 1000) {
@@ -81,7 +80,7 @@ export function NavBar({
       <div className="relative h-[44px] flex items-center justify-between px-2">
         <div className="flex items-center min-w-[70px] z-10">
           {onBack && (
-            <button onClick={onBack} className="flex items-center -ml-0.5 h-[44px] pr-2" style={{ color: tint }}>
+            <button data-back onClick={onBack} className="flex items-center -ml-0.5 h-[44px] pr-2" style={{ color: tint }}>
               <ChevronLeft size={30} strokeWidth={2.4} className="-mr-1" />
               <span className="text-[17px] truncate max-w-[110px]">{back}</span>
             </button>
@@ -153,15 +152,7 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
 
 /* 카카오톡 기본 프로필 (연하늘 스쿼클 + 흰 실루엣) */
 export function KakaoAvatar({ size = 48, group = false, seed }: { size?: number; group?: boolean; seed?: string }) {
-  if (seed && !group) {
-    let h = 0;
-    for (const c of seed) h = (h * 31 + c.charCodeAt(0)) % 1009;
-    // 저장명마다 고정: 일부는 기본 프로필, 일부는 (코드로 그린) 사진 프로필
-    if (h % 3 !== 0) {
-      const kinds = ["sky", "car", "alley", "rain", "tunnel", "parking"];
-      return <img src={genPhoto(`${kinds[h % kinds.length]}:${h}`, 120, 120)} className="shrink-0 object-cover" style={{ width: size, height: size, borderRadius: size * 0.39 }} alt="" />;
-    }
-  }
+  void seed;
   return (
     <div className="shrink-0 overflow-hidden flex items-center justify-center" style={{ width: size, height: size, borderRadius: size * 0.39, background: "#A9BBCE" }}>
       {group ? (

@@ -45,12 +45,15 @@ function Bubble({ m, tail, sms }: { m: Msg; tail: boolean; sms?: boolean }) {
   const d = useData();
   const mine = m.from === "me";
   const bg = mine ? (sms ? "#34C759" : "#007AFF") : "#E9E9EB";
-  if (m.kind === "photo")
+  if (m.kind === "photo") {
+    const src = photoSrc(m.photo || "", d.photos);
+    if (!src) return null;
     return (
       <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-        <Img src={photoSrc(m.photo || "", d.photos, 480, 640)} className="w-[200px] h-[260px] rounded-[18px]" />
+        <Img src={src} className="w-[200px] h-[260px] rounded-[18px]" />
       </div>
     );
+  }
   return (
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div className="relative max-w-[72%]">
@@ -77,7 +80,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
       {/* 헤더 */}
       <div className="relative z-20 blur-bar hair-b" style={{ paddingTop: "var(--sat)", background: "rgba(249,249,249,0.9)" }}>
         <div className="relative h-[78px] flex items-start justify-between px-2 pt-1">
-          <button onClick={onBack} className="flex items-center text-[#007AFF] h-[44px]">
+          <button data-back onClick={onBack} className="flex items-center text-[#007AFF] h-[44px]">
             <ChevronLeft size={32} strokeWidth={2.3} />
             {unreadOthers > 0 && <span className="min-w-[22px] h-[22px] px-[7px] rounded-full bg-[#007AFF] text-white text-[14px] font-medium flex items-center justify-center -ml-1">{unreadOthers}</span>}
           </button>

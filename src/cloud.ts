@@ -17,7 +17,7 @@ export const SB_KEY = ENV.VITE_SUPABASE_ANON_KEY || "";
 export const SB_ROW = ENV.VITE_SUPABASE_ROW || "main";
 export const cloudEnabled = () => !!(SB_URL && SB_KEY);
 
-const REV_KEY = "taesik-phone:rev";
+const REV_KEY = "taesik-phone:rev2";
 const SESSION_KEY = "taesik-phone:sb-session";
 
 export type Published = { rev: number; data: PhoneData };

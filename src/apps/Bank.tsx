@@ -25,7 +25,7 @@ function History({ onBack }: { onBack: () => void }) {
     <div className="absolute inset-0 bg-white z-20 push flex flex-col">
       <div style={{ paddingTop: "var(--sat)" }}>
         <div className="h-[50px] flex items-center justify-between px-[10px]">
-          <button onClick={onBack}>
+          <button data-back onClick={onBack}>
             <ChevronLeft size={28} strokeWidth={2} className="text-[#4E5968]" />
           </button>
           <Settings2 size={22} className="text-[#4E5968] mr-[6px]" />

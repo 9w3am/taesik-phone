@@ -2,9 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Flashlight, Camera, Lock, MapPin, Cloud, Search, Phone as PhoneIcon, PhoneOff, MessageCircle, AlarmClock } from "lucide-react";
 import { useData, update, DAYS, type PhoneData, type Song } from "./store";
 import { AppIcon } from "./icons";
-import { Ctx, hm, useNow, type PhoneCtx } from "./ui";
+import { Avatar, Ctx, hm, useNow, type PhoneCtx } from "./ui";
 import { APPS } from "./apps";
 import { CallScreen } from "./apps/Call";
+import { ControlCenter, NotifCenter } from "./Overlays";
+import { Handset, HandsetDown } from "./phoneIcons";
+
+/** 수신 화면 보조 문구: 연락처에 있으면 라벨(휴대전화 등), 번호면 대한민국, 모르면 비움 */
+function callerSub(d: PhoneData, name: string) {
+  const c = d.contacts.find((x) => x.name === name);
+  if (c) return c.label;
+  if (/^[+0-9]/.test(name)) return "대한민국";
+  return "";
+}
 
 /* ───────── 배경화면: 단순한 다크 모노톤 추상 (CSS로만 생성) ───────── */
 const WALL =
@@ -34,10 +44,7 @@ function StatusBar({ dark, battery, lowPower, onLongPress, hideTime, carrier }: 
   return (
     <div className="absolute top-0 left-0 right-0 h-[54px] z-[60] pointer-events-none flex items-center justify-between" style={{ color: c }}>
       <div
-        className="w-[150px] flex justify-center pt-[6px] pointer-events-auto select-none"
-        onPointerDown={() => (timer.current = window.setTimeout(onLongPress, 1600))}
-        onPointerUp={() => clearTimeout(timer.current)}
-        onPointerLeave={() => clearTimeout(timer.current)}
+        className="w-[150px] flex justify-center pt-[6px] select-none"
       >
         {!hideTime && <span className="text-[17px] font-semibold tracking-[-0.02em] tabular">{hm(now)}</span>}
       </div>
@@ -219,7 +226,7 @@ function Passcode({ code, hint, onOk, onCancel }: { code: string; hint: string; 
 
 /* ───────── 홈 화면 ───────── */
 type HomeItem = string;
-const GRID: HomeItem[] = ["kakao", "signal", "insta", "photos", "calendar", "notes", "contacts", "bank", "maps", "clock", "weather", "calculator", "camera", "settings"];
+const GRID: HomeItem[] = ["kakao", "insta", "photos", "calendar", "notes", "contacts", "bank", "maps", "clock", "weather", "calculator", "camera", "settings"];
 const DOCK: HomeItem[] = ["phone", "messages", "safari", "music"];
 
 function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
@@ -228,7 +235,6 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
     const t = (app: string) => d.threads.filter((x) => x.app === app).reduce((a, x) => a + (x.unread || 0), 0);
     if (id === "messages") return t("messages");
     if (id === "kakao") return t("kakao");
-    if (id === "signal") return t("signal");
     if (id === "insta") return t("insta");
     if (id === "phone") return d.calls.filter((c) => c.kind === "missed").reduce((a, c) => a + (c.count || 1), 0);
     return 0;
@@ -316,39 +322,69 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
   );
 }
 
-/* ───────── 수신 전화 ───────── */
-function Incoming({ name, onAccept, onDecline }: { name: string; onAccept: () => void; onDecline: () => void }) {
-  return (
-    <div className="absolute inset-0 z-[80] text-white fade bg-[#111]">
-      <Wallpaper blur={40} dim={0.45} />
-      <div className="relative flex flex-col items-center pt-[86px]">
-        <div className="text-[15px] text-white/70">휴대전화</div>
-        <div className="text-[34px] font-normal mt-1 px-6 text-center leading-[40px]">{name}</div>
-      </div>
-      <div className="absolute bottom-[150px] left-0 right-0 flex justify-between px-[54px] text-[13px]">
-        <div className="flex flex-col items-center gap-2 opacity-90">
-          <div className="w-[46px] h-[46px] rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.18)" }}>
-            <AlarmClock size={20} />
+/* ───────── 수신 전화 ─────────
+   iOS 기본값처럼: 폰을 쓰는 중이면 위에 작은 배너로 뜨고, 배너를 누르면 전체 화면으로 커진다. */
+function Incoming({ name, sub, onAccept, onDecline }: { name: string; sub: string; onAccept: () => void; onDecline: () => void }) {
+  const [full, setFull] = useState(false);
+  if (!full)
+    return (
+      <div className="absolute top-[10px] left-[8px] right-[8px] z-[88] banner">
+        <div className="rounded-[26px] pl-[14px] pr-[10px] py-[10px] flex items-center gap-[12px] blur-bar cursor-pointer" style={{ background: "rgba(30,30,32,0.92)", boxShadow: "0 10px 30px rgba(0,0,0,0.35)" }} onClick={() => setFull(true)}>
+          <Avatar name={name} size={44} />
+          <div className="flex-1 min-w-0 text-white">
+            <div className="text-[13px] text-white/55 leading-[16px]">{sub || "수신 전화"}</div>
+            <div className="text-[17px] font-semibold truncate leading-[22px]">{name}</div>
           </div>
+          <button
+            aria-label="거절"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDecline();
+            }}
+            className="w-[44px] h-[44px] rounded-full bg-[#FF3B30] flex items-center justify-center shrink-0 active:brightness-90"
+          >
+            <HandsetDown size={24} />
+          </button>
+          <button
+            aria-label="수락"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAccept();
+            }}
+            className="w-[44px] h-[44px] rounded-full bg-[#34C759] flex items-center justify-center shrink-0 active:brightness-90"
+          >
+            <Handset size={22} />
+          </button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="absolute inset-0 z-[88] text-white fade bg-[#111]">
+      <Wallpaper blur={40} dim={0.5} />
+      <div className="relative flex flex-col items-center pt-[96px] px-6 text-center">
+        <div className="text-[34px] leading-[40px] font-normal tracking-[-0.01em]">{name}</div>
+        {sub && <div className="text-[17px] text-white/60 mt-[6px]">{sub}</div>}
+      </div>
+      <div className="absolute bottom-[196px] left-0 right-0 flex justify-between px-[58px] text-[13px] text-white/90">
+        <div className="flex flex-col items-center gap-[8px]">
+          <AlarmClock size={22} strokeWidth={1.8} />
           알림
         </div>
-        <div className="flex flex-col items-center gap-2 opacity-90">
-          <div className="w-[46px] h-[46px] rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.18)" }}>
-            <MessageCircle size={20} />
-          </div>
+        <div className="flex flex-col items-center gap-[8px]">
+          <MessageCircle size={22} strokeWidth={1.8} fill="#fff" />
           메시지
         </div>
       </div>
-      <div className="absolute bottom-[56px] left-0 right-0 flex justify-between px-[46px] text-[15px]">
-        <button onClick={onDecline} className="flex flex-col items-center gap-2">
-          <span className="w-[76px] h-[76px] rounded-full bg-[#FF3B30] flex items-center justify-center">
-            <PhoneOff size={32} fill="#fff" strokeWidth={0} />
+      <div className="absolute bottom-[54px] left-0 right-0 flex justify-between px-[44px] text-[15px]">
+        <button onClick={onDecline} className="flex flex-col items-center gap-[10px]">
+          <span className="w-[78px] h-[78px] rounded-full bg-[#FF3B30] flex items-center justify-center active:brightness-90">
+            <HandsetDown size={36} />
           </span>
           거절
         </button>
-        <button onClick={onAccept} className="flex flex-col items-center gap-2">
-          <span className="w-[76px] h-[76px] rounded-full bg-[#34C759] flex items-center justify-center ring">
-            <PhoneIcon size={32} fill="#fff" strokeWidth={0} />
+        <button onClick={onAccept} className="flex flex-col items-center gap-[10px]">
+          <span className="w-[78px] h-[78px] rounded-full bg-[#34C759] flex items-center justify-center active:brightness-90">
+            <Handset size={34} />
           </span>
           수락
         </button>
@@ -374,6 +410,13 @@ export default function Phone() {
   const [lowPower, setLowPower] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [playing, setPlaying] = useState<Song | null>(null);
+  const [cc, setCc] = useState(false); // 제어 센터
+  const [nc, setNc] = useState(false); // 알림 센터
+  const [bright, setBright] = useState(1);
+  const [torch, setTorch] = useState(false);
+  const appRoot = useRef<HTMLDivElement>(null);
+  const top = useRef<{ x: number; y: number; w: number; moved: boolean; t?: number } | null>(null);
+  const edge = useRef<{ x: number; y: number } | null>(null);
   const [mobile, setMobile] = useState(false);
   const [scale, setScale] = useState(1);
   const fired = useRef<Set<string>>(new Set());
@@ -469,7 +512,7 @@ export default function Phone() {
           <>
             <Home d={d} open={open} />
             {AppComp && (
-              <div key={appKey} className="absolute inset-0 z-10 app-open overflow-hidden" style={{ background: APPS[app!]?.light ? "#fff" : "#000" }}>
+              <div ref={appRoot} key={appKey} className="absolute inset-0 z-10 app-open overflow-hidden" style={{ background: APPS[app!]?.light ? "#fff" : "#000" }}>
                 <AppComp />
               </div>
             )}
@@ -501,6 +544,7 @@ export default function Phone() {
         {call && call.ringing && (
           <Incoming
             name={call.name}
+            sub={callerSub(d, call.name)}
             onAccept={() => setCall({ ...call, ringing: false })}
             onDecline={() => {
               setCall(null);
@@ -558,8 +602,76 @@ export default function Phone() {
           </div>
         )}
 
+        {/* 제어 센터 · 알림 센터 */}
+        {cc && <ControlCenter d={d} close={() => setCc(false)} open={open} playing={playing} brightness={bright} setBrightness={setBright} torch={torch} setTorch={setTorch} />}
+        {nc && <NotifCenter d={d} close={() => setNc(false)} open={open} />}
+
         <StatusBar dark={onDarkSurface && !(call && true)} battery={d.battery} lowPower={lowPower} onLongPress={goEditor} hideTime={phase === "lock"} carrier={d.carrier} />
         <Island playing={playing} calling={false} />
+
+        {/* 화면 맨 위: 왼쪽에서 끌어내리면 알림 센터, 오른쪽이면 제어 센터 (오른쪽 위 탭도 됨) · 시계 길게 누르면 에디터 */}
+        {phase !== "code" && !(call && call.ringing) && !cc && !nc && (
+          <div
+            className="absolute top-0 left-0 right-0 h-[46px] z-[66] touch-none"
+            onPointerDown={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              const x = (e.clientX - r.left) / r.width;
+              top.current = { x, y: e.clientY, w: r.width, moved: false, t: x < 0.38 ? window.setTimeout(goEditor, 1600) : undefined };
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              const g = top.current;
+              if (!g || g.moved) return;
+              if (e.clientY - g.y > 26) {
+                g.moved = true;
+                clearTimeout(g.t);
+                if (g.x > 0.62) setCc(true);
+                else if (phase === "home") setNc(true);
+              }
+            }}
+            onPointerUp={() => {
+              const g = top.current;
+              top.current = null;
+              if (!g) return;
+              clearTimeout(g.t);
+              if (!g.moved && g.x > 0.66) setCc(true);
+            }}
+            onPointerLeave={() => top.current && clearTimeout(top.current.t)}
+          />
+        )}
+
+        {/* 앱 화면 왼쪽 끝에서 오른쪽으로 밀면 뒤로 가기 (뒤로 갈 곳이 없으면 홈) */}
+        {phase === "home" && app && !call && !cc && !nc && (
+          <div
+            className="absolute left-0 top-[46px] bottom-[30px] w-[12px] z-[66] touch-none"
+            onPointerDown={(e) => {
+              edge.current = { x: e.clientX, y: e.clientY };
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerUp={(e) => {
+              const g = edge.current;
+              edge.current = null;
+              if (!g) return;
+              if (Math.abs(e.clientX - g.x) < 8 && Math.abs(e.clientY - g.y) < 8) {
+                // 그냥 탭이면 아래에 있는 버튼으로 전달
+                const el = e.currentTarget;
+                el.style.pointerEvents = "none";
+                (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.click();
+                el.style.pointerEvents = "";
+                return;
+              }
+              if (e.clientX - g.x < 60 || Math.abs(e.clientY - g.y) > 80) return;
+              const backs = appRoot.current?.querySelectorAll<HTMLElement>("[data-back]");
+              const b = backs && backs[backs.length - 1];
+              if (b) b.click();
+              else home();
+            }}
+          />
+        )}
+
+        {/* 밝기 */}
+        {bright < 1 && <div className="absolute inset-0 z-[99] pointer-events-none bg-black" style={{ opacity: (1 - bright) * 0.72 }} />}
+        {torch && phase === "home" && <div className="absolute inset-0 z-[97] pointer-events-none" style={{ boxShadow: "inset 0 0 120px rgba(255,255,255,0.05)" }} />}
 
         {/* 홈 인디케이터 */}
         {phase === "home" && (

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Share, BookOpen, Copy, RotateCw, Lock, Searc
 import { useData, update, uid, type Page, type SafariTab } from "../store";
 import { photoSrc } from "../photos";
 import { Img, useStatusBar } from "../ui";
+import { GooglePage, WikiPage, VideoPage, SnsPage, BoardPage, CarPage, ShopPage, NoImage } from "./SafariPages";
 
 const NAVER = "#03C75A";
 
@@ -115,8 +116,8 @@ function MarketPage({ p }: { p: Extract<Page, { type: "market" }> }) {
   return (
     <div className="bg-white min-h-full pb-[80px] relative">
       <div className="relative">
-        <Img src={photoSrc(p.photo, d.photos, 720, 720)} className="w-full aspect-square" />
-        <div className="absolute top-0 left-0 right-0 flex justify-between px-[12px] pt-[10px] text-white">
+        {photoSrc(p.photo, d.photos) ? <Img src={photoSrc(p.photo, d.photos)} className="w-full aspect-square" /> : <NoImage className="w-full aspect-square" />}
+        <div className={`absolute top-0 left-0 right-0 flex justify-between px-[12px] pt-[10px] text-black/70`}>
           <div className="flex gap-[14px]">
             <ChevronLeft size={26} />
             <Home size={23} />
@@ -136,11 +137,14 @@ function MarketPage({ p }: { p: Extract<Page, { type: "market" }> }) {
           <div className="text-[13px] text-black/50">{p.area}</div>
         </div>
         <div className="text-right">
+          {p.site === "daangn" ? (<>
           <div className="text-[15px] font-bold text-[#DE5D06]">{p.temp}°C</div>
           <div className="w-[60px] h-[4px] rounded-full bg-[#F1F3F5] mt-[2px] overflow-hidden">
             <div className="h-full bg-[#DE5D06]" style={{ width: `${Math.min(100, p.temp)}%` }} />
           </div>
-          <div className="text-[11px] text-black/40 underline mt-[2px]">매너온도</div>
+          <div className="text-[11px] text-black/40 underline mt-[2px]">매너온도</div></>) : (
+            <div className="text-[12px] text-black/50">{p.site === "bunjang" ? "번개페이 안전결제" : "중고나라 페이"}</div>
+          )}
         </div>
       </div>
       <div className="px-[16px] pt-[18px]">
@@ -152,7 +156,9 @@ function MarketPage({ p }: { p: Extract<Page, { type: "market" }> }) {
         <Heart size={24} className="text-black/40" />
         <span className="w-[0.5px] h-[30px] bg-black/10" />
         <span className="text-[17px] font-bold flex-1">{p.price}</span>
-        <span className="h-[40px] px-[16px] rounded-[6px] bg-[#FF6F0F] text-white text-[15px] font-bold flex items-center">채팅하기</span>
+        <span className="h-[40px] px-[16px] rounded-[6px] text-white text-[15px] font-bold flex items-center" style={{ background: p.site === "bunjang" ? "#D80C18" : p.site === "joongna" ? "#0DCC5A" : "#FF6F0F" }}>
+          {p.site === "bunjang" ? "번개톡" : "채팅하기"}
+        </span>
       </div>
     </div>
   );
@@ -219,6 +225,8 @@ function NewsPage({ p }: { p: Extract<Page, { type: "news" }> }) {
   );
 }
 
+const FAV: Record<string, string> = { Google: "#4285F4", YouTube: "#FF0000", 나무위키: "#00A495", 당근: "#FF6F0F", 번개장터: "#D80C18", 쿠팡: "#E8781C", X: "#000" };
+
 function StartPage({ onGo }: { onGo: (q: string) => void }) {
   const d = useData();
   return (
@@ -228,7 +236,7 @@ function StartPage({ onGo }: { onGo: (q: string) => void }) {
         {d.safari.favorites.map((f) => (
           <button key={f.url} onClick={() => onGo(f.title)} className="flex flex-col items-center gap-[6px]">
             <span className="w-[62px] h-[62px] rounded-[14px] bg-white flex items-center justify-center text-[26px] font-bold text-black/70" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-              {f.title === "NAVER" ? <NaverLogo size={40} /> : f.title[0]}
+              {f.title === "NAVER" ? <NaverLogo size={40} /> : <span style={{ color: FAV[f.title] ?? "#555" }}>{f.title === "YouTube" ? "▶" : f.title[0]}</span>}
             </span>
             <span className="text-[12px] text-black/70 truncate max-w-[76px]">{f.title}</span>
           </button>
@@ -244,7 +252,13 @@ function StartPage({ onGo }: { onGo: (q: string) => void }) {
 }
 
 function PageView({ page, onGo }: { page: Page; onGo: (q: string) => void }) {
-  if (page.type === "search") return <SearchPage p={page} />;
+  if (page.type === "search") return page.engine === "google" ? <GooglePage p={page} /> : <SearchPage p={page} />;
+  if (page.type === "wiki") return <WikiPage p={page} />;
+  if (page.type === "video") return <VideoPage p={page} />;
+  if (page.type === "sns") return <SnsPage p={page} />;
+  if (page.type === "board") return <BoardPage p={page} />;
+  if (page.type === "car") return <CarPage p={page} />;
+  if (page.type === "shop") return <ShopPage p={page} />;
   if (page.type === "cafe") return <CafePage p={page} />;
   if (page.type === "market") return <MarketPage p={page} />;
   if (page.type === "job") return <JobPage p={page} />;
@@ -264,14 +278,15 @@ export default function Safari() {
     if (!query.trim()) return;
     const t: SafariTab = {
       id: uid(),
-      title: `${query} : 네이버 검색`,
-      url: "m.search.naver.com",
+      title: `${query} - Google 검색`,
+      url: "google.com",
       page: {
         type: "search",
-        engine: "naver",
+        engine: "google",
         query,
         results: [
           { title: `${query} — 블로그 후기 모음`, url: "m.blog.naver.com", desc: `${query}에 대해 직접 알아본 내용을 정리했습니다. 생각보다 정보가 많지 않아서…`, source: "블로그" },
+          { title: `${query} - 나무위키`, url: "namu.wiki", desc: `${query}에 대한 문서. 개요, 상세, 관련 문서…`, source: "나무위키" },
           { title: `${query} 질문드립니다 (지식iN)`, url: "m.kin.naver.com", desc: `${query} 관련해서 아시는 분 계신가요? 급하게 알아보는 중입니다.`, source: "지식iN" },
           { title: `'${query}' 관련 기사`, url: "n.news.naver.com", desc: `${query}와 관련한 최근 보도 내용을 정리했다.`, source: "뉴스" },
         ],

@@ -149,7 +149,7 @@ function Basic({ d }: { d: PhoneData }) {
           </F>
         </div>
         <div className="mt-4">
-          <C label="방문자가 입력창에 직접 타자 쳐서 보낼 수 있게 허용 (끄면 제작자가 넣은 '초안'만 전송 가능)" value={d.allowSend} onChange={(v) => s((x) => void (x.allowSend = v))} />
+          <C label="방문자가 입력창에 타자 쳐서 메시지 보내기 허용 (기본 켜짐 · 끄면 제작자가 넣은 초안만 전송 가능)" value={d.allowSend} onChange={(v) => s((x) => void (x.allowSend = v))} />
         </div>
       </Card>
       <Card title="날씨 위젯">
@@ -178,7 +178,6 @@ function Basic({ d }: { d: PhoneData }) {
 const APP_OPTS: [string, string][] = [
   ["messages", "메시지"],
   ["kakao", "카카오톡"],
-  ["signal", "Signal"],
   ["insta", "Instagram"],
   ["phone", "전화"],
   ["bank", "뱅킹"],
@@ -211,7 +210,7 @@ function Events({ d }: { d: PhoneData }) {
           </F>
           <F label="앱">
             <select value={e.banner.app} onChange={(ev) => update((x) => void (x.events.banner.app = ev.target.value as AppKind))}>
-              {APP_OPTS.slice(0, 4).map(([v, l]) => (
+              {APP_OPTS.slice(0, 3).map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
                 </option>
@@ -299,7 +298,7 @@ function ScriptBox({ t }: { t: Thread }) {
       <div className="text-[12px] text-black/50 mt-2 leading-[19px] bg-black/[0.03] rounded-[10px] p-3">
         <b>쓰는 법</b> · <code>나: 내용</code> 최태식이 보낸 말 · <code>상대: 내용</code> 상대가 보낸 말 · 단체방은 <code>이름: 내용</code> · <code>--- 안내문</code> 가운데 회색 안내 · 줄 앞에 공백 두 칸이면 윗 말풍선에 줄바꿈으로 이어짐
         <br />
-        <code>나: [송금] 150000 메모</code> 송금 카드 · <code>상대: [사진] gen:alley:3</code> 사진 (gen:종류:번호 — 종류: parking, alley, car, rain, tunnel, sky, sketch, memo / 또는 사진 탭의 사진 ID)
+        <code>나: [송금] 150000 메모</code> 송금 카드 · <code>상대: [사진] 사진ID</code> 사진 (ID는 에디터 사진 탭에서 확인)
       </div>
     </div>
   );
@@ -335,7 +334,7 @@ function Threads({ d }: { d: PhoneData }) {
   return (
     <>
       <div className="flex gap-2 mb-4">
-        {(APP_OPTS.slice(0, 4) as [AppKind, string][]).map(([v, l]) => (
+        {(APP_OPTS.slice(0, 3) as [AppKind, string][]).map(([v, l]) => (
           <button key={v} onClick={() => (setApp(v), setSel(null))} className={`h-[34px] px-4 rounded-full text-[14px] font-medium ${app === v ? "bg-black text-white" : "bg-white border border-black/10"}`}>
             {l} <span className="opacity-50 ml-1">{d.threads.filter((x) => x.app === v).length}</span>
           </button>
@@ -388,11 +387,6 @@ function Threads({ d }: { d: PhoneData }) {
               {app === "kakao" && (
                 <F label="단체방 인원 (1:1이면 0)">
                   <N value={t.members ?? 0} onChange={(v) => put({ members: v || undefined })} />
-                </F>
-              )}
-              {app === "signal" && (
-                <F label="사라지는 메시지">
-                  <T value={t.timer ?? ""} ph="1시간" onChange={(v) => put({ timer: v || undefined })} />
                 </F>
               )}
             </div>
@@ -582,20 +576,11 @@ function Songs({ d }: { d: PhoneData }) {
 
 function PhotosEd({ d }: { d: PhoneData }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [kind, setKind] = useState("alley");
   return (
     <Card
       title={`사진 (${d.photos.length})`}
       right={
         <>
-          <select value={kind} onChange={(e) => setKind(e.target.value)} className="!w-[120px] !h-[34px] !py-0">
-            {["parking", "alley", "car", "rain", "tunnel", "sky", "sketch", "memo"].map((k) => (
-              <option key={k}>{k}</option>
-            ))}
-          </select>
-          <Btn onClick={() => update((x) => void x.photos.unshift({ id: uid(), kind: `${kind}:${Math.floor(Math.random() * 999)}`, caption: "", when: "오늘" }))}>
-            <Plus size={15} /> 생성 사진
-          </Btn>
           <Btn kind="primary" onClick={() => fileRef.current?.click()}>
             <Upload size={15} /> 업로드
           </Btn>
@@ -617,11 +602,11 @@ function PhotosEd({ d }: { d: PhoneData }) {
         </>
       }
     >
-      <p className="text-[13px] text-black/50 mb-3">기본 사진은 전부 코드로 그린 이미지라 저작권 문제가 없습니다. 직접 올리는 사진은 본인이 권리를 가진 것만 쓰세요. (LocalStorage 용량 때문에 자동으로 축소됩니다)</p>
+      <p className="text-[13px] text-black/50 mb-3">사진은 여기서 직접 올린 것만 폰에 나옵니다. 본인이 권리를 가진 사진만 쓰세요. 사진 ID를 대화 스크립트(<code>[사진] ID</code>)나 인스타 게시물/프로필에 넣으면 거기에도 나옵니다. 큰 사진은 자동으로 줄여서 저장합니다.</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {d.photos.map((p) => (
           <div key={p.id} className="rounded-[12px] border border-black/[0.08] overflow-hidden bg-[#FAFAFC]">
-            <img src={photoSrc(p.id, d.photos, 240, 240)} className="w-full aspect-square object-cover" alt="" />
+            <img src={photoSrc(p.id, d.photos)} className="w-full aspect-square object-cover" alt="" />
             <div className="p-2 space-y-1.5">
               <input value={p.caption} placeholder="설명" onChange={(e) => update((x) => void (x.photos.find((y) => y.id === p.id)!.caption = e.target.value))} />
               <input value={p.when} placeholder="날짜 표기" onChange={(e) => update((x) => void (x.photos.find((y) => y.id === p.id)!.when = e.target.value))} />
@@ -714,7 +699,7 @@ function JsonEd({ d }: { d: PhoneData }) {
       </div>
       <textarea rows={24} spellCheck={false} className="font-mono !text-[12px]" value={text} onChange={(e) => setText(e.target.value)} />
       {err && <div className={`text-[13px] mt-2 ${err === "적용됨" ? "text-[#34C759]" : "text-[#FF3B30]"}`}>{err}</div>}
-      <p className="text-[12px] text-black/45 mt-2">사파리 페이지 type: search(검색결과) / cafe(카페글) / market(중고거래) / job(구인) / news(기사). 사진은 "gen:종류:번호".</p>
+      <p className="text-[12px] text-black/45 mt-2">사파리 페이지 type: search(검색결과) / cafe(카페글) / market(중고거래) / job(구인) / news(기사). 사진은 사진 탭의 ID.</p>
     </Card>
   );
 }
@@ -781,7 +766,7 @@ function AiEd({ d }: { d: PhoneData }) {
         {target === "thread" && (
           <F label="앱">
             <select value={app} onChange={(e) => setApp(e.target.value as AppKind)}>
-              {APP_OPTS.slice(0, 4).map(([v, l]) => (
+              {APP_OPTS.slice(0, 3).map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
                 </option>

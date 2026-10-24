@@ -5,7 +5,7 @@ import {
   Plane, Wifi, Bluetooth, Antenna, Link2, Bell, Volume2, MoonStar, Hourglass as ScreenTime, Settings as Gear, SlidersHorizontal, Sun, Image, ScanFace, Hand, BatteryMedium, Layers, X,
 } from "lucide-react";
 import { useData, update, DAYS } from "../store";
-import { photoSrc, genPhoto } from "../photos";
+import { photoSrc } from "../photos";
 import { Avatar, LargeTitle, NavBar, TabBar, Toggle, useNow, useScrolled, useStatusBar, Img } from "../ui";
 
 /* ───────── 캘린더 ───────── */
@@ -458,7 +458,7 @@ export function CameraApp() {
         <span className="w-[26px] h-[26px] rounded-full border-2 border-white/80" />
       </div>
       <div className="absolute left-0 right-0 overflow-hidden" style={{ top: 110, height: 524 }}>
-        <img src={genPhoto("parking:101", 400, 540)} className="w-full h-full object-cover" style={{ filter: "brightness(0.8) blur(0.6px)" }} alt="" />
+        <div className="w-full h-full" style={{ background: "radial-gradient(70% 50% at 50% 55%, #2a2a2c 0%, #121213 60%, #050505 100%)" }} />
         <div className="absolute inset-0" style={{ background: "repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0 1px, transparent 1px 3px)" }} />
         <div className="absolute left-1/3 top-0 bottom-0 w-[0.5px] bg-white/25" />
         <div className="absolute left-2/3 top-0 bottom-0 w-[0.5px] bg-white/25" />
@@ -481,7 +481,7 @@ export function CameraApp() {
         ))}
       </div>
       <div className="absolute left-0 right-0 flex justify-between items-center px-[34px]" style={{ bottom: 58 }}>
-        <Img src={last ? photoSrc(last.id, d.photos, 120, 120) : ""} className="w-[46px] h-[46px] rounded-[8px]" />
+        <Img src={last ? photoSrc(last.id, d.photos) : ""} className="w-[46px] h-[46px] rounded-[8px]" />
         <button
           onClick={() => {
             setFlash(true);

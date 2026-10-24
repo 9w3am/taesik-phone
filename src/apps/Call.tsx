@@ -1,12 +1,14 @@
 /* 통화 화면 — 음성 대신 상대방 대사가 화면 중앙에 하나의 텍스트 덩어리로 출력 (본인 대사 없음) */
 import { useEffect, useState } from "react";
-import { MicOff, Grid3x3, Volume2, Plus, Video, CircleUser, PhoneOff } from "lucide-react";
+import { MicOff, Grid3x3, Volume2, Plus, Video, CircleUser } from "lucide-react";
+import { HandsetDown } from "../phoneIcons";
 import { Wallpaper } from "../Phone";
 
 export function CallScreen({ name, lines, mode, onEnd }: { name: string; lines: string[]; mode: "out" | "in"; onEnd: () => void }) {
   const [connected, setConnected] = useState(mode === "in");
   const [sec, setSec] = useState(0);
-  const [shown, setShown] = useState(0);
+  const [shown, setShown] = useState(0); // 다 나온 문장 수
+  const [typed, setTyped] = useState(0); // 지금 문장에서 나온 글자 수
   const [on, setOn] = useState<Record<string, boolean>>({});
   const [pad, setPad] = useState(false);
   const [digits, setDigits] = useState("");
@@ -24,17 +26,25 @@ export function CallScreen({ name, lines, mode, onEnd }: { name: string; lines: 
     const i = setInterval(() => setSec((s) => s + 1), 1000);
     return () => clearInterval(i);
   }, [connected, ended]);
-  // 대사 순차 출력
+  // 대사 출력: 한 글자씩 타이핑되듯 → 문장 끝나면 잠깐 쉬고 다음 문장
+  const cur = lines[shown] ?? "";
+  const speaking = connected && !ended && shown < lines.length && typed < cur.length;
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || ended) return;
     if (shown >= lines.length) {
-      const t = setTimeout(() => setEnded(true), 3200);
+      const t = setTimeout(() => setEnded(true), 2800);
       return () => clearTimeout(t);
     }
-    const prev = lines[shown - 1] ?? "";
-    const t = setTimeout(() => setShown((s) => s + 1), shown === 0 ? 900 : 900 + Math.min(2600, prev.length * 70));
+    if (typed < cur.length) {
+      const t = setTimeout(() => setTyped((x) => x + 1), shown === 0 && typed === 0 ? 900 : /[.,?!…]/.test(cur[typed - 1] ?? "") ? 260 : 55);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => {
+      setShown((x) => x + 1);
+      setTyped(0);
+    }, 700 + Math.min(1600, cur.length * 22));
     return () => clearTimeout(t);
-  }, [connected, shown, lines]);
+  }, [connected, ended, shown, typed, cur, lines.length]);
   useEffect(() => {
     if (!ended) return;
     const t = setTimeout(onEnd, 1300);
@@ -60,22 +70,37 @@ export function CallScreen({ name, lines, mode, onEnd }: { name: string; lines: 
       <div className="relative h-full flex flex-col">
         {/* 상단: 이름 · 상태 */}
         <div className="pt-[78px] text-center px-6">
-          <div className="text-[15px] text-white/60 tabular h-[20px]">{pad && digits ? "" : status}</div>
-          <div className="text-[30px] leading-[36px] mt-[2px] truncate">{pad && digits ? digits : name}</div>
+          <div className="text-[30px] leading-[36px] truncate">{pad && digits ? digits : name}</div>
+          <div className="text-[17px] text-white/60 tabular h-[22px] mt-[4px]">{pad && digits ? "" : status}</div>
         </div>
 
-        {/* 중앙: 상대 대사 텍스트 블록 */}
-        <div className="flex-1 flex items-center justify-center px-[34px]">
-          {!pad && (
-            <p className="text-center text-[19px] leading-[31px] text-white/95 font-normal tracking-[-0.01em]" style={{ wordBreak: "keep-all" }}>
-              {lines.slice(0, shown).map((l, i) => (
-                <span key={i} className="line-in inline">
-                  {l}
-                  {i < shown - 1 ? " " : ""}
-                </span>
-              ))}
-              {connected && shown < lines.length && !ended && <span className="inline-block w-[22px] text-white/40 tracking-[2px] animate-pulse">…</span>}
-            </p>
+        {/* 중앙: 상대 대사 — 하나의 텍스트 덩어리. 지난 문장은 흐리게, 지금 말하는 문장은 또렷하게 */}
+        <div className="flex-1 flex flex-col items-center justify-center px-[30px]">
+          {!pad && connected && (
+            <>
+              <div className="flex items-center gap-[4px] h-[22px] mb-[18px]" aria-hidden>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <span
+                    key={i}
+                    className="w-[4px] rounded-full bg-white/70 origin-center transition-all"
+                    style={{ height: speaking ? 18 : 4, animation: speaking ? `eq ${0.5 + (i % 3) * 0.17}s ease-in-out ${i * 0.08}s infinite` : "none", opacity: speaking ? 1 : 0.35 }}
+                  />
+                ))}
+              </div>
+              <p className="text-center text-[20px] leading-[32px] font-normal tracking-[-0.015em] max-w-[320px]" style={{ wordBreak: "keep-all" }}>
+                {lines.slice(Math.max(0, shown - 2), shown).map((l, i) => (
+                  <span key={shown - 2 + i} className="text-white/40 transition-colors duration-500">
+                    {l}{" "}
+                  </span>
+                ))}
+                {shown < lines.length && (
+                  <span className="text-white">
+                    {cur.slice(0, typed)}
+                    {!ended && <span className="inline-block w-[2px] h-[20px] bg-white/70 align-[-3px] ml-[2px] animate-pulse" />}
+                  </span>
+                )}
+              </p>
+            </>
           )}
         </div>
 
@@ -112,7 +137,7 @@ export function CallScreen({ name, lines, mode, onEnd }: { name: string; lines: 
         )}
         <div className="relative flex justify-center mt-[30px] mb-[54px]">
           <button onClick={() => setEnded(true)} className="w-[78px] h-[78px] rounded-full bg-[#FF3B30] flex items-center justify-center active:brightness-90">
-            <PhoneOff size={34} fill="#fff" strokeWidth={0} />
+            <HandsetDown size={38} />
           </button>
           {pad && (
             <button onClick={() => setPad(false)} className="absolute right-[56px] top-1/2 -translate-y-1/2 text-[17px]">

@@ -1,7 +1,6 @@
 import type { ComponentType } from "react";
 import Messages from "./Messages";
 import Kakao from "./Kakao";
-import Signal from "./Signal";
 import PhoneApp, { ContactsApp } from "./PhoneApp";
 import Insta from "./Insta";
 import Notes from "./Notes";
@@ -18,7 +17,6 @@ export const APPS: Record<string, { label: string; C: ComponentType; light: bool
   safari: { label: "Safari", C: Safari, light: true },
   music: { label: "음악", C: Music, light: true },
   kakao: { label: "카카오톡", C: Kakao, light: true },
-  signal: { label: "Signal", C: Signal, light: false },
   insta: { label: "Instagram", C: Insta, light: true },
   photos: { label: "사진", C: Photos, light: true },
   calendar: { label: "캘린더", C: Calendar, light: true },

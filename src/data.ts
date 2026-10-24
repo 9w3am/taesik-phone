@@ -1,20 +1,21 @@
 import type { Msg, PhoneData } from "./store";
 
 /*
-  기본 콘텐츠 — 최태식 (1인 해결사 / 청부업자)
-  · 조직/팀 없음, 수감 이력 없음, 가족 관련 내용 없음
-  · 거주지/운동 장소 등 신상 특정 정보 없음 (은어/모호한 지명으로만)
-  · 이유노 관련 대화는 제작자가 /editor 에서 직접 작성하도록 최소한으로만 둠
+  기본 콘텐츠 — 최태식
+  · 음지에서 혼자 일하는 해결사 / 청부업자. 회사·업체·조직·팀 없음. 수감 이력 없음.
+  · 일은 소개로만 받고, 돈은 현금·남의 명의로 돈다. 합법 직장(경호업체, 행사 알바, 구인공고) 없음.
+  · '이유노' 일: 업체 경호가 아니라 뒷돈 받고 개인적으로 붙어 있는 일. 대화 내용은 제작자가 /editor 에서 직접 작성.
+  · 가족 관련 내용 없음. 거주지·운동 장소 등 신상 특정 정보 없음 (은어·모호한 지명만)
+  · 사진은 기본으로 넣지 않음 (에디터에서 직접 올린 사진만 표시)
 */
 
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
 const me = (text: string, x: Partial<Msg> = {}): Msg => ({ id: id(), from: "me", text, ...x });
 const th = (text: string, x: Partial<Msg> = {}): Msg => ({ id: id(), from: "them", text, ...x });
-const g = (who: string, text: string, x: Partial<Msg> = {}): Msg => ({ id: id(), from: "them", who, text, ...x });
+const g = (who: string, text: string): Msg => ({ id: id(), from: "them", who, text });
 const sys = (text: string): Msg => ({ id: id(), from: "system", text });
-const pay = (from: "me" | "them", amount: number, text = "", who?: string): Msg => ({ id: id(), from, who, text, kind: "pay", amount });
-const pic = (from: "me" | "them", photo: string, who?: string): Msg => ({ id: id(), from, who, text: "사진", kind: "photo", photo });
+const pay = (from: "me" | "them", amount: number, text = ""): Msg => ({ id: id(), from, text, kind: "pay", amount });
 
 export function defaultData(): PhoneData {
   n = 0;
@@ -26,32 +27,26 @@ export function defaultData(): PhoneData {
     carrier: "SKT",
     battery: 23,
     weather: { city: "서울", temp: 9, cond: "흐림", hi: 13, lo: 6 },
-    allowSend: false,
+    allowSend: true,
     events: {
       incomingCall: {
         enabled: true,
         afterSec: 75,
-        name: "발신번호 표시제한",
-        lines: [
-          "……",
-          "최태식 씨 맞죠.",
-          "요즘 그 아가씨 옆에 딱 붙어 계시던데.",
-          "아니, 별말 아니고. 그냥 안부 전화예요.",
-          "밤길 조심하시라고.",
-        ],
+        name: "알 수 없음",
+        lines: ["……", "최태식 씨 맞죠.", "요즘 그 아가씨 옆에 딱 붙어 계시던데.", "아니, 별말 아니고. 그냥 안부 전화예요.", "밤길 조심하시라고."],
       },
-      banner: { enabled: true, afterSec: 30, app: "messages", title: "알 수 없음", text: "아직 이 번호 쓰세요?" },
+      banner: { enabled: true, afterSec: 30, app: "messages", title: "+82 10-****-4471", text: "아직 이 번호 쓰세요?" },
       lowBattery: { enabled: true, afterSec: 150 },
     },
     lockNotifs: [
-      { app: "signal", title: "Signal", text: "새 메시지가 있습니다", when: "지금" },
+      { app: "messages", title: "W", text: "새 번호로 다시 연락함. 이 방은 오늘 닫는다.", when: "지금" },
       { app: "kakao", title: "[서초] 박 실장", text: "밤에 시간 되냐", when: "12분 전" },
-      { app: "phone", title: "부재중 전화 (2)", text: "발신번호 표시제한", when: "1시간 전" },
+      { app: "phone", title: "부재중 전화 (2)", text: "알 수 없음", when: "1시간 전" },
     ],
 
     /* ───────── 대화방 ───────── */
     threads: [
-      /* 메시지 (iMessage / SMS) */
+      /* ── 메시지 (iMessage / 문자) ── */
       {
         id: "yuno",
         app: "messages",
@@ -59,12 +54,41 @@ export function defaultData(): PhoneData {
         unread: 0,
         pinned: true,
         last: "어제",
+        messages: [sys("이 대화는 제작자가 직접 작성합니다. /editor 에서 수정하세요."), me("도착했습니다. 지하로 내려오세요."), th("네")],
+      },
+      {
+        id: "w",
+        app: "messages",
+        name: "W",
+        unread: 1,
+        pinned: true,
+        last: "지금",
         messages: [
-          sys("이 대화의 내용은 제작자가 직접 작성합니다. /editor 에서 수정하세요."),
-          me("도착했습니다. 지하로 내려오세요."),
-          th("네"),
+          th("건 하나."),
+          th("소재 파악만. 손은 안 댐. 사흘 안에."),
+          me("자료"),
+          th("평소 거기. 셋째 테이블 밑."),
+          me("착수금 먼저"),
+          th("반 넣음. 확인해."),
+          me("확인"),
+          th("새 번호로 다시 연락함. 이 방은 오늘 닫는다."),
         ],
-        draft: "",
+      },
+      {
+        id: "park",
+        app: "messages",
+        name: "[서초] 박 실장",
+        unread: 0,
+        last: "월요일",
+        messages: [
+          th("너 요즘 낮엔 아예 안 된다며"),
+          me("이유노 쪽 붙어 있습니다. 밤만 됩니다"),
+          th("그거 얼마 받는다고 그렇게 붙어 있냐"),
+          me("제 일입니다"),
+          th("알았다. 밤에 하나 있으면 부를게. 이번엔 거절하지 마라"),
+          me("조건 보고요"),
+          th("전화 받아 좀"),
+        ],
       },
       {
         id: "unknown",
@@ -83,6 +107,30 @@ export function defaultData(): PhoneData {
         ],
       },
       {
+        id: "rat",
+        app: "messages",
+        name: "쥐 (새번호)",
+        unread: 0,
+        last: "토요일",
+        messages: [
+          me("요즘 그쪽 근처에 붙는 차 있는지 봐줘"),
+          th("검은 세단 한 대. 사흘째 같은 자리"),
+          th("번호 돌려보니 명의 따로 있음. 렌트 아님"),
+          me("누구 쪽인지"),
+          th("그건 값 따로"),
+          me("보내"),
+          th("오늘 밤에. 평소대로"),
+        ],
+      },
+      {
+        id: "wash",
+        app: "messages",
+        name: "세탁",
+        unread: 0,
+        last: "일요일",
+        messages: [me("들어간다"), th("수수료 평소대로. 사흘."), th("한 번에 크게 넣지 말고"), me("알아서 해"), th("ㅇㅋ")],
+      },
+      {
         id: "oh",
         app: "messages",
         name: "오 원장 (뒷문)",
@@ -98,26 +146,20 @@ export function defaultData(): PhoneData {
         ],
       },
       {
-        id: "park_sms",
+        id: "demo",
         app: "messages",
-        name: "[서초] 박 실장",
+        name: "철거_김씨",
         unread: 0,
-        last: "월요일",
-        messages: [th("시그널 확인해라"), me("봤습니다"), th("전화 받아 좀")],
+        last: "10. 19.",
+        messages: [th("형님 그 건물 다음 주에 철거 들어갑니다"), th("안에 뭐 남은 거 있으면 그 전에 빼세요"), me("없어"), th("넵. 그럼 그냥 밀겠습니다")],
       },
       {
-        id: "event",
+        id: "usim",
         app: "messages",
-        name: "행사경호 반장",
+        name: "U",
         unread: 0,
-        sms: true,
-        last: "10. 19.",
-        messages: [
-          th("태식씨 다음 주 토요일 하루 가능? 전시장 VIP 동선 3명 필요"),
-          me("그 주는 개인 일정 있습니다. 다음에 불러주세요"),
-          th("요즘 계속 바쁘네 ㅋㅋ 알겠어요"),
-          th("일당은 저번이랑 같아요. 생각 바뀌면 연락줘요"),
-        ],
+        last: "10. 18.",
+        messages: [me("하나 더"), th("월말에 들어옴"), th("받으면 기존 거 바로 버려요")],
       },
       {
         id: "deliv",
@@ -151,9 +193,7 @@ export function defaultData(): PhoneData {
         unread: 1,
         sms: true,
         last: "목요일",
-        messages: [
-          th("[Web발신]\n[주정차 위반 사전통지]\n차량번호 **너 **12\n위반장소: OO로 이면도로\n과태료 40,000원(자진납부 시 32,000원)"),
-        ],
+        messages: [th("[Web발신]\n[주정차 위반 사전통지]\n차량번호 **너 **12\n위반장소: OO로 이면도로\n과태료 40,000원(자진납부 시 32,000원)")],
       },
       {
         id: "otp",
@@ -174,97 +214,7 @@ export function defaultData(): PhoneData {
         messages: [th("[Web발신]\n(광고) 무직자 OK 당일 승인 상담만 해도 OK\n무료거부 080-***-0021")],
       },
 
-      /* Signal */
-      {
-        id: "sg_w",
-        app: "signal",
-        name: "W",
-        unread: 1,
-        timer: "1시간",
-        last: "지금",
-        messages: [
-          sys("사라지는 메시지 시간을 1시간으로 설정했습니다."),
-          th("건 하나."),
-          th("소재 파악만. 손은 안 댐. 사흘 안에."),
-          me("자료"),
-          th("평소 거기. 셋째 테이블 밑."),
-          me("착수금 먼저"),
-          th("반 넣음. 확인해."),
-          th("새 번호로 다시 연락함. 이 방은 오늘 닫는다."),
-        ],
-      },
-      {
-        id: "sg_park",
-        app: "signal",
-        name: "박 실장",
-        unread: 0,
-        timer: "1일",
-        last: "월요일",
-        messages: [
-          sys("안전 번호가 변경되었습니다. 확인하려면 탭하세요."),
-          th("너 요즘 낮엔 아예 안 된다며"),
-          me("경호 물려 있습니다. 밤만 됩니다"),
-          th("그 경호 얼마 준다고 그렇게 붙어 있냐"),
-          me("제 일입니다"),
-          th("알았다. 밤에 하나 있으면 부를게. 거절은 하지 마라 이번엔"),
-          me("조건 보고요"),
-        ],
-      },
-      {
-        id: "sg_wash",
-        app: "signal",
-        name: "ㅅ",
-        unread: 0,
-        timer: "8시간",
-        last: "일요일",
-        messages: [
-          me("들어간다"),
-          th("수수료 평소대로. 사흘."),
-          th("한 번에 크게 넣지 말고"),
-          me("알아서 해"),
-          th("ㅇㅋ"),
-        ],
-      },
-      {
-        id: "sg_rat",
-        app: "signal",
-        name: "쥐",
-        unread: 0,
-        timer: "1시간",
-        last: "토요일",
-        messages: [
-          me("요즘 그쪽 근처에 붙는 차 있는지 봐줘"),
-          th("검은 세단 한 대. 사흘째 같은 자리"),
-          th("번호 돌려보니 명의 따로 있음. 렌트 아님"),
-          pic("them", "gen:car:4"),
-          me("사진 더"),
-          th("오늘 밤에 보냄. 값은 평소대로"),
-        ],
-      },
-      {
-        id: "sg_usim",
-        app: "signal",
-        name: "U",
-        unread: 0,
-        timer: "5분",
-        last: "10. 18.",
-        messages: [me("하나 더"), th("월말에 들어옴"), th("받으면 기존 거 바로 버려요")],
-      },
-
-      /* 인스타그램 DM */
-      {
-        id: "ig_det",
-        app: "insta",
-        name: "detailing_garage",
-        unread: 1,
-        last: "3시간",
-        messages: [
-          me("2채널 블박 + 썬팅 전면 제외 얼마예요"),
-          th("안녕하세요 고객님! 차종 알려주시면 견적 드릴게요"),
-          me("세단. 야간 화질 좋은 걸로"),
-          th("예약 가능 시간은 평일 오전입니다. 현장 결제 시 현금 할인 있어요"),
-        ],
-      },
+      /* ── 인스타그램 DM ── */
       {
         id: "ig_anon",
         app: "insta",
@@ -274,29 +224,22 @@ export function defaultData(): PhoneData {
         messages: [th("혹시 최태식 씨 맞으세요?"), th("소개받은 사람인데 여기로 연락드려도 될까요")],
       },
       {
-        id: "ig_fight",
+        id: "ig_car",
         app: "insta",
-        name: "fight.league.kr",
+        name: "used_car.kim",
         unread: 0,
-        last: "1주",
-        messages: [th("안녕하세요 FIGHT LEAGUE 운영팀입니다. 다음 시즌 아마추어 참가 의향 있으신지 여쭙니다."), me("안 합니다")],
+        last: "3일",
+        messages: [me("그 세단 아직 있어요?"), th("네 형님 있습니다 ㅎㅎ 현금이면 더 빼드려요"), me("명의 이전은 나중에"), th("아 그런 건은 좀… 전화로 얘기하시죠")],
       },
 
-      /* 카카오톡 */
+      /* ── 카카오톡 ── */
       {
         id: "k_park",
         app: "kakao",
         name: "[서초] 박 실장",
         unread: 1,
         last: "오후 9:12",
-        messages: [
-          th("태식아"),
-          th("국밥 한 그릇 하자"),
-          me("이번 주는 어렵습니다"),
-          th("너 요즘 얼굴 보기 힘들다"),
-          th("밤에 시간 되냐"),
-        ],
-        draft: "",
+        messages: [th("태식아"), th("국밥 한 그릇 하자"), me("이번 주는 어렵습니다"), th("너 요즘 얼굴 보기 힘들다"), th("밤에 시간 되냐")],
       },
       {
         id: "k_errand",
@@ -307,17 +250,17 @@ export function defaultData(): PhoneData {
         muted: true,
         last: "오후 9:40",
         messages: [
-          sys("방장: 공지 — 시세 후려치기, 선입금 요구, 신분 캐묻기 금지. 어기면 강퇴."),
+          sys("방장: 공지 — 시세 후려치기, 선입금 먹튀, 신분 캐묻기 금지. 어기면 강퇴."),
           g("화물 K", "[구함] 오늘 야간 차량 대기 1명. 운전만. 일당 협의"),
           g("익명의 프로도", "어디쪽이에요"),
           g("화물 K", "갠톡"),
-          g("두부", "[구함] 이사 짐 정리 2명 새벽 4시 / 입금 당일"),
-          g("ㅁㅁ", "새벽 4시 이사는 이사가 아니잖아요 ㅋㅋ"),
+          g("두부", "[구함] 짐 정리 2명 새벽 4시 / 입금 당일"),
+          g("ㅁㅁ", "새벽 4시 짐 정리는 짐 정리가 아니잖아요 ㅋㅋ"),
           g("두부", "말 많으면 빼드림"),
           g("방장", "@ㅁㅁ 경고 1회"),
-          g("영업용", "[구함] 행사 경호 알바 / 정장 지참 / 키 180↑"),
-          g("익명의 무지", "경력 없어도 돼요?"),
-          g("영업용", "덩치만 되면 됨"),
+          g("영업용", "[구함] 받을 돈 대신 받아줄 분. 성과제"),
+          g("익명의 무지", "얼마짜린데요"),
+          g("영업용", "갠톡으로"),
           g("ㄱㄱ", "요즘 진짜 일 없네"),
           g("화물 K", "마감"),
         ],
@@ -332,7 +275,6 @@ export function defaultData(): PhoneData {
         last: "오후 7:03",
         messages: [
           g("장비충", "무전기 2대 세트 팝니다. 충전독 포함. 직거래만"),
-          pic("them", "gen:sketch:2", "장비충"),
           g("곰", "얼마요"),
           g("장비충", "갠톡"),
           g("나그네", "방검 조끼 L 사이즈 구해요 얇은 걸로"),
@@ -352,7 +294,7 @@ export function defaultData(): PhoneData {
         muted: true,
         last: "어제",
         messages: [
-          sys("방장: 이 방에서 통장·명의 거래 얘기 하면 바로 신고하고 강퇴함. 방 이름 보고 들어온 사람들 나가세요."),
+          sys("방장: 이 방에서 통장·명의 거래 얘기 하면 바로 강퇴함. 방 이름 보고 들어온 사람들 나가세요."),
           g("익명의 콘", "법인통장 급처합니다 갠톡"),
           sys("방장님이 익명의 콘님을 내보냈습니다."),
           g("익명의 라이언", "그럼 이 방은 뭐 하는 방이에요"),
@@ -400,12 +342,7 @@ export function defaultData(): PhoneData {
         name: "24시 국밥 사장님",
         unread: 0,
         last: "10. 20.",
-        messages: [
-          th("총각 어제 두고 간 우산 카운터에 있어"),
-          me("감사합니다 사장님"),
-          th("요새 밥은 먹고 다녀? 얼굴이 반쪽이야"),
-          me("먹고 다닙니다"),
-        ],
+        messages: [th("총각 어제 두고 간 우산 카운터에 있어"), me("감사합니다 사장님"), th("요새 밥은 먹고 다녀? 얼굴이 반쪽이야"), me("먹고 다닙니다")],
       },
       {
         id: "k_pay",
@@ -413,11 +350,7 @@ export function defaultData(): PhoneData {
         name: "카카오페이",
         unread: 1,
         last: "오늘",
-        messages: [
-          pay("them", 150000, "송금 완료 · 김*기"),
-          pay("them", 250000, "송금 완료 · 정비"),
-          pay("them", 38500, "결제 완료 · OO철물"),
-        ],
+        messages: [pay("them", 150000, "송금 완료 · 김*기"), pay("them", 250000, "송금 완료 · 정비"), pay("them", 38500, "결제 완료 · OO철물")],
       },
       {
         id: "k_self",
@@ -426,10 +359,9 @@ export function defaultData(): PhoneData {
         unread: 0,
         last: "어제",
         messages: [
-          me("동선 A: 정문 X → 지하 → 화물용 엘리베이터"),
+          me("이유노 동선 A: 정문 X → 지하 → 화물용 엘리베이터"),
           me("동선 B: 뒷길 → 공영주차장 → 차 교대"),
-          me("의심 차량 — 흰 SUV / 검은 세단 (번호 앞자리 다름)"),
-          pic("me", "gen:parking:7"),
+          me("붙는 차 — 흰 SUV / 검은 세단 (번호 앞자리 다름)"),
           me("비 오는 날은 B"),
         ],
       },
@@ -437,15 +369,7 @@ export function defaultData(): PhoneData {
 
     /* ───────── 통화 기록 (상대 대사만) ───────── */
     calls: [
-      {
-        id: id(),
-        name: "발신번호 표시제한",
-        kind: "missed",
-        label: "알 수 없음",
-        count: 2,
-        when: "오후 8:51",
-        lines: ["……", "(아무 말 없이 숨소리만 들리다 끊긴다)"],
-      },
+      { id: id(), name: "알 수 없음", kind: "missed", label: "발신자 정보 없음", count: 2, when: "오후 8:51", lines: ["……", "(아무 말 없이 숨소리만 들리다 끊긴다)"] },
       {
         id: id(),
         name: "[서초] 박 실장",
@@ -453,85 +377,40 @@ export function defaultData(): PhoneData {
         kind: "in",
         label: "휴대전화",
         when: "오후 6:20",
-        lines: [
-          "어, 태식아. 바쁘냐.",
-          "다른 게 아니고, 밤에 건 하나 있는데.",
-          "니가 요즘 낮엔 안 된다는 거 알아. 그러니까 밤이라고.",
-          "겁만 주면 돼. 손은 안 대는 걸로.",
-          "생각해 보고 시그널 줘. 끊는다.",
-        ],
+        lines: ["어, 태식아. 바쁘냐.", "다른 게 아니고, 밤에 건 하나 있는데.", "니가 요즘 낮엔 안 된다는 거 알아. 그러니까 밤이라고.", "겁만 주면 돼. 손은 안 대는 걸로.", "생각해 보고 연락 줘. 끊는다."],
       },
-      {
-        id: id(),
-        name: "번호변경_이유노",
-        kind: "out",
-        label: "휴대전화",
-        when: "어제",
-        lines: ["(제작자가 작성할 통화 내용)"],
-      },
-      {
-        id: id(),
-        name: "오 원장 (뒷문)",
-        kind: "out",
-        label: "휴대전화",
-        when: "화요일",
-        lines: [
-          "또 다쳤어요?",
-          "본인 거 아니라고요. 그 말 몇 번째예요.",
-          "뒷문 열어둘 테니까 현금 챙겨 와요.",
-        ],
-      },
-      {
-        id: id(),
-        name: "김기사 (탁송)",
-        kind: "in",
-        label: "휴대전화",
-        when: "월요일",
-        lines: ["형님, 차 빼놨습니다.", "번호판은 원래 걸로 다시 끼워놨고요.", "키는 늘 두던 데 있어요."],
-      },
-      {
-        id: id(),
-        name: "+82 10-****-4471",
-        kind: "missed",
-        label: "휴대전화",
-        count: 3,
-        when: "일요일",
-        lines: ["저, 소개받고 연락드렸던…", "통화 가능하실 때 연락 부탁드려요."],
-      },
-      {
-        id: id(),
-        name: "행사경호 반장",
-        kind: "in",
-        label: "휴대전화",
-        when: "10. 19.",
-        lines: ["태식씨, 다음 주 토요일 하루만 와주면 안 돼?", "알았어 알았어. 다음에 꼭 와요."],
-      },
+      { id: id(), name: "번호변경_이유노", kind: "out", label: "휴대전화", when: "어제", lines: ["(제작자가 작성할 통화 내용)"] },
+      { id: id(), name: "오 원장 (뒷문)", kind: "out", label: "휴대전화", when: "화요일", lines: ["또 다쳤어요?", "본인 거 아니라고요. 그 말 몇 번째예요.", "뒷문 열어둘 테니까 현금 챙겨 와요."] },
+      { id: id(), name: "김기사 (탁송)", kind: "in", label: "휴대전화", when: "월요일", lines: ["형님, 차 빼놨습니다.", "번호판은 원래 걸로 다시 끼워놨고요.", "키는 늘 두던 데 있어요."] },
+      { id: id(), name: "+82 10-****-4471", kind: "missed", label: "휴대전화", count: 3, when: "일요일", lines: ["저, 소개받고 연락드렸던…", "통화 가능하실 때 연락 부탁드려요."] },
+      { id: id(), name: "쥐 (새번호)", kind: "in", label: "휴대전화", when: "토요일", lines: ["사진 보냈어요.", "그 세단, 생각보다 귀찮은 쪽 차 같은데.", "더 알아보려면 값 따로예요."] },
     ],
 
     /* ───────── 연락처 ───────── */
     contacts: [
       { id: id(), name: "번호변경_이유노", phone: "010-****-0417", label: "휴대전화", fav: true },
-      { id: id(), name: "[서초] 박 실장", phone: "010-****-0004", label: "휴대전화", fav: true },
+      { id: id(), name: "[서초] 박 실장", phone: "010-****-0004", label: "휴대전화", fav: true, note: "일 물어오는 사람. 수수료 떼감" },
+      { id: id(), name: "W", phone: "070-****-0319", label: "기타", note: "번호 자주 바뀜" },
       { id: id(), name: "오 원장 (뒷문)", phone: "010-****-8890", label: "휴대전화", note: "현금만. 새벽 가능." },
       { id: id(), name: "김기사 (탁송)", phone: "010-****-1123", label: "휴대전화" },
       { id: id(), name: "철거_김씨", phone: "010-****-6604", label: "휴대전화", note: "정리 필요할 때만" },
-      { id: id(), name: "세탁", phone: "010-****-3017", label: "휴대전화", note: "통화 X. 시그널." },
+      { id: id(), name: "세탁", phone: "010-****-3017", label: "휴대전화", note: "통화 X. 문자만." },
       { id: id(), name: "쥐 (새번호)", phone: "010-****-5512", label: "휴대전화" },
       { id: id(), name: "쥐 (X)", phone: "010-****-0981", label: "휴대전화", note: "번호 버림" },
+      { id: id(), name: "U", phone: "070-****-0001", label: "기타" },
       { id: id(), name: "열쇠 박사장", phone: "010-****-9201", label: "직장" },
       { id: id(), name: "정비 형님", phone: "010-****-7781", label: "직장" },
       { id: id(), name: "견인 24시", phone: "1577-****", label: "직장" },
       { id: id(), name: "24시 국밥 사장님", phone: "02-***-1124", label: "직장" },
-      { id: id(), name: "행사경호 반장", phone: "010-****-6650", label: "휴대전화" },
-      { id: id(), name: "흥신소 장 (하청)", phone: "010-****-2240", label: "휴대전화" },
+      { id: id(), name: "흥신소 장 (하청)", phone: "010-****-2240", label: "휴대전화", note: "미행 하청 줄 때" },
       { id: id(), name: "의뢰_0927", phone: "010-****-4471", label: "휴대전화" },
       { id: id(), name: "의뢰_1103", phone: "010-****-7012", label: "휴대전화" },
       { id: id(), name: "채무_ㅂ", phone: "010-****-2288", label: "휴대전화", note: "잔금 남음" },
       { id: id(), name: "대상_ㅅ (두절)", phone: "010-****-0912", label: "휴대전화" },
       { id: id(), name: "장비_무전기", phone: "010-****-3355", label: "휴대전화" },
+      { id: id(), name: "중고차 김 (현금)", phone: "010-****-6120", label: "휴대전화" },
       { id: id(), name: "대리운전", phone: "1588-****", label: "직장" },
       { id: id(), name: "Ahn 형", phone: "010-****-1987", label: "휴대전화" },
-      { id: id(), name: "U", phone: "070-****-0001", label: "기타" },
     ],
 
     /* ───────── 메모 ───────── */
@@ -539,71 +418,31 @@ export function defaultData(): PhoneData {
       {
         id: id(),
         folder: "메모",
-        title: "의뢰 장부",
+        title: "",
         pinned: true,
         when: "오후 9:02",
         body:
-          "의뢰 장부\n\n진행 중\n[ ] 이유노 경호 — 월정. 주 6일. 기한 없음\n[ ] ㅂ 수금 — 잔금 남음. 겁만\n[ ] 0927 소재 파악 — 착수금 받음. 사흘\n\n입금 대기\n[ ] 1103 — 잔금 (월말)\n[ ] 박 실장 소개 건 — 정산 미정\n\n완료\n[x] ㄱ 수금 — 세탁 끝\n[x] 차량 이동 (김기사) — 정리\n[x] 흥신소 하청 미행 3일 — 정산 완\n\n거절\n[x] 아는 얼굴 건\n[x] 애 낀 건",
-      },
-      {
-        id: id(),
-        folder: "메모",
-        title: "경호 — 동선",
-        pinned: true,
-        when: "어제",
-        body:
-          "경호 — 동선\n\n출근 동선 매일 바꿀 것\n정문 X. 지하 → 화물용 엘리베이터\n차 두 대 교대. 같은 자리 주차 X\n식당은 창가 X, 출입구 보이는 자리\n본인한테 불안한 티 내지 말 것\n\n비 오는 날은 동선 B\n밤 10시 이후 이동 시 미리 한 바퀴",
-      },
-      {
-        id: id(),
-        folder: "메모",
-        title: "규칙",
-        when: "10. 02.",
-        body:
-          "규칙\n\n1. 같은 번호 두 달 이상 안 씀\n2. 일 얘기는 시그널. 카톡 X\n3. 현금은 나눠서\n4. 얼굴 아는 사람 일은 안 받음\n5. 착수금 없으면 안 움직임\n6. 손 대지 말라면 안 댄다\n7. 애 끼면 안 한다",
-      },
-      {
-        id: id(),
-        folder: "메모",
-        title: "장비",
-        when: "10. 11.",
-        body: "장비\n\n[x] 장갑 (니트릴 / 가죽)\n[x] 손전등\n[ ] 여분 유심\n[x] 방수포\n[ ] 블박 메모리 교체\n[x] 구급 — 거즈, 지혈대, 봉합 테이프\n[ ] 셔츠 한 치수 큰 거",
-      },
-      {
-        id: id(),
-        folder: "메모",
-        title: "0927 — 대상 동선",
-        when: "어제",
-        body:
-          "0927 — 대상 동선\n\n평일 밤 11시쯤 귀가\n편의점 들렀다 감 (같은 곳)\n차 없음. 택시 자주\n주말엔 거의 안 나옴\n\n→ 소재 확인만. 의뢰인한테 주소는 안 넘김. 확인 여부만.",
-      },
-      {
-        id: id(),
-        folder: "메모",
-        title: "수금",
-        when: "10. 15.",
-        body: "수금\n\nㄱ — 완\nㅂ — 잔금 남음. 다음 주\nㅅ — 연락 두절. 다시 확인\n\n세탁 수수료 빼고 계산",
+          "장부\n\n진행 중\n[ ] 이유노 — 월정. 주 6일. 기한 없음\n[ ] ㅂ 수금 — 잔금 남음. 겁만\n[ ] 0927 소재 파악 — 착수금 받음. 사흘\n\n입금 대기\n[ ] 1103 — 잔금 (월말)\n[ ] 박 실장 소개 건 — 수수료 떼고 정산\n\n완료\n[x] ㄱ 수금 — 세탁 끝\n[x] 차 옮기기 (김기사) — 정리\n[x] 흥신소 하청 미행 3일 — 정산 완\n\n거절\n[x] 아는 얼굴 건\n[x] 애 낀 건",
       },
       {
         id: id(),
         folder: "메모",
         title: "",
-        when: "9. 28.",
-        body: "번호 바꿀 때 알릴 사람\n박 실장, 쥐, 김기사, 오 원장\n끝",
+        pinned: true,
+        when: "어제",
+        body: "이유노 — 동선\n\n출근 동선 매일 바꿀 것\n정문 X. 지하 → 화물용 엘리베이터\n차 두 대 교대. 같은 자리 주차 X\n식당은 창가 X, 출입구 보이는 자리\n본인한테 불안한 티 내지 말 것\n\n비 오는 날은 동선 B\n밤 10시 이후 이동 시 미리 한 바퀴",
       },
-      {
-        id: id(),
-        folder: "메모",
-        title: "잠긴 메모",
-        lockCode: "0000",
-        when: "9. 03.",
-        body: "비상시\n\n현금 — 늘 두던 데\n차 키 — 김기사한테 하나 더\n오 원장 뒷문\n\n번호 버리고 일주일 잠수",
-      },
+      { id: id(), folder: "메모", title: "", when: "10. 02.", body: "규칙\n\n1. 같은 번호 두 달 이상 안 씀\n2. 일 얘기는 전화 X. 문자도 짧게\n3. 현금은 나눠서\n4. 얼굴 아는 사람 일은 안 받음\n5. 착수금 없으면 안 움직임\n6. 손 대지 말라면 안 댄다\n7. 애 끼면 안 한다" },
+      { id: id(), folder: "메모", title: "", when: "10. 11.", body: "챙길 거\n\n[x] 장갑 (니트릴 / 가죽)\n[x] 손전등\n[ ] 여분 유심\n[x] 방수포\n[ ] 블박 메모리 교체\n[x] 구급 — 거즈, 지혈대, 봉합 테이프\n[ ] 셔츠 한 치수 큰 거" },
+      { id: id(), folder: "메모", title: "", when: "어제", body: "0927 — 대상\n\n평일 밤 11시쯤 귀가\n편의점 들렀다 감 (같은 곳)\n차 없음. 택시 자주\n주말엔 거의 안 나옴\n\n→ 소재 확인만. 의뢰인한테 주소는 안 넘김. 확인 여부만." },
+      { id: id(), folder: "메모", title: "", when: "10. 15.", body: "수금\n\nㄱ — 완\nㅂ — 잔금 남음. 다음 주\nㅅ — 연락 두절. 다시 확인\n\n세탁 수수료 빼고 계산" },
+      { id: id(), folder: "메모", title: "", when: "9. 28.", body: "번호 바꿀 때 알릴 사람\n박 실장, 쥐, 김기사, 오 원장\n끝" },
+      { id: id(), folder: "메모", title: "", lockCode: "0000", when: "9. 03.", body: "비상시\n\n현금 — 늘 두던 데\n차 키 — 김기사한테 하나 더\n오 원장 뒷문\n\n번호 버리고 일주일 잠수" },
     ],
 
     /* ───────── 캘린더 (요일 반복) ───────── */
     calendar: [
-      { id: id(), days: [1, 2, 3, 4, 5, 6], time: "07:30", end: "19:00", title: "경호", place: "", color: "#FF3B30" },
+      { id: id(), days: [1, 2, 3, 4, 5, 6], time: "07:30", end: "19:00", title: "이유노", color: "#FF3B30" },
       { id: id(), days: [3], time: "14:00", title: "정비 — 타이어 뒤", color: "#FF9500" },
       { id: id(), days: [4], time: "23:30", title: "평소 거기", color: "#8E8E93" },
       { id: id(), days: [6], time: "04:00", title: "뒷문 — 실밥", color: "#34C759" },
@@ -623,7 +462,7 @@ export function defaultData(): PhoneData {
         { id: id(), when: "오늘", name: "OO셀프주유소", amount: -82000, memo: "체크카드" },
         { id: id(), when: "어제", name: "김*기", amount: -150000, memo: "카카오페이 송금" },
         { id: id(), when: "어제", name: "ATM 현금입금", amount: 900000, memo: "편의점" },
-        { id: id(), when: "10. 22.", name: "(주)한**상사", amount: 3000000, memo: "용역비" },
+        { id: id(), when: "10. 22.", name: "(주)한**상사", amount: 3000000, memo: "입금" },
         { id: id(), when: "10. 22.", name: "ATM 현금입금", amount: 900000, memo: "편의점" },
         { id: id(), when: "10. 21.", name: "정*비", amount: -250000, memo: "카카오페이 송금" },
         { id: id(), when: "10. 20.", name: "이*정", amount: 700000, memo: "입금" },
@@ -650,99 +489,185 @@ export function defaultData(): PhoneData {
       { id: id(), title: "Ivy", artist: "Frank Ocean", album: "Blonde", url: "", hue: 120 },
     ],
 
-    /* ───────── 사진 (전부 코드로 그린 이미지 — 저작권 없음) ───────── */
-    photos: [
-      { id: "ph1", kind: "parking:7", caption: "지하주차장", when: "어제", album: "최근 항목" },
-      { id: "ph2", kind: "alley:3", caption: "골목", when: "어제" },
-      { id: "ph3", kind: "car:1", caption: "차 안", when: "어제" },
-      { id: "ph4", kind: "sketch:5", caption: "현장 스케치", when: "화요일", fav: true },
-      { id: "ph5", kind: "rain:2", caption: "비", when: "화요일" },
-      { id: "ph6", kind: "tunnel:9", caption: "터널", when: "월요일" },
-      { id: "ph7", kind: "parking:12", caption: "B2", when: "월요일" },
-      { id: "ph8", kind: "memo:4", caption: "메모", when: "10. 21." },
-      { id: "ph9", kind: "alley:8", caption: "", when: "10. 20." },
-      { id: "ph10", kind: "car:6", caption: "", when: "10. 20." },
-      { id: "ph11", kind: "sky:3", caption: "옥상", when: "10. 18." },
-      { id: "ph12", kind: "rain:11", caption: "", when: "10. 15." },
-      { id: "ph13", kind: "sketch:14", caption: "", when: "10. 12." },
-      { id: "ph14", kind: "tunnel:2", caption: "", when: "10. 09." },
-      { id: "ph15", kind: "alley:21", caption: "", when: "10. 05." },
-    ],
+    /* ───────── 사진 (기본 없음 — 에디터에서 업로드) ───────── */
+    photos: [],
 
     /* ───────── 인스타그램 ───────── */
     ig: {
       me: { handle: "t.s_choi", name: "", bio: "", posts: 0, followers: 12, following: 31, private: true },
       users: [
-        { handle: "night.drive.seoul", name: "야간 드라이브", bio: "밤에만 찍습니다", posts: 412, followers: 18200, following: 80 },
-        { handle: "gukbap_24h", name: "24시 국밥", bio: "새벽에도 끓입니다", posts: 96, followers: 2310, following: 12 },
-        { handle: "detailing_garage", name: "디테일링 개러지", bio: "광택 · 썬팅 · 블랙박스", posts: 230, followers: 5120, following: 301 },
-        { handle: "fight.league.kr", name: "FIGHT LEAGUE", bio: "아마추어 격투 리그", posts: 880, followers: 40100, following: 15 },
         { handle: "seoul_incident", name: "서울 사건사고", bio: "제보 DM", posts: 3120, followers: 98000, following: 2 },
+        { handle: "night.drive.seoul", name: "야간 드라이브", bio: "밤에만 찍습니다", posts: 412, followers: 18200, following: 80 },
+        { handle: "used_car.kim", name: "중고차 김실장", bio: "현금 거래 환영 · 전국 탁송", posts: 230, followers: 5120, following: 301 },
+        { handle: "gukbap_24h", name: "24시 국밥", bio: "새벽에도 끓입니다", posts: 96, followers: 2310, following: 12 },
+        { handle: "x_x.0217", name: "", bio: "", posts: 0, followers: 3, following: 40, private: true },
       ],
       feed: [
-        { id: id(), user: "night.drive.seoul", caption: "비 오는 날 이면도로. 와이퍼 소리만", photo: "gen:rain:31", likes: 1204, comments: 18, when: "2시간 전" },
-        { id: id(), user: "seoul_incident", caption: "어젯밤 지하주차장 차량 파손 사건, 목격자 찾습니다. 제보는 DM", photo: "gen:parking:33", likes: 342, comments: 57, when: "5시간 전" },
-        { id: id(), user: "detailing_garage", caption: "2채널 블랙박스 + 썬팅 시공 완료. 야간 화질 확인하세요", photo: "gen:car:35", likes: 88, comments: 4, when: "어제" },
-        { id: id(), user: "gukbap_24h", caption: "새벽 4시에도 불 켜져 있습니다. 순대국 9,000", photo: "gen:alley:36", likes: 210, comments: 12, when: "어제" },
-        { id: id(), user: "fight.league.kr", caption: "이번 주 메인 이벤트 계체 통과. 토요일 밤 8시", photo: "gen:tunnel:37", likes: 3920, comments: 140, when: "2일 전" },
+        { id: id(), user: "seoul_incident", caption: "어젯밤 지하주차장 차량 파손 사건, 목격자 찾습니다. 제보는 DM", photo: "", likes: 342, comments: 57, when: "5시간 전" },
+        { id: id(), user: "night.drive.seoul", caption: "비 오는 날 이면도로. 와이퍼 소리만", photo: "", likes: 1204, comments: 18, when: "어제" },
       ],
-      stories: ["night.drive.seoul", "fight.league.kr", "detailing_garage", "seoul_incident"],
+      stories: ["seoul_incident", "night.drive.seoul", "used_car.kim", "gukbap_24h"],
     },
 
     /* ───────── 사파리 ───────── */
     safari: {
       favorites: [
+        { title: "Google", url: "google.com" },
         { title: "NAVER", url: "m.naver.com" },
-        { title: "카페", url: "m.cafe.naver.com" },
+        { title: "YouTube", url: "m.youtube.com" },
+        { title: "나무위키", url: "namu.wiki" },
         { title: "당근", url: "daangn.com" },
-        { title: "사람인", url: "m.saramin.co.kr" },
+        { title: "번개장터", url: "m.bunjang.co.kr" },
+        { title: "쿠팡", url: "m.coupang.com" },
+        { title: "X", url: "x.com" },
       ],
       history: [
         "블랙박스 녹화 덮어쓰기 주기",
         "차량 위치추적기 찾는 법",
         "도어락 배터리 방전 열림",
         "아파트 CCTV 보관 기간",
-        "방검 조끼 셔츠 안",
-        "24시 국밥 근처",
-        "1톤 탑차 중고",
-        "경호원 2급 자격증",
-        "선불폰 개통",
+        "대포차 뜻",
+        "무전기 중고",
+        "방수포 블랙 3x4",
+        "그랜저 중고 현금",
         "자상 응급처치",
+        "선불폰 개통",
       ],
       tabs: [
         {
           id: id(),
-          title: "CCTV 보관 기간 : 네이버 검색",
-          url: "m.search.naver.com",
+          title: "블랙박스 녹화 덮어쓰기 주기 - Google 검색",
+          url: "google.com",
           page: {
             type: "search",
-            engine: "naver",
-            query: "아파트 CCTV 보관 기간",
+            engine: "google",
+            query: "블랙박스 녹화 덮어쓰기 주기",
             results: [
-              { title: "공동주택 CCTV 영상 보관 기간은? 최소 30일", url: "m.blog.naver.com", desc: "공동주택관리법상 영상정보는 30일 이상 보관하도록 되어 있으며, 열람은 정보주체 또는 수사기관 요청이 있을 때…", source: "블로그 · 관리소장 일기" },
-              { title: "CCTV 열람 요청 거절당했어요 (지식iN)", url: "m.kin.naver.com", desc: "관리사무소에서 경찰 동행 없이는 안 된다고 하네요. 원래 이런가요? → 개인정보보호법상 제3자 영상이 포함된 경우…", source: "지식iN" },
-              { title: "블랙박스·CCTV 영상, 며칠 지나면 사라질까", url: "n.news.naver.com", desc: "대부분의 장비는 저장 공간이 차면 오래된 영상부터 자동으로 덮어쓴다. 사고 직후 바로 백업해두는 것이 중요하다…", source: "뉴스 · OO일보" },
+              { title: "블랙박스 영상 며칠 저장되나요? 용량별 정리", url: "m.blog.naver.com", desc: "128GB 기준 상시녹화는 보통 하루~이틀이면 가장 오래된 영상부터 덮어씁니다. 사고 영상은 이벤트 폴더로 따로…", source: "네이버 블로그" },
+              { title: "블랙박스 메모리 덮어쓰기 설정 방법 - 제조사 고객센터", url: "support.example.co.kr", desc: "SD카드 용량이 가득 차면 순환 녹화 방식으로 오래된 파일이 자동 삭제됩니다. 중요한 영상은 즉시 백업…", source: "고객지원" },
+              { title: "블랙박스 영상 지워졌는데 복구 되나요? : 클리앙", url: "m.clien.net", desc: "이미 덮어쓴 영역은 복구가 거의 안 됩니다. 덮어쓰기 전이면 복구 업체에서 가능한 경우도…", source: "클리앙" },
             ],
           },
         },
         {
           id: id(),
-          title: "해결사·심부름 정보공유 : 네이버 카페",
-          url: "m.cafe.naver.com",
+          title: "대포차 - 나무위키",
+          url: "namu.wiki",
           page: {
-            type: "cafe",
-            cafe: "경호·심부름 실무자 모임",
-            board: "자유게시판",
-            title: "1인으로 일하시는 분들 착수금 얼마나 받으세요",
-            author: "새벽세시",
-            views: 1882,
-            body:
-              "팀 없이 혼자 하다 보니 시세를 모르겠네요.\n소개로만 받는데 착수금 안 주고 일 끝나면 준다는 사람이 자꾸 있어서요.\n다들 선금 비율 어떻게 하시나요. 반반? 삼칠?",
+            type: "wiki",
+            title: "대포차",
+            updated: "최근 수정 시각: 2026-10-11",
+            sections: [
+              { h: "1. 개요", body: "자동차등록원부상의 소유자와 실제 운행자가 다른 차량을 일컫는 속어. 명의 이전을 하지 않은 채 거래·운행되는 차량을 말한다." },
+              { h: "2. 문제점", body: "실제 운행자가 드러나지 않기 때문에 과태료·세금 체납, 보험 미가입 상태로 운행되는 경우가 많으며, 사고 시 피해 보상이 어렵다." },
+              { h: "3. 처벌", body: "자동차관리법 위반으로 처벌 대상이 된다. 단속 시 번호판 영치, 차량 강제 견인 등이 이루어진다." },
+              { h: "4. 관련 문서", body: "대포통장 · 대포폰 · 명의 도용" },
+            ],
+          },
+        },
+        {
+          id: id(),
+          title: "내 차에 위치추적기가 붙어 있었습니다 - YouTube",
+          url: "m.youtube.com",
+          page: {
+            type: "video",
+            title: "내 차에 위치추적기가 붙어 있었습니다 (실제 사례 · 찾는 곳 정리)",
+            channel: "카닥터 김정비",
+            subs: "구독자 41.2만명",
+            views: "조회수 87만회",
+            when: "1년 전",
+            duration: "12:48",
+            desc: "정비소에 들어온 차량에서 실제로 발견된 사례들을 정리했습니다. 의심되면 경찰에 신고하세요.",
             comments: [
-              { who: "검은우산", text: "착수금 없으면 안 움직이는 게 맞습니다. 나중에 준다는 사람치고 주는 사람 못 봤어요" },
-              { who: "ㅇㄱ", text: "반반이 무난. 그리고 소개해준 사람 얼굴 보고 받으세요" },
-              { who: "정장맨", text: "경호는 월정으로 받는 게 속 편해요" },
-              { who: "새벽세시", text: "ㄳㄳ 참고할게요" },
+              { who: "@운전3년차", text: "이거 보고 바로 범퍼 밑 봤는데 아무것도 없어서 다행" },
+              { who: "@k.s.h", text: "요즘은 진짜 손바닥보다 작네요 무섭다" },
+              { who: "@밤길조심", text: "8:12 여기 진짜 생각도 못 함" },
+            ],
+          },
+        },
+        {
+          id: id(),
+          title: "무전기 2대 세트 (충전독 포함) | 번개장터",
+          url: "m.bunjang.co.kr",
+          page: {
+            type: "market",
+            site: "bunjang",
+            title: "무전기 2대 세트 충전독 포함 (생활무전기)",
+            price: "85,000원",
+            area: "직거래 · 지하철역 근처",
+            seller: "장비창고",
+            temp: 0,
+            meta: "2일 전 · 찜 9 · 조회 214",
+            photo: "",
+            body: "실사용 몇 번 안 했습니다.\n배터리 상태 좋고 이어폰 2개 같이 드려요.\n택배 거래 X 직거래만 합니다.\n네고 문의 사절.",
+          },
+        },
+        {
+          id: id(),
+          title: "그랜저 IG 2019 블랙 - 엔카",
+          url: "m.encar.com",
+          page: {
+            type: "car",
+            title: "현대 그랜저 IG 3.0 익스클루시브",
+            price: "1,890만원",
+            specs: [
+              ["연식", "19/03식"],
+              ["주행거리", "84,210km"],
+              ["연료", "가솔린"],
+              ["색상", "검정"],
+              ["사고", "단순교환 1회"],
+              ["압류·저당", "없음"],
+            ],
+            body: "1인 신조 차량, 정비 이력 확인 가능합니다.\n선팅 전면 포함 진하게 되어 있습니다.\n현금 구매 시 상담 가능.",
+            dealer: "OO오토 · 김실장",
+          },
+        },
+        {
+          id: id(),
+          title: "방수포 블랙 3x4m : 쿠팡",
+          url: "m.coupang.com",
+          page: {
+            type: "shop",
+            name: "PE 방수포 타포린 블랙 3x4m 아일렛 고리형, 1개",
+            price: "18,900원",
+            discount: "24%",
+            rating: 4.5,
+            reviews: 12384,
+            delivery: "내일(월) 도착 보장",
+            seller: "로켓배송",
+          },
+        },
+        {
+          id: id(),
+          title: "이면도로 주차 시비 끝에… - X",
+          url: "x.com",
+          page: {
+            type: "sns",
+            query: "OO동 새벽",
+            posts: [
+              { name: "동네 소식", handle: "@local_news_kr", text: "오늘 새벽 OO동 이면도로에서 검은 세단 한 대가 몇 시간째 시동 켠 채 서 있었다는 제보가 들어왔습니다. 혹시 보신 분?", when: "3시간", replies: 12, reposts: 31, likes: 140 },
+              { name: "새벽퇴근러", handle: "@night_shift_88", text: "그거 나도 봤음 ㅋㅋ 안에 사람 있는데 계속 휴대폰만 보고 있더라", when: "2시간", replies: 3, reposts: 2, likes: 48 },
+              { name: "ㅇㅇ", handle: "@sooo_0w", text: "요즘 저런 차 왜 이렇게 많냐 무섭게", when: "1시간", replies: 0, reposts: 0, likes: 9 },
+            ],
+          },
+        },
+        {
+          id: id(),
+          title: "흥신소 써보신 분 있나요 - 고민상담 갤러리",
+          url: "m.dcinside.com",
+          page: {
+            type: "board",
+            site: "디시인사이드",
+            gallery: "고민상담 갤러리",
+            title: "흥신소 써보신 분 있나요",
+            author: "ㅇㅇ(118.235)",
+            views: 1882,
+            recommend: 3,
+            body: "돈 빌려 간 사람이 잠수 탔는데 주소라도 알고 싶어서요\n흥신소 비용 보통 얼마 하나요\n착수금부터 달라던데 이거 사기 아님?",
+            comments: [
+              { who: "ㅇㅇ(211.36)", text: "착수금 받고 잠수하는 데 많음 조심" },
+              { who: "고닉", text: "그냥 지급명령 넣어라 그게 제일 빠름" },
+              { who: "ㅇㅇ(39.7)", text: "주소 알아서 뭐 하게 ㅋㅋ 찾아가면 너도 문제 됨" },
             ],
           },
         },
@@ -752,55 +677,41 @@ export function defaultData(): PhoneData {
           url: "daangn.com",
           page: {
             type: "market",
+            site: "daangn",
             title: "1톤 탑차 판매합니다 (윙바디 아님)",
             price: "1,150만원",
             area: "OO동",
             seller: "화물아저씨",
             temp: 41.2,
             meta: "중고차 · 3일 전 · 관심 14 · 채팅 6",
-            photo: "gen:parking:41",
+            photo: "",
             body: "주행 18만. 엔진 미션 이상 없습니다.\n적재함 깨끗하고 냉동 아님.\n명의 이전 바로 가능. 네고 조금 가능합니다.\n밤늦게 연락 주시는 분들 계신데 저녁 9시 이후엔 답 못 드려요.",
           },
         },
         {
           id: id(),
-          title: "수행기사 겸 경호원 채용 - 사람인",
-          url: "m.saramin.co.kr",
-          page: {
-            type: "job",
-            site: "사람인",
-            company: "(주)OO시큐리티",
-            title: "[정규직] 법인 대표 수행기사 겸 근접경호원 모집",
-            pay: "연봉 4,200만원 ~ 협의",
-            conditions: ["경력 3년 이상", "1종 보통 필수", "신변보호사 자격 우대", "주 5일 · 일정에 따라 야간 근무"],
-            body: "대표이사 출퇴근 및 외부 일정 수행.\n근접경호 경력자 우대. 운전 능숙자.\n입사 시 보안 서약서 작성.",
-          },
-        },
-        {
-          id: id(),
-          title: "도어락 배터리 방전 : 네이버 검색",
-          url: "m.search.naver.com",
-          page: {
-            type: "search",
-            engine: "naver",
-            query: "도어락 배터리 방전 열림",
-            results: [
-              { title: "도어락 배터리 다 됐을 때 9V 비상전원 사용법", url: "m.blog.naver.com", desc: "도어락 외부 하단의 비상전원 단자에 9V 건전지를 대면 일시적으로 전원이 공급되어 비밀번호 입력이 가능합니다…", source: "블로그" },
-              { title: "현관 도어락 교체 시기와 배터리 경고음", url: "m.blog.naver.com", desc: "경고음이 나기 시작하면 2~3주 안에 교체하는 것이 좋습니다. 알카라인 AA 4개…", source: "블로그 · 열쇠집 막내" },
-            ],
-          },
-        },
-        {
-          id: id(),
-          title: "지하주차장 차량 파손 사건 - OO일보",
+          title: "지하주차장 차량 파손 사건 - 네이버 뉴스",
           url: "n.news.naver.com",
           page: {
             type: "news",
             press: "OO일보",
             title: "새벽 지하주차장서 차량 연쇄 파손… 경찰 \"CCTV 사각지대 노려\"",
             reporter: "OOO 기자",
-            body:
-              "지난 새벽 한 주상복합 건물 지하주차장에서 차량 여러 대가 파손된 채 발견됐다.\n\n경찰에 따르면 범행은 CCTV 사각지대에서 이뤄졌으며, 현장에서는 별다른 도난 피해는 확인되지 않았다.\n\n경찰은 인근 블랙박스 영상을 확보해 용의자를 추적하고 있다.",
+            body: "지난 새벽 한 주상복합 건물 지하주차장에서 차량 여러 대가 파손된 채 발견됐다.\n\n경찰에 따르면 범행은 CCTV 사각지대에서 이뤄졌으며, 현장에서는 별다른 도난 피해는 확인되지 않았다.\n\n경찰은 인근 블랙박스 영상을 확보해 용의자를 추적하고 있다.",
+          },
+        },
+        {
+          id: id(),
+          title: "아파트 CCTV 보관 기간 : 네이버 검색",
+          url: "m.search.naver.com",
+          page: {
+            type: "search",
+            engine: "naver",
+            query: "아파트 CCTV 보관 기간",
+            results: [
+              { title: "공동주택 CCTV 영상 보관 기간은? 최소 30일", url: "m.blog.naver.com", desc: "공동주택관리법상 영상정보는 30일 이상 보관하도록 되어 있으며, 열람은 정보주체 또는 수사기관 요청이 있을 때…", source: "블로그 · 관리소장 일기" },
+              { title: "CCTV 열람 요청 거절당했어요 (지식iN)", url: "m.kin.naver.com", desc: "관리사무소에서 경찰 동행 없이는 안 된다고 하네요. 원래 이런가요? → 개인정보보호법상 제3자 영상이 포함된 경우…", source: "지식iN" },
+            ],
           },
         },
       ],
@@ -808,7 +719,7 @@ export function defaultData(): PhoneData {
 
     alarms: [
       { id: id(), time: "05:40", label: "기상", on: true },
-      { id: id(), time: "06:30", label: "출발 — 동선 확인", on: true },
+      { id: id(), time: "06:30", label: "이유노 — 출발 전 한 바퀴", on: true },
       { id: id(), time: "23:10", label: "0927", on: false },
       { id: id(), time: "03:30", label: "뒷문", on: false },
     ],

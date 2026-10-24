@@ -44,7 +44,7 @@ function Player({ s, playing, setPlay, onClose, next, prev }: { s: Song; playing
     <div className="absolute inset-0 z-40 text-white sheet overflow-hidden">
       <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, hsl(${s.hue} 30% 32%), hsl(${(s.hue + 20) % 360} 25% 14%))` }} />
       <div className="relative h-full flex flex-col px-[30px]" style={{ paddingTop: "calc(var(--sat) + 4px)" }}>
-        <button onClick={onClose} className="self-center w-[38px] h-[5px] rounded-full bg-white/40 mb-[26px]" aria-label="닫기" />
+        <button data-back onClick={onClose} className="self-center w-[38px] h-[5px] rounded-full bg-white/40 mb-[26px]" aria-label="닫기" />
         <div className="flex justify-center">
           <div style={{ transform: playing ? "scale(1)" : "scale(0.82)", transition: "transform .45s cubic-bezier(.3,1.4,.5,1)", boxShadow: "0 20px 50px rgba(0,0,0,0.4)", borderRadius: 12 }}>
             <Cover s={s} size={330} radius={12} />
