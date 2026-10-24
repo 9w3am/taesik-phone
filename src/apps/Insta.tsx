@@ -1,7 +1,7 @@
 /* Instagram (2025 하단 탭: 홈 · 릴스 · DM · 검색 · 프로필) */
 import { useEffect, useRef, useState } from "react";
 import { Home as HomeI, Clapperboard, Send, Search, Heart, MessageCircle, Bookmark, MoreHorizontal, Plus, ChevronDown, ChevronLeft, Lock, Camera, SquarePen, Phone, Video, Music2, Grid3x3, UserSquare2, Menu, X } from "lucide-react";
-import { useData, update, won, type Post, type Thread } from "../store";
+import { useData, update, uid, won, type Post, type Thread } from "../store";
 import { photoSrc } from "../photos";
 import { usePhoneCtx, Img } from "../ui";
 import { markRead, useAutoBottom, useComposer } from "./Messages";
@@ -82,6 +82,8 @@ function StoryViewer({ start, onClose }: { start: number; onClose: () => void })
   const [hold, setHold] = useState(false);
   const [dy, setDy] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
+  const [reply, setReply] = useState("");
+  const [sent, setSent] = useState(false);
   const press = useRef<{ x: number; y: number; at: number; w: number; left: number } | null>(null);
   const holdTimer = useRef<number | undefined>(undefined);
   const { setStatusDark } = usePhoneCtx();
@@ -192,9 +194,38 @@ function StoryViewer({ start, onClose }: { start: number; onClose: () => void })
             </button>
           </div>
         </div>
+        {sent && (
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-[96px] px-[14px] py-[8px] rounded-full bg-black/70 text-[14px] fade">메시지를 보냈습니다</div>
+        )}
         {/* 답장 줄 */}
         <div className="absolute left-[12px] right-[12px] bottom-[28px] flex items-center gap-[16px] transition-opacity" style={{ opacity: hold ? 0 : 1 }}>
-          <div className="flex-1 h-[44px] rounded-full border border-white/50 flex items-center px-[18px] text-[15px] text-white/85">메시지 보내기</div>
+          <input
+            value={reply}
+            onPointerDown={(e) => e.stopPropagation()}
+            onFocus={() => setHold(true)}
+            onBlur={() => setHold(false)}
+            onChange={(e) => setReply(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || !reply.trim()) return;
+              const text = reply.trim();
+              update((x) => {
+                let th = x.threads.find((y) => y.app === "insta" && y.name === it.user);
+                if (!th) {
+                  th = { id: uid(), app: "insta", name: it.user, unread: 0, last: "방금", messages: [] };
+                  x.threads.unshift(th);
+                }
+                th.messages.push({ id: uid(), from: "system", text: `${it.user}님의 스토리에 답장했습니다 · "${it.text.split("\n")[0]}"` });
+                th.messages.push({ id: uid(), from: "me", text });
+                th.last = "방금";
+              });
+              setReply("");
+              setSent(true);
+              setTimeout(() => setSent(false), 1400);
+              (e.target as HTMLInputElement).blur();
+            }}
+            placeholder="메시지 보내기"
+            className="flex-1 h-[44px] rounded-full border border-white/50 bg-transparent px-[18px] text-[15px] text-white placeholder:text-white/85 outline-none min-w-0"
+          />
           <Heart size={27} strokeWidth={1.8} />
           <Send size={25} strokeWidth={1.8} />
         </div>
@@ -354,6 +385,12 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
           <span className="mt-[12px] text-[13px] font-semibold bg-[#EFEFEF] rounded-[8px] px-[14px] py-[6px]">프로필 보기</span>
         </div>
         {t.messages.map((m, i) => {
+          if (m.from === "system")
+            return (
+              <div key={m.id} className="text-center text-[12px] text-black/45 mt-[14px] mb-[2px] px-[30px] truncate">
+                {m.text}
+              </div>
+            );
           const mine = m.from === "me";
           const next = t.messages[i + 1];
           const prev = t.messages[i - 1];
@@ -385,7 +422,7 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
             className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-black/45 min-w-0"
           />
           {c.canSend && (
-            <button onClick={c.send} aria-label="보내기" className="w-[34px] h-[34px] -mr-[8px] rounded-full bg-[#3797F0] flex items-center justify-center shrink-0">
+            <button onClick={() => c.send()} aria-label="보내기" className="w-[34px] h-[34px] -mr-[8px] rounded-full bg-[#3797F0] flex items-center justify-center shrink-0">
               <Send size={17} color="#fff" strokeWidth={2.2} className="-ml-[1px] mt-[1px]" />
             </button>
           )}

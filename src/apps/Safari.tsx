@@ -271,6 +271,8 @@ export default function Safari() {
   const d = useData();
   const [cur, setCur] = useState<string>(d.safari.tabs[0]?.id ?? "");
   const [overview, setOverview] = useState(false);
+  const [priv, setPriv] = useState(false); // 비공개 탭 그룹
+  const [hist, setHist] = useState(false); // 방문 기록
   const [typing, setTyping] = useState(false);
   const [q, setQ] = useState("");
   const tab = d.safari.tabs.find((t) => t.id === cur);
@@ -317,8 +319,14 @@ export default function Safari() {
 
   if (overview)
     return (
-      <div className="absolute inset-0 bg-[#E9E9EE] fade">
-        <div className="absolute inset-0 scroll px-[16px] grid grid-cols-2 gap-[16px] content-start" style={{ paddingTop: "calc(var(--sat) + 14px)", paddingBottom: 120 }}>
+      <div className="absolute inset-0 fade" style={{ background: priv ? "#1C1C1E" : "#E9E9EE" }}>
+        {priv && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-[40px] text-white">
+            <div className="text-[20px] font-semibold">비공개 브라우징</div>
+            <div className="text-[14px] text-white/60 mt-[8px] leading-[20px]">Safari는 방문한 페이지, 검색 기록, 자동 완성 정보를 기억하지 않습니다. 비공개 탭은 잠겨 있으며 사용 중이 아닐 때 잠깁니다.</div>
+          </div>
+        )}
+        <div className={`absolute inset-0 scroll px-[16px] grid grid-cols-2 gap-[16px] content-start ${priv ? "hidden" : ""}`} style={{ paddingTop: "calc(var(--sat) + 14px)", paddingBottom: 120 }}>
           {d.safari.tabs.map((t) => (
             <div key={t.id} className="relative">
               <button
@@ -342,11 +350,22 @@ export default function Safari() {
             </div>
           ))}
         </div>
-        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-[20px] pt-[12px] blur-bar text-[17px] text-[#007AFF]" style={{ paddingBottom: "var(--sab)", background: "rgba(233,233,238,0.85)" }}>
-          <button onClick={newTab}>
+        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-[20px] pt-[12px] blur-bar text-[17px] text-[#007AFF]" style={{ paddingBottom: "var(--sab)", background: priv ? "rgba(28,28,30,0.9)" : "rgba(233,233,238,0.85)" }}>
+          <button onClick={newTab} className={priv ? "opacity-40" : ""} disabled={priv}>
             <Plus size={26} />
           </button>
-          <span className="text-black text-[15px] font-semibold">{d.safari.tabs.length}개의 탭</span>
+          <div className="flex p-[2px] rounded-[9px] text-[13px] font-semibold" style={{ background: priv ? "rgba(118,118,128,0.3)" : "rgba(118,118,128,0.14)" }}>
+            {[true, false].map((pv) => (
+              <button
+                key={String(pv)}
+                onClick={() => setPriv(pv)}
+                className="px-[12px] h-[28px] rounded-[7px]"
+                style={{ background: priv === pv ? (priv ? "#636366" : "#fff") : "transparent", color: priv ? "#fff" : "#000", boxShadow: priv === pv && !priv ? "0 2px 6px rgba(0,0,0,0.12)" : "none" }}
+              >
+                {pv ? "비공개" : `${d.safari.tabs.length}개의 탭`}
+              </button>
+            ))}
+          </div>
           <button onClick={() => setOverview(false)} className="font-semibold">
             완료
           </button>
@@ -359,6 +378,55 @@ export default function Safari() {
       <div className="absolute inset-0 scroll" style={{ paddingTop: "var(--sat)", paddingBottom: 140 }}>
         {tab ? <PageView page={tab.page} onGo={go} /> : <StartPage onGo={go} />}
       </div>
+      {hist && (
+        <div className="absolute inset-0 z-40 flex items-end fade" style={{ background: "rgba(0,0,0,0.3)" }} onClick={() => setHist(false)}>
+          <div className="w-full h-[88%] bg-[#F2F2F7] rounded-t-[14px] flex flex-col sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center px-[16px] h-[52px]">
+              <span className="w-[40px]" />
+              <span className="text-[17px] font-semibold">방문 기록</span>
+              <button onClick={() => setHist(false)} className="text-[17px] text-[#007AFF] font-semibold">
+                완료
+              </button>
+            </div>
+            <div className="px-[16px] pb-[10px]">
+              <div className="h-[36px] rounded-[10px] bg-[#767680]/[0.12] flex items-center gap-[6px] px-[8px] text-[#8e8e93] text-[17px]">
+                <Search size={16} /> 방문 기록 검색
+              </div>
+            </div>
+            <div className="flex-1 scroll pb-[40px]">
+              {[
+                ["오늘", d.safari.tabs.slice(0, Math.ceil(d.safari.tabs.length / 2))],
+                ["어제", d.safari.tabs.slice(Math.ceil(d.safari.tabs.length / 2))],
+              ].map(([label, list]) => (
+                <div key={label as string}>
+                  <div className="px-[16px] pt-[14px] pb-[6px] text-[13px] font-semibold text-black/50">{label as string}</div>
+                  <div className="mx-[16px] rounded-[12px] bg-white overflow-hidden">
+                    {(list as SafariTab[]).map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setCur(t.id);
+                          setHist(false);
+                        }}
+                        className="w-full text-left pl-[14px] flex items-center gap-[12px]"
+                      >
+                        <span className="w-[28px] h-[28px] rounded-[7px] bg-[#E9E9EE] flex items-center justify-center text-[12px] font-bold text-black/50 shrink-0">{t.url[0]?.toUpperCase()}</span>
+                        <div className="flex-1 min-w-0 py-[9px] hair-b pr-[14px]">
+                          <div className="text-[15px] truncate">{t.title}</div>
+                          <div className="text-[13px] text-black/45 truncate">{t.url}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end px-[20px] py-[12px] text-[17px] text-[#007AFF] hair-t" style={{ paddingBottom: "var(--sab)" }}>
+              지우기
+            </div>
+          </div>
+        </div>
+      )}
       {/* 주소 입력 화면 */}
       {typing && (
         <div className="absolute inset-0 z-30 bg-[#F2F2F7] fade" style={{ paddingTop: "var(--sat)" }}>
@@ -402,7 +470,9 @@ export default function Safari() {
           <ChevronLeft size={28} strokeWidth={1.9} />
           <ChevronRight size={28} strokeWidth={1.9} className="opacity-35" />
           <Share size={23} strokeWidth={1.9} />
-          <BookOpen size={24} strokeWidth={1.9} />
+          <button onClick={() => setHist(true)}>
+            <BookOpen size={24} strokeWidth={1.9} />
+          </button>
           <button onClick={() => setOverview(true)}>
             <Copy size={23} strokeWidth={1.9} />
           </button>

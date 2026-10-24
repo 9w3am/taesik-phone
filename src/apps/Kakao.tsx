@@ -1,6 +1,6 @@
 /* 카카오톡 */
 import { useEffect, useState } from "react";
-import { Search, MessageCirclePlus, Settings, UserPlus, ChevronLeft, Menu, Plus, Smile, Hash, BellOff, User, MessageCircle, ShoppingBag, MoreHorizontal, Music, Mail, CalendarDays, Wallet, FolderClosed, Gift, Ticket } from "lucide-react";
+import { Megaphone, ChevronDown, Info, Search, MessageCirclePlus, Settings, UserPlus, ChevronLeft, Menu, Plus, Smile, Hash, BellOff, User, MessageCircle, ShoppingBag, MoreHorizontal, Music, Mail, CalendarDays, Wallet, FolderClosed, Gift, Ticket } from "lucide-react";
 import { useData, won, type Thread, type Msg } from "../store";
 import { photoSrc } from "../photos";
 import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
@@ -45,6 +45,13 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
   const c = useComposer(t);
   const ref = useAutoBottom(t.messages.length);
   const lastIdx = t.messages.length - 1;
+  // 내가 보낸 마지막 말풍선 옆 노란 1 → 몇 초 뒤 상대가 읽으면 사라짐
+  const [readGone, setReadGone] = useState(false);
+  useEffect(() => {
+    setReadGone(false);
+    const tm = setTimeout(() => setReadGone(true), 4000);
+    return () => clearTimeout(tm);
+  }, [t.messages.length]);
   return (
     <div className="absolute inset-0 z-30 flex flex-col push" style={{ background: KBG }}>
       <div className="relative z-10" style={{ paddingTop: "var(--sat)", background: KBG }}>
@@ -63,6 +70,13 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           </div>
         </div>
       </div>
+      {t.notice && (
+        <div className="relative z-10 mx-[10px] mt-[2px] mb-[4px] rounded-[10px] bg-white/95 px-[12px] py-[9px] flex items-center gap-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+          <Megaphone size={17} className="text-[#3A1D1D] shrink-0" />
+          <span className="text-[13px] text-[#191919] truncate flex-1">{t.notice}</span>
+          <ChevronDown size={16} className="text-black/40 shrink-0" />
+        </div>
+      )}
       <div ref={ref} className="flex-1 scroll px-[10px] pt-[8px] pb-[12px]">
         {t.messages.map((m, i) => {
           if (m.from === "system")
@@ -77,7 +91,12 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           const mine = m.from === "me";
           const first = !prev || prev.from !== m.from || (prev.who || "") !== (m.who || "") || prev.from === ("system" as string);
           const body =
-            m.kind === "pay" ? (
+            m.kind === "deleted" ? (
+              <div className="px-[10px] py-[7px] text-[14px] rounded-[12px] flex items-center gap-[5px]" style={{ background: mine ? "#FEE500" : "#fff", color: "rgba(0,0,0,0.4)" }}>
+                <Info size={14} />
+                삭제된 메시지입니다.
+              </div>
+            ) : m.kind === "pay" ? (
               <PayCard m={m} mine={mine} />
             ) : m.kind === "photo" ? (
               <Img src={photoSrc(m.photo || "", d.photos)} className="w-[190px] h-[250px] rounded-[12px]" />
@@ -95,7 +114,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           if (mine)
             return (
               <div key={m.id} className="flex justify-end items-end gap-[5px] pr-[4px]" style={{ marginTop: first ? 10 : 4 }}>
-                {i === lastIdx && <span className="text-[11px] font-bold text-[#FEE500] mb-[2px]" style={{ textShadow: "0 0 1px rgba(0,0,0,0.15)" }}>1</span>}
+                {i === lastIdx && !readGone && <span className="text-[11px] font-bold text-[#FEE500] mb-[2px]" style={{ textShadow: "0 0 1px rgba(0,0,0,0.15)" }}>1</span>}
                 <div className="max-w-[72%]">{body}</div>
               </div>
             );
@@ -132,7 +151,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           <Smile size={23} strokeWidth={1.6} className="text-[#555] shrink-0" />
         </div>
         {c.canSend ? (
-          <button onClick={c.send} className="h-[36px] px-[12px] rounded-[18px] text-[15px] font-semibold shrink-0" style={{ background: "#FEE500", color: "#191919" }}>
+          <button onClick={() => c.send()} className="h-[36px] px-[12px] rounded-[18px] text-[15px] font-semibold shrink-0" style={{ background: "#FEE500", color: "#191919" }}>
             전송
           </button>
         ) : (
@@ -291,14 +310,16 @@ export default function Kakao() {
         {tab === "shop" && (
           <>
             <Header title="쇼핑" icons={<Search size={23} strokeWidth={1.8} />} />
-            <div className="px-[16px] grid grid-cols-2 gap-[10px]">
-              {["방수포 3x4m", "니트릴 장갑 100매", "차량용 방향제", "블랙박스 메모리 128G"].map((x, i) => (
-                <div key={x}>
-                  <div className="aspect-square rounded-[10px]" style={{ background: ["#ECECEC", "#E4E8EC", "#EFEBE6", "#E8E8E8"][i] }} />
-                  <div className="text-[13px] mt-[6px] leading-[17px]">{x}</div>
-                  <div className="text-[14px] font-bold mt-[2px]">{["18,900", "9,800", "6,500", "21,400"][i]}원</div>
-                </div>
+            <div className="flex gap-[8px] px-[16px] pb-[14px] overflow-x-auto no-scrollbar">
+              {["선물하기", "쇼핑하기", "메이커스", "쇼핑라이브"].map((x, i) => (
+                <span key={x} className={`px-[14px] h-[32px] rounded-full text-[14px] flex items-center shrink-0 ${i === 0 ? "bg-[#191919] text-white font-semibold" : "border border-black/10"}`}>
+                  {x}
+                </span>
               ))}
+            </div>
+            <div className="flex flex-col items-center text-center pt-[120px] px-10">
+              <div className="text-[16px] font-semibold">최근 본 상품이 없어요</div>
+              <div className="text-[13px] text-black/45 mt-[6px]">관심 있는 상품을 둘러보세요</div>
             </div>
           </>
         )}

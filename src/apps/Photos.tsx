@@ -1,6 +1,6 @@
 /* iOS 사진 — 보관함 그리드 · 앨범 · 확대 보기 */
 import { useEffect, useState } from "react";
-import { ChevronLeft, Heart, Info, Trash2, Share, Image as ImageIcon, Images, Search, Sparkles, ChevronRight } from "lucide-react";
+import { ChevronLeft, Heart, Info, Trash2, Lock, Share, Image as ImageIcon, Images, Search, Sparkles, ChevronRight } from "lucide-react";
 import { useData, update } from "../store";
 import { photoSrc } from "../photos";
 import { TabBar, useStatusBar, usePhoneCtx, Img, LargeTitle } from "../ui";
@@ -49,7 +49,17 @@ function Viewer({ start, ids, onClose }: { start: number; ids: string[]; onClose
               <Heart size={24} strokeWidth={1.8} fill={p.fav ? "#007AFF" : "none"} />
             </button>
             <Info size={24} strokeWidth={1.8} />
-            <Trash2 size={23} strokeWidth={1.8} />
+            <button
+              onClick={() => {
+                update((x) => {
+                  const y = x.photos.find((z) => z.id === p.id);
+                  if (y) y.deleted = !y.deleted;
+                });
+                onClose();
+              }}
+            >
+              <Trash2 size={23} strokeWidth={1.8} />
+            </button>
           </div>
         </>
       )}
@@ -63,8 +73,10 @@ export default function Photos() {
   const [tab, setTab] = useState("lib");
   const [view, setView] = useState<{ ids: string[]; i: number } | null>(null);
   const [album, setAlbum] = useState<string | null>(null);
-  const all = d.photos.map((p) => p.id);
-  const favs = d.photos.filter((p) => p.fav).map((p) => p.id);
+  const all = d.photos.filter((p) => !p.deleted).map((p) => p.id);
+  const favs = d.photos.filter((p) => p.fav && !p.deleted).map((p) => p.id);
+  const trash = d.photos.filter((p) => p.deleted).map((p) => p.id);
+  const [trashOpen, setTrashOpen] = useState(false);
   const grid = (ids: string[]) => (
     <div className="grid grid-cols-3 gap-[1.5px]">
       {ids.map((id, i) => (
@@ -126,7 +138,24 @@ export default function Photos() {
                 <ChevronLeft size={28} strokeWidth={2.3} /> 앨범
               </button>
               <LargeTitle>{album}</LargeTitle>
-              {grid(album === "즐겨찾는 항목" ? favs : all)}
+              {album === "최근 삭제된 항목" ? (
+                trashOpen ? (
+                  <>
+                    <div className="px-4 pb-[12px] text-[13px] text-black/50 leading-[18px]">항목은 영구적으로 삭제되기 전 최대 30일 동안 표시됩니다. 그 이후에는 영구적으로 삭제됩니다.</div>
+                    {trash.length ? grid(trash) : <div className="text-center text-black/40 pt-[80px]">사진 없음</div>}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center pt-[120px] text-center px-10">
+                    <Lock size={40} strokeWidth={1.6} className="text-black/40" />
+                    <div className="text-[20px] font-semibold mt-[12px]">이 앨범은 잠겨 있음</div>
+                    <button onClick={() => setTrashOpen(true)} className="text-[17px] text-[#007AFF] mt-[10px]">
+                      앨범 보기
+                    </button>
+                  </div>
+                )
+              ) : (
+                grid(album === "즐겨찾는 항목" ? favs : all)
+              )}
             </>
           ) : (
             <>
@@ -150,10 +179,11 @@ export default function Photos() {
               <div className="px-4 pt-[26px] pb-[6px] text-[22px] font-bold">유틸리티</div>
               <div className="mx-4">
                 {["가져오기", "가려진 항목", "최근 삭제된 항목"].map((x) => (
-                  <div key={x} className="flex items-center py-[11px] hair-b text-[17px] text-[#007AFF]">
+                  <button key={x} onClick={() => x === "최근 삭제된 항목" && (setTrashOpen(false), setAlbum(x))} className="w-full flex items-center py-[11px] hair-b text-[17px] text-[#007AFF] text-left">
                     <span className="flex-1">{x}</span>
+                    {x === "최근 삭제된 항목" ? <Lock size={14} className="text-black/30 mr-[6px]" /> : <span className="text-black/40 mr-[6px]">0</span>}
                     <ChevronRight size={18} className="text-[#c4c4c6]" />
-                  </div>
+                  </button>
                 ))}
               </div>
             </>

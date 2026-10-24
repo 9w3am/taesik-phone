@@ -11,7 +11,9 @@ export type Msg = {
   text: string;
   kind?: MsgKind;
   amount?: number; // 송금 카드
-  photo?: string; // 사진 id (procedural 또는 업로드)
+  photo?: string; // 사진 id
+  tap?: string; // 아이메시지 반응 (heart/like/dislike/haha/emph/q)
+  replyTo?: string; // 답장한 말풍선 내용
 };
 export type Thread = {
   id: string;
@@ -22,6 +24,8 @@ export type Thread = {
   members?: number; // 단체방 인원
   muted?: boolean;
   sms?: boolean; // 메시지: 초록 말풍선(문자)
+  notice?: string; // 카톡 단체방 공지 (상단 고정)
+  unsendAfterRead?: boolean; // 아이메시지: 다 읽으면 상대가 전송 취소
   draft?: string; // 보내지 않은 초안 (전송 버튼으로 보낼 수 있음)
   last?: string; // 목록에 보이는 날짜 표기 (예: 어제, 목요일)
   messages: Msg[];
@@ -41,7 +45,7 @@ export type Note = { id: string; folder: string; title: string; body: string; pi
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
 export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number };
-export type Photo = { id: string; kind?: string; asset?: string; src?: string; caption: string; when: string; album?: string; fav?: boolean };
+export type Photo = { id: string; kind?: string; asset?: string; src?: string; deleted?: boolean; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
 export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string; style?: "box" | "classic" };
 export type IgUser = { handle: string; name: string; bio: string; posts: number; followers: number; following: number; private?: boolean; avatar?: string };
@@ -72,7 +76,8 @@ export type PhoneData = {
   carrier: string;
   battery: number;
   weather: { city: string; temp: number; cond: string; hi: number; lo: number };
-  allowSend: boolean; // 초안 외에 직접 타자 전송 허용
+  allowSend: boolean;
+  autoLockSec?: number; // 자동 잠금 (초, 0이면 끔) // 초안 외에 직접 타자 전송 허용
   events: {
     incomingCall: { enabled: boolean; afterSec: number; name: string; lines: string[] };
     banner: { enabled: boolean; afterSec: number; app: AppKind; title: string; text: string };
@@ -93,6 +98,8 @@ export type PhoneData = {
   alarms: Alarm[];
   places: Place[];
   kakaoProfile: { status: string };
+  /** 숨은 장치: 키패드에 번호를 누르면 전화 (out: 걸면 받음 / in: 끊기면 잠시 뒤 걸려옴) */
+  triggers?: { id: string; code: string; name: string; mode: "out" | "in"; lines: string[] }[];
   /** 벨소리·알림음 (에디터에서 올린 소리 파일, data URL) */
   sounds?: { ringtone?: string; notify?: string; muted?: boolean };
 };

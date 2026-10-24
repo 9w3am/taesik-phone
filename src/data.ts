@@ -10,7 +10,7 @@ import type { Msg, PhoneData } from "./store";
 */
 
 /** 기본 콘텐츠를 고치면 이 숫자를 올리세요 → 방문자 브라우저의 예전 저장본이 새 내용으로 바뀝니다 */
-export const DATA_VERSION = 4;
+export const DATA_VERSION = 6;
 
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
@@ -31,6 +31,7 @@ export function defaultData(): PhoneData {
     battery: 23,
     weather: { city: "서울", temp: 9, cond: "흐림", hi: 13, lo: 6 },
     allowSend: true,
+    autoLockSec: 120,
     events: {
       incomingCall: {
         enabled: true,
@@ -38,13 +39,12 @@ export function defaultData(): PhoneData {
         name: "알 수 없음",
         lines: ["……", "최태식 씨 맞죠.", "요즘 이유노 옆에 딱 붙어 계시던데.", "아니, 별말 아니고. 그냥 안부 전화예요.", "밤길 조심하시라고."],
       },
-      banner: { enabled: true, afterSec: 30, app: "messages", title: "+82 10-****-4471", text: "아직 이 번호 쓰세요?" },
-      lowBattery: { enabled: true, afterSec: 150 },
+      banner: { enabled: false, afterSec: 30, app: "messages", title: "+82 10-****-4471", text: "아직 이 번호 쓰세요?" },
+      lowBattery: { enabled: false, afterSec: 150 },
     },
     lockNotifs: [
       { app: "messages", title: "W", text: "새 번호로 다시 연락함. 이 방은 오늘 닫는다.", when: "지금" },
-      { app: "messages", title: "장 사장", text: "내일 사무실로 한번 와요.", when: "12분 전" },
-      { app: "kakao", title: "박 실장", text: "[부고] 故 김OO님 별세", when: "40분 전" },
+      { app: "kakao", title: "박 실장", text: "밤에 시간 되냐", when: "12분 전" },
       { app: "phone", title: "부재중 전화 (2)", text: "알 수 없음", when: "1시간 전" },
     ],
 
@@ -67,6 +67,7 @@ export function defaultData(): PhoneData {
         unread: 1,
         pinned: true,
         last: "지금",
+        unsendAfterRead: true,
         messages: [
           sys("지난 건"),
           th("물건 정리 확인."),
@@ -131,23 +132,6 @@ export function defaultData(): PhoneData {
           th("그건 값 따로"),
           me("보내"),
           th("오늘 밤에. 평소대로"),
-          th("그리고 형님"),
-          th("요즘 형님 얘기 묻고 다니는 놈 있어요. 번호, 차, 다니는 데"),
-          me("누구"),
-          th("장 사장 쪽 애들 같은데 확실친 않음"),
-          th("저는 아무 말 안 했습니다. 진짜로"),
-        ],
-      },
-      {
-        id: "police",
-        app: "messages",
-        name: "02-***-0112",
-        unread: 1,
-        last: "어제",
-        messages: [
-          th("[OO경찰서] 최태식 님 휴대전화 맞으십니까. 형사과 강력팀 OOO 경위입니다."),
-          th("지난주 새벽 지하주차장 사건 관련해 참고인으로 몇 가지 여쭤볼 게 있습니다. 회신 부탁드립니다."),
-          th("부재 시 재연락 드리겠습니다."),
         ],
       },
       {
@@ -251,52 +235,6 @@ export function defaultData(): PhoneData {
         messages: [th("[Web발신]\n(광고) 무직자 OK 당일 승인 상담만 해도 OK\n무료거부 080-***-0021")],
       },
 
-      {
-        id: "jang",
-        app: "messages",
-        name: "장 사장",
-        unread: 1,
-        last: "오후 9:31",
-        messages: [
-          th("최 선생. 장입니다."),
-          th("우리 애들이 못 하는 일이 하나 생겼는데."),
-          me("조건부터요"),
-          th("조건은 만나서. 값은 부르는 대로 쳐 줄게요."),
-          me("전화로 하시죠"),
-          th("최 선생. 나 전화로 일 얘기 안 하는 거 알잖아."),
-          th("내일 사무실로 한번 와요."),
-        ],
-      },
-      {
-        id: "loan",
-        app: "messages",
-        name: "사채 강",
-        unread: 0,
-        last: "어제",
-        messages: [
-          th("ㅂ 그 새끼 아직이에요?"),
-          th("우리도 기다리는 데 한계가 있어서"),
-          me("다음 주"),
-          th("다음 주 넘어가면 우리 애들 보냅니다. 그럼 최 선생 몫은 없는 거고"),
-          me("다음 주라고 했습니다"),
-        ],
-      },
-      {
-        id: "house",
-        app: "messages",
-        name: "하우스 정 실장",
-        unread: 0,
-        last: "토요일",
-        messages: [th("오늘 판 크게 열려요"), th("문 앞에 서 있어만 주면 됩니다. 새벽 다섯 시까지"), me("오늘은 안 됩니다"), th("아쉽네. 다음에 꼭")],
-      },
-      {
-        id: "lawyer",
-        app: "messages",
-        name: "변호사 윤 (형사)",
-        unread: 0,
-        last: "10. 17.",
-        messages: [th("김기사 건은 기소유예로 정리됐습니다."), th("수임료 잔금 확인 부탁드립니다."), me("넣었습니다"), th("확인했습니다. 당분간 조용히 계시죠.")],
-      },
 
       /* ── 인스타그램 DM ── */
       {
@@ -329,8 +267,6 @@ export function defaultData(): PhoneData {
           me("이번 주는 어렵습니다"),
           th("너 요즘 얼굴 보기 힘들다"),
           th("밤에 시간 되냐"),
-          th("[부고]\n故 김OO님 별세\nOO장례식장 3호실\n발인: 모레 오전 6시"),
-          th("얼굴은 비춰라. 다들 온다"),
         ],
       },
       {
@@ -341,8 +277,8 @@ export function defaultData(): PhoneData {
         members: 214,
         muted: true,
         last: "오후 9:40",
+        notice: "시세 후려치기 · 선입금 먹튀 · 신분 캐묻기 금지. 어기면 강퇴.",
         messages: [
-          sys("방장: 공지 — 시세 후려치기, 선입금 먹튀, 신분 캐묻기 금지. 어기면 강퇴."),
           g("화물 K", "[구함] 오늘 야간 차량 대기 1명. 운전만. 일당 협의"),
           g("익명의 프로도", "어디쪽이에요"),
           g("화물 K", "갠톡"),
@@ -353,6 +289,8 @@ export function defaultData(): PhoneData {
           g("영업용", "[구함] 받을 돈 대신 받아줄 분. 성과제"),
           g("익명의 무지", "얼마짜린데요"),
           g("영업용", "갠톡으로"),
+          { id: id(), from: "them", who: "익명의 네오", text: "", kind: "deleted" },
+          g("방장", "방금 지운 사람 경고"),
           g("ㄱㄱ", "요즘 진짜 일 없네"),
           g("화물 K", "마감"),
         ],
@@ -387,33 +325,13 @@ export function defaultData(): PhoneData {
         last: "어제",
         messages: [
           sys("방장: 이 방에서 통장·명의 거래 얘기 하면 바로 강퇴함. 방 이름 보고 들어온 사람들 나가세요."),
-          g("익명의 콘", "법인통장 급처합니다 갠톡"),
+          { id: id(), from: "them", who: "익명의 콘", text: "", kind: "deleted" },
           sys("방장님이 익명의 콘님을 내보냈습니다."),
           g("익명의 라이언", "그럼 이 방은 뭐 하는 방이에요"),
           g("방장", "잡담방"),
           g("ㅇㅇ", "어제 이런 방 단속 들어갔다던데"),
           g("익명의 라이언", "ㄷㄷ 나갑니다"),
           sys("익명의 라이언님이 나갔습니다."),
-        ],
-      },
-      {
-        id: "k_site",
-        app: "kakao",
-        name: "OO구역 현장 (용역)",
-        unread: 24,
-        members: 31,
-        muted: true,
-        last: "오후 11:02",
-        messages: [
-          sys("방장: 이 방 내용 캡처·외부 공유 금지"),
-          g("현장 반장", "내일 05시 집결. 검정 옷. 모자"),
-          g("현장 반장", "경찰 오면 흩어지지 말고 조끼 입은 사람 뒤로"),
-          g("덩치", "일당은 현장에서 현금이죠?"),
-          g("현장 반장", "끝나고 바로"),
-          g("ㅇㅈ", "저번처럼 기자 오면요"),
-          g("현장 반장", "얼굴 가리고 말 섞지 마"),
-          g("철거_김씨", "장비는 제가 들어갑니다"),
-          g("현장 반장", "늦는 사람 다음부터 안 부름"),
         ],
       },
       {
@@ -481,16 +399,6 @@ export function defaultData(): PhoneData {
 
     /* ───────── 통화 기록 (상대 대사만) ───────── */
     calls: [
-      {
-        id: id(),
-        name: "장 사장",
-        kind: "in",
-        label: "휴대전화",
-        when: "오후 9:20",
-        lines: ["최 선생, 장입니다.", "문자 봤죠. 얼굴 보고 얘기합시다.", "우리 쪽 일이 남 손 타면 안 되는 거라서.", "최 선생이 딱이야. 조용하고, 혼자고.", "내일 봅시다."],
-      },
-      { id: id(), name: "사채 강", kind: "missed", label: "휴대전화", count: 2, when: "어제", lines: ["최 선생, 강입니다.", "ㅂ 건 날짜 다시 잡아야 할 것 같아서요. 연락 주세요."] },
-      { id: id(), name: "하우스 정 실장", kind: "missed", label: "휴대전화", when: "토요일", lines: ["태식 씨, 정 실장.", "오늘 판 크게 열리는데 문 좀 봐줄 수 있나 해서.", "문자 줘요."] },
       { id: id(), name: "알 수 없음", kind: "missed", label: "발신자 정보 없음", count: 2, when: "오후 8:51", lines: ["……", "(아무 말 없이 숨소리만 들리다 끊긴다)"] },
       {
         id: id(),
@@ -510,12 +418,6 @@ export function defaultData(): PhoneData {
 
     /* ───────── 연락처 ───────── */
     contacts: [
-      { id: id(), name: "장 사장", phone: "010-****-7700", label: "휴대전화", note: "전화로 일 얘기 X. 사무실." },
-      { id: id(), name: "사채 강", phone: "010-****-4040", label: "휴대전화", note: "ㅂ 건 같이 걸림" },
-      { id: id(), name: "하우스 정 실장", phone: "010-****-1313", label: "휴대전화" },
-      { id: id(), name: "변호사 윤 (형사)", phone: "02-***-5800", label: "직장" },
-      { id: id(), name: "마담", phone: "010-****-2525", label: "휴대전화" },
-      { id: id(), name: "OO장례식장", phone: "02-***-4444", label: "직장" },
       { id: id(), name: "번호변경_이유노", phone: "010-****-0417", label: "휴대전화", fav: true },
       { id: id(), name: "박 실장", phone: "010-****-0004", label: "휴대전화", fav: true, note: "일 물어오는 사람. 수수료 떼감" },
       { id: id(), name: "W", phone: "070-****-0319", label: "기타", note: "번호 자주 바뀜" },
@@ -550,7 +452,7 @@ export function defaultData(): PhoneData {
         pinned: true,
         when: "오후 9:02",
         body:
-          "장부\n\n진행 중\n[ ] 이유노 — 전담\n[ ] ㅂ 수금 — 잔금 남음. 겁만\n[ ] 0927 소재 파악 — 착수금 받음. 사흘\n[ ] 장 사장 건 — 조건 미정\n[ ] 사채 강 — ㅂ 건 날짜\n\n입금 대기\n[ ] 1103 — 잔금 (월말)\n[ ] 박 실장 소개 건 — 수수료 떼고 정산\n\n완료\n[x] ㄱ 수금 — 세탁 끝\n[x] 차 옮기기 (김기사) — 정리\n[x] 흥신소 하청 미행 3일 — 정산 완",
+          "장부\n\n진행 중\n[ ] 이유노 — 전담\n[ ] ㅂ 수금 — 잔금 남음. 겁만\n[ ] 0927 소재 파악 — 착수금 받음. 사흘\n\n입금 대기\n[ ] 1103 — 잔금 (월말)\n[ ] 박 실장 소개 건 — 수수료 떼고 정산\n\n완료\n[x] ㄱ 수금 — 세탁 끝\n[x] 차 옮기기 (김기사) — 정리\n[x] 흥신소 하청 미행 3일 — 정산 완",
       },
       {
         id: id(),
@@ -583,10 +485,8 @@ export function defaultData(): PhoneData {
     bank: {
       name: "입출금 통장",
       account: "1002-***-****41",
-      balance: 16165100,
+      balance: 8165100,
       txs: [
-        { id: id(), when: "어제", name: "장*호", amount: 5000000, memo: "입금" },
-        { id: id(), when: "10. 19.", name: "(주)OO개발", amount: 3000000, memo: "입금" },
         { id: id(), when: "오늘", name: "OO철물", amount: -38500, memo: "체크카드" },
         { id: id(), when: "오늘", name: "24시 OO국밥", amount: -9000, memo: "체크카드" },
         { id: id(), when: "오늘", name: "OO셀프주유소", amount: -82000, memo: "체크카드" },
@@ -624,6 +524,8 @@ export function defaultData(): PhoneData {
       { id: "ph-parking", asset: "parking", caption: "", when: "어제" },
       { id: "ph-gukbap", asset: "gukbap", caption: "평소 거기", when: "화요일", fav: true },
       { id: "ph-alley", asset: "alley", caption: "", when: "10. 20." },
+      // 최근 삭제된 항목 (지웠지만 30일 동안 남아 있는 사진)
+      { id: "ph-del1", asset: "parking", caption: "", when: "10. 14.", deleted: true },
     ],
 
     /* ───────── 인스타그램 ───────── */
@@ -637,14 +539,14 @@ export function defaultData(): PhoneData {
         { handle: "x_x.0217", name: "", bio: "", posts: 0, followers: 3, following: 40, private: true },
       ],
       feed: [
-        { id: id(), user: "seoul_incident", caption: "어젯밤 지하주차장 차량 파손 사건, 목격자 찾습니다. 제보는 DM", photo: "", likes: 342, comments: 57, when: "5시간 전" },
+        { id: id(), user: "seoul_incident", caption: "제보는 DM으로 받습니다", photo: "", likes: 342, comments: 57, when: "5시간 전" },
         { id: id(), user: "night.drive.seoul", caption: "비 오는 날 이면도로. 와이퍼 소리만", photo: "", likes: 1204, comments: 18, when: "어제" },
       ],
       stories: ["seoul_incident", "night.drive.seoul", "used_car.kim", "gukbap_24h"],
       // 스토리: 사진 없이 글자 스토리(인스타 만들기 텍스트 모드). photo에 사진 ID를 넣으면 사진 스토리
       storyItems: [
-        { id: id(), user: "seoul_incident", text: "[제보 받습니다]\nOO동 지하주차장 사건\n당일 블랙박스 있으신 분 DM", bg: "linear-gradient(160deg,#1c1c1e,#3a0d0d)", when: "2시간" },
-        { id: id(), user: "seoul_incident", text: "OO구역 철거 현장\n오늘도 경찰 대기 중", bg: "linear-gradient(160deg,#111,#2b2b2b)", when: "5시간", style: "box" },
+        { id: id(), user: "seoul_incident", text: "제보는 DM\n익명 보장", bg: "linear-gradient(160deg,#1c1c1e,#3a0d0d)", when: "2시간" },
+        { id: id(), user: "seoul_incident", text: "오늘 밤 비 소식\n운전 조심", bg: "linear-gradient(160deg,#111,#2b2b2b)", when: "5시간", style: "box" },
         { id: id(), user: "night.drive.seoul", text: "비 오는 날은\n이면도로가 제일 조용함", bg: "linear-gradient(170deg,#0f1b2d,#273a55)", when: "8시간" },
         { id: id(), user: "used_car.kim", text: "그랜저 IG 블랙 입고\n현금 상담 DM\n명의 문의 X", bg: "linear-gradient(160deg,#2c2c2c,#000)", when: "11시간", style: "box" },
         { id: id(), user: "gukbap_24h", text: "오늘도 새벽까지\n끓입니다", bg: "linear-gradient(160deg,#3b2414,#120a05)", when: "15시간" },
@@ -669,84 +571,8 @@ export function defaultData(): PhoneData {
         { title: "쿠팡", url: "m.coupang.com" },
         { title: "X", url: "x.com" },
       ],
-      history: ["OO구역 재개발 철거 충돌", "OO동 지하주차장 폭행", "OO장례식장", "OO항 여객선 시간표", "단기 월세 현금", "그랜저 IG 현금", "아이폰 공기계", "오늘 밤 비", "검정 가죽 장갑"],
+      history: ["OO항 여객선 시간표", "단기 월세 현금", "그랜저 IG 현금", "아이폰 공기계", "오늘 밤 비", "검정 가죽 장갑"],
       tabs: [
-        {
-          id: id(),
-          title: "재개발 구역 철거 현장 충돌 - 네이버 뉴스",
-          url: "n.news.naver.com",
-          page: {
-            type: "news",
-            press: "OO일보",
-            title: "재개발 구역 철거 현장서 용역 간 충돌… 2명 부상, 경찰 \"배후 수사\"",
-            reporter: "OOO 기자",
-            body: "새벽 OO구역 재개발 현장에서 철거 용역 인력과 세입자 측이 충돌해 2명이 다쳤다.\n\n경찰은 현장 인력 상당수가 일당을 현금으로 받고 동원된 것으로 보고, 동원 경위와 배후를 수사하고 있다.\n\n조합 측은 \"용역 업체에 맡긴 일\"이라며 선을 그었다.",
-          },
-        },
-        {
-          id: id(),
-          title: "OO구역 재개발 - 나무위키",
-          url: "namu.wiki",
-          page: {
-            type: "wiki",
-            title: "OO구역 재개발",
-            updated: "최근 수정 시각: 2026-10-23",
-            sections: [
-              { h: "1. 개요", body: "서울 OO구에 위치한 재개발 정비구역. 조합 설립 이후 여러 차례 시공사 교체와 소송을 겪었다." },
-              { h: "2. 사업 진행", body: "관리처분인가 이후 이주·철거 단계에 들어갔으나, 일부 세입자와 상가 보상 문제로 지연되고 있다." },
-              { h: "3. 논란", body: "철거 과정에서 용역 인력과 세입자 간 물리적 충돌이 반복되었으며, 일부 언론은 조직폭력배 출신 인사의 개입 의혹을 보도했다. 조합은 이를 부인하고 있다." },
-              { h: "4. 관련 문서", body: "도시정비법 · 철거 용역 · 젠트리피케이션" },
-            ],
-          },
-        },
-        {
-          id: id(),
-          title: "[단독] 새벽 지하주차장 폭행 CCTV - YouTube",
-          url: "m.youtube.com",
-          page: {
-            type: "video",
-            title: "[단독] 새벽 지하주차장 집단 폭행… CCTV에 찍힌 30초",
-            channel: "OO뉴스",
-            subs: "구독자 312만명",
-            views: "조회수 41만회",
-            when: "2일 전",
-            duration: "2:14",
-            desc: "경찰은 피해자와 가해자 모두 특정 조직과 관련된 인물로 보고 수사 중입니다. 제보: OO뉴스",
-            comments: [
-              { who: "@ss_k", text: "저 동네 원래 저런 일 많음" },
-              { who: "@밤길", text: "1:42 차에서 내리는 사람 뭐냐" },
-              { who: "@지나가다", text: "조직끼리 싸운 거면 신고도 안 하겠지" },
-            ],
-          },
-        },
-        {
-          id: id(),
-          title: "OO동 새벽 - X",
-          url: "x.com",
-          page: {
-            type: "sns",
-            query: "OO동 새벽",
-            posts: [
-              { name: "동네 소식", handle: "@local_news_kr", text: "오늘 새벽 OO동 이면도로에 검은 세단 몇 대가 시동 켠 채 한참 서 있었다는 제보가 들어왔습니다.", when: "3시간", replies: 12, reposts: 31, likes: 140 },
-              { name: "새벽퇴근러", handle: "@night_shift_88", text: "그거 나도 봤음. 정장 입은 사람들 담배 피우면서 계속 어디 쳐다보고 있더라", when: "2시간", replies: 3, reposts: 2, likes: 48 },
-              { name: "ㅇㅇ", handle: "@sooo_0w", text: "장례식장 쪽으로 다 빠지던데", when: "1시간", replies: 0, reposts: 0, likes: 9 },
-            ],
-          },
-        },
-        {
-          id: id(),
-          title: "OO장례식장 : 네이버 검색",
-          url: "m.search.naver.com",
-          page: {
-            type: "search",
-            engine: "naver",
-            query: "OO장례식장",
-            results: [
-              { title: "OO장례식장 - 오시는 길 · 주차 안내", url: "m.place.naver.com", desc: "지하 2층 주차장 이용. 3호실은 엘리베이터 하차 후 우측. 24시간 조문 가능.", source: "플레이스" },
-              { title: "OO장례식장 근처 24시 식당", url: "m.blog.naver.com", desc: "장례식장 바로 뒤 골목 국밥집, 새벽에도 엽니다.", source: "블로그" },
-            ],
-          },
-        },
         {
           id: id(),
           title: "OO항 여객선 시간표 - Google 검색",
@@ -823,21 +649,15 @@ export function defaultData(): PhoneData {
         },
         {
           id: id(),
-          title: "어제 그 지하주차장 사건 - 사건사고 갤러리",
-          url: "m.dcinside.com",
+          title: "오늘 밤 비 : 네이버 검색",
+          url: "m.search.naver.com",
           page: {
-            type: "board",
-            site: "디시인사이드",
-            gallery: "사건사고 갤러리",
-            title: "어제 그 지하주차장 사건 아는 사람",
-            author: "ㅇㅇ(118.235)",
-            views: 4120,
-            recommend: 12,
-            body: "뉴스엔 쌍방이라는데 동네 사람들 말로는 한쪽이 일방적으로 맞았다던데\n차 번호판도 다 가려져 있었다고 함\n요즘 그 동네 재개발 때문에 시끄럽긴 했음",
-            comments: [
-              { who: "ㅇㅇ(211.36)", text: "재개발 끼면 다 그쪽 애들임" },
-              { who: "고닉", text: "이런 건 경찰도 대충 함" },
-              { who: "ㅇㅇ(39.7)", text: "CCTV 30초 말고 앞뒤가 없는 게 이상함" },
+            type: "search",
+            engine: "naver",
+            query: "오늘 밤 비",
+            results: [
+              { title: "오늘 밤부터 비… 새벽까지 이어져", url: "n.news.naver.com", desc: "밤부터 전국에 비가 내리겠고, 비는 내일 새벽까지 이어지겠습니다. 운전 시 시야 확보에 유의해야겠습니다.", source: "뉴스" },
+              { title: "날씨 - 시간별 예보", url: "m.weather.naver.com", desc: "21시 비 70% · 00시 비 80% · 03시 흐림", source: "네이버 날씨" },
             ],
           },
         },
@@ -859,5 +679,6 @@ export function defaultData(): PhoneData {
     ],
     kakaoProfile: { status: "" },
     sounds: { muted: false },
+    triggers: [],
   };
 }

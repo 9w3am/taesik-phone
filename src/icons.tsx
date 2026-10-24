@@ -99,12 +99,6 @@ export const ICONS: Record<string, () => React.ReactElement> = {
       </text>
     </S>
   ),
-  signal: () => (
-    <S bg={fill("#3A76F0")}>
-      <circle cx="30" cy="29" r="17" fill="none" stroke="#fff" strokeWidth="2.4" strokeDasharray="5.2 2.6" />
-      <path d="M30 17c-6.6 0-12 5.1-12 11.6 0 2.4.8 4.6 2.1 6.4l-1.6 5.3 5.6-1.5c1.7.9 3.7 1.4 5.9 1.4 6.6 0 12-5.2 12-11.6S36.6 17 30 17z" fill="#fff" />
-    </S>
-  ),
   insta: () => (
     <S
       bg={

@@ -1,6 +1,6 @@
 /* 전화 앱 + 연락처 */
-import { useMemo, useRef, useState } from "react";
-import { Star, Clock, CircleUser, Grid3x3, Voicemail, Info, Phone as PhoneI, MessageCircle, Video, Mail, Plus, Delete, PhoneIncoming, PhoneOutgoing, Play } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Star, Clock, CircleUser, Grid3x3, Voicemail, Info, Phone as PhoneI, MessageCircle, Video, Mail, Plus, Delete, PhoneIncoming, PhoneOutgoing, Play, Pause } from "lucide-react";
 import { useData, type Contact, type PhoneData } from "../store";
 import { Avatar, LargeTitle, NavBar, SearchField, TabBar, useScrolled, usePhoneCtx, useStatusBar } from "../ui";
 
@@ -227,6 +227,16 @@ function Keypad() {
   const dial = () => {
     if (!num) return;
     if (num === "*#06#") return toast("IMEI 35 *** ******* 4");
+    const tg = (d.triggers ?? []).find((x) => x.code && x.code === num);
+    if (tg) {
+      setNum("");
+      if (tg.mode === "in") {
+        // 걸자마자 끊기고, 잠시 뒤 그쪽에서 전화가 옴
+        call(fmt(num), ["(신호가 한 번 가다 끊긴다)"]);
+        setTimeout(() => call(tg.name, tg.lines, "in"), 9000);
+      } else call(tg.name, tg.lines);
+      return;
+    }
     if (match) return call(match.name, linesFor(d, match.name));
     call(fmt(num), ["지금 거신 전화는 없는 번호입니다.", "확인하시고 다시 걸어 주십시오."]);
   };
@@ -253,6 +263,44 @@ function Keypad() {
   );
 }
 
+/* 음성 사서함 재생: 재생 누르면 막대가 차오르면서 텍스트 변환이 한 줄씩 나옴 */
+function VmPlayer({ lines }: { lines: string[] }) {
+  const total = Math.max(6, Math.round(lines.join("").length / 5));
+  const [play, setPlay] = useState(false);
+  const [sec, setSec] = useState(0);
+  useEffect(() => {
+    if (!play) return;
+    const i = setInterval(() => setSec((x) => (x + 1 > total ? (setPlay(false), total) : x + 1)), 1000);
+    return () => clearInterval(i);
+  }, [play, total]);
+  const shown = Math.ceil((sec / total) * lines.length);
+  return (
+    <div className="mt-[10px]" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-[10px]">
+        <button
+          onClick={() => {
+            if (sec >= total) setSec(0);
+            setPlay(!play);
+          }}
+          className="w-[32px] h-[32px] rounded-full bg-[#007AFF] flex items-center justify-center"
+        >
+          {play ? <Pause size={14} fill="#fff" strokeWidth={0} /> : <Play size={15} fill="#fff" strokeWidth={0} className="ml-[2px]" />}
+        </button>
+        <div className="flex-1 h-[3px] rounded-full bg-[#e5e5ea] overflow-hidden">
+          <div className="h-full bg-[#007AFF] transition-all duration-1000 ease-linear" style={{ width: `${(sec / total) * 100}%` }} />
+        </div>
+        <span className="text-[12px] text-[#8e8e93] tabular">
+          0:{String(sec).padStart(2, "0")} / 0:{String(total).padStart(2, "0")}
+        </span>
+      </div>
+      <div className="text-[13px] text-[#8e8e93] mt-[10px] mb-[2px]">텍스트 변환</div>
+      <div className="text-[15px] leading-[21px] min-h-[21px]">
+        {sec === 0 && !play ? <span className="text-black/30">재생하면 받아쓴 내용이 여기에 나옵니다</span> : lines.slice(0, shown).join(" ")}
+      </div>
+    </div>
+  );
+}
+
 function VoicemailTab() {
   const d = useData();
   const [ref, scrolled] = useScrolled<HTMLDivElement>();
@@ -272,19 +320,7 @@ function VoicemailTab() {
                 <span className="text-[15px] text-[#8e8e93]">{c.when}</span>
               </div>
               <div className="text-[15px] text-[#8e8e93]">{c.label}</div>
-              {openId === c.id && (
-                <div className="mt-[10px]">
-                  <div className="flex items-center gap-[10px]">
-                    <span className="w-[32px] h-[32px] rounded-full bg-[#007AFF] flex items-center justify-center">
-                      <Play size={15} fill="#fff" strokeWidth={0} className="ml-[2px]" />
-                    </span>
-                    <div className="flex-1 h-[3px] rounded-full bg-[#e5e5ea]" />
-                    <span className="text-[12px] text-[#8e8e93] tabular">0:{String(8 + c.lines.join("").length / 4).slice(0, 2)}</span>
-                  </div>
-                  <div className="text-[13px] text-[#8e8e93] mt-[10px] mb-[2px]">텍스트 변환</div>
-                  <div className="text-[15px] leading-[21px]">{c.lines.join(" ")}</div>
-                </div>
-              )}
+              {openId === c.id && <VmPlayer lines={c.lines} />}
             </div>
           </button>
         ))}

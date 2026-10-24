@@ -104,6 +104,13 @@ function LockScreen({ d, onUnlock, onCamera }: { d: PhoneData; onUnlock: () => v
   const [torch, setTorch] = useState(false);
   const start = useRef<number | null>(null);
   const date = `${now.getMonth() + 1}월 ${now.getDate()}일 ${DAYS[now.getDay()]}요일`;
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const groups: [string, PhoneData["lockNotifs"]][] = [];
+  d.lockNotifs.forEach((n) => {
+    const g = groups.find((x) => x[0] === n.app);
+    if (g) g[1].push(n);
+    else groups.push([n.app, [n]]);
+  });
   const end = () => {
     if (start.current === null) return;
     start.current = null;
@@ -129,19 +136,45 @@ function LockScreen({ d, onUnlock, onCamera }: { d: PhoneData; onUnlock: () => v
         </div>
         <div className="flex-1" />
         {/* 알림 스택 */}
-        <div className="w-full px-[8px] flex flex-col gap-[8px] mb-[118px]">
-          {d.lockNotifs.map((n, i) => (
-            <div key={i} className="rounded-[22px] px-[14px] py-[12px] flex gap-[10px] items-center blur-bar" style={{ background: "rgba(245,245,245,0.62)", color: "#000" }}>
-              <AppIcon id={n.app === "phone" ? "phone" : n.app === "bank" ? "bank" : n.app} size={38} />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-[15px] font-semibold truncate">{n.title}</span>
-                  <span className="text-[13px] text-black/45 ml-2 shrink-0">{n.when}</span>
+        {/* 같은 앱 알림은 겹쳐 쌓이고, 누르면 펼쳐짐 */}
+        <div className="w-full px-[8px] flex flex-col gap-[8px] mb-[118px]" onPointerDown={(e) => e.stopPropagation()}>
+          {groups.map(([app, list]) => {
+            const open = list.length === 1 || expanded === app;
+            const card = (n: (typeof list)[number], k: number) => (
+              <div key={k} className="rounded-[22px] px-[14px] py-[12px] flex gap-[10px] items-center blur-bar" style={{ background: "rgba(245,245,245,0.66)", color: "#000" }}>
+                <AppIcon id={n.app} size={38} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[15px] font-semibold truncate">{n.title}</span>
+                    <span className="text-[13px] text-black/45 ml-2 shrink-0">{n.when}</span>
+                  </div>
+                  <div className="text-[15px] leading-[20px] truncate">{n.text}</div>
+                  {!open && <div className="text-[13px] text-black/45 mt-[1px]">{list.length - 1}개의 알림 더 보기</div>}
                 </div>
-                <div className="text-[15px] leading-[20px] truncate">{n.text}</div>
               </div>
-            </div>
-          ))}
+            );
+            if (open)
+              return (
+                <div key={app} className="flex flex-col gap-[8px]">
+                  {list.length > 1 && (
+                    <div className="flex justify-between items-center px-[6px] text-white">
+                      <span className="text-[17px] font-semibold">{APPS[app]?.label ?? app}</span>
+                      <button onClick={() => setExpanded(null)} className="text-[13px] font-semibold px-[10px] h-[26px] rounded-full blur-bar" style={{ background: "rgba(255,255,255,0.25)" }}>
+                        간단히 보기
+                      </button>
+                    </div>
+                  )}
+                  {list.map(card)}
+                </div>
+              );
+            return (
+              <button key={app} onClick={() => setExpanded(app)} className="relative text-left" style={{ paddingBottom: Math.min(2, list.length - 1) * 8 }}>
+                {list.length > 2 && <div className="absolute left-[16px] right-[16px] bottom-0 h-[30px] rounded-b-[20px] blur-bar" style={{ background: "rgba(245,245,245,0.38)" }} />}
+                <div className="absolute left-[8px] right-[8px] h-[30px] rounded-b-[21px] blur-bar" style={{ bottom: list.length > 2 ? 8 : 0, background: "rgba(245,245,245,0.5)" }} />
+                <div className="relative">{card(list[0], 0)}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
       {/* 손전등 / 카메라 */}
@@ -166,15 +199,54 @@ function LockScreen({ d, onUnlock, onCamera }: { d: PhoneData; onUnlock: () => v
 }
 
 /* ───────── 암호 입력 ───────── */
+/* Face ID 모양 아이콘 */
+function FaceIdGlyph({ size = 56 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 56 56" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round">
+      <path d="M4 16V10a6 6 0 0 1 6-6h6M40 4h6a6 6 0 0 1 6 6v6M52 40v6a6 6 0 0 1-6 6h-6M16 52h-6a6 6 0 0 1-6-6v-6" />
+      <path d="M19 20v4M37 20v4M28 20v10h-3M20 38c4.5 4 11.5 4 16 0" />
+    </svg>
+  );
+}
+
 function Passcode({ code, hint, onOk, onCancel }: { code: string; hint: string; onOk: () => void; onCancel: () => void }) {
   const [v, setV] = useState("");
   const [bad, setBad] = useState(false);
+  const [face, setFace] = useState<"scan" | "fail" | null>("scan"); // 들어오면 Face ID 먼저 시도 → 실패
+  const [fails, setFails] = useState(() => Number(sessionStorage.getItem("pc-fails") || 0));
+  const [lockUntil, setLockUntil] = useState(() => Number(sessionStorage.getItem("pc-lock") || 0));
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const a = setTimeout(() => setFace("fail"), 700);
+    const b = setTimeout(() => setFace(null), 1500);
+    return () => (clearTimeout(a), clearTimeout(b));
+  }, []);
+  useEffect(() => {
+    if (lockUntil <= Date.now()) return;
+    const i = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(i);
+  }, [lockUntil]);
+  const locked = lockUntil > now;
   const press = (k: string) => {
+    if (locked || face) return;
     const nv = (v + k).slice(0, code.length);
     setV(nv);
     if (nv.length === code.length) {
-      if (nv === code) setTimeout(onOk, 120);
-      else {
+      if (nv === code) {
+        sessionStorage.removeItem("pc-fails");
+        setTimeout(onOk, 120);
+      } else {
+        const f = fails + 1;
+        setFails(f);
+        sessionStorage.setItem("pc-fails", String(f));
+        if (f % 5 === 0) {
+          // 5번 틀릴 때마다 사용 불가 (1분 → 5분 → 15분)
+          const mins = f === 5 ? 1 : f === 10 ? 5 : 15;
+          const until = Date.now() + mins * 60000;
+          setLockUntil(until);
+          setNow(Date.now());
+          sessionStorage.setItem("pc-lock", String(until));
+        }
         setBad(true);
         setTimeout(() => {
           setBad(false);
@@ -191,12 +263,38 @@ function Passcode({ code, hint, onOk, onCancel }: { code: string; hint: string; 
     window.addEventListener("keydown", f);
     return () => window.removeEventListener("keydown", f);
   });
+  if (locked) {
+    const left = Math.ceil((lockUntil - now) / 60000);
+    return (
+      <div className="absolute inset-0 text-white fade">
+        <Wallpaper blur={30} dim={0.55} />
+        <div className="relative flex flex-col items-center pt-[230px] text-center">
+          <Lock size={26} strokeWidth={2.4} />
+          <div className="text-[26px] font-semibold mt-[14px]">iPhone 사용 불가</div>
+          <div className="text-[17px] text-white/80 mt-[6px]">{left}분 후에 다시 시도하십시오</div>
+        </div>
+        <div className="absolute bottom-[50px] left-0 right-0 text-center text-[17px]">긴급 구조</div>
+      </div>
+    );
+  }
+  if (face)
+    return (
+      <div className="absolute inset-0 text-white fade">
+        <Wallpaper blur={10} dim={0.2} />
+        <div className="relative flex flex-col items-center pt-[250px]">
+          <div className={face === "fail" ? "shake" : "animate-pulse"}>
+            <FaceIdGlyph />
+          </div>
+          <div className="text-[15px] mt-[14px] text-white/85">{face === "fail" ? "얼굴을 인식할 수 없음" : "Face ID"}</div>
+        </div>
+      </div>
+    );
   const keys: [string, string][] = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"]];
   return (
     <div className="absolute inset-0 text-white fade">
       <Wallpaper blur={30} dim={0.35} />
       <div className="relative flex flex-col items-center pt-[110px]">
-        <div className="text-[20px] font-normal">암호 입력</div>
+        <div className="text-[20px] font-normal">{fails >= 3 ? `암호 입력 · ${fails}회 실패` : "암호 입력"}</div>
         <div className={`flex gap-[22px] mt-[18px] ${bad ? "shake" : ""}`}>
           {Array.from({ length: code.length }).map((_, i) => (
             <span key={i} className="w-[13px] h-[13px] rounded-full border-[1.5px] border-white" style={{ background: i < v.length ? "#fff" : "transparent" }} />
@@ -393,6 +491,43 @@ function Incoming({ name, sub, onAccept, onDecline }: { name: string; sub: strin
   );
 }
 
+/* 앱 전환기 카드 */
+function SwitchCard({ id, onOpen, onKill, children }: { id: string; onOpen: () => void; onKill: () => void; children: React.ReactNode }) {
+  const [dy, setDy] = useState(0);
+  const start = useRef<number | null>(null);
+  const k = 0.66;
+  return (
+    <div
+      className="shrink-0 snap-center flex flex-col items-start gap-[8px] touch-pan-x"
+      style={{ transform: `translateY(${dy}px)`, opacity: 1 + dy / 500, transition: start.current === null ? "all .25s" : "none" }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => (start.current = e.clientY)}
+      onPointerMove={(e) => start.current !== null && setDy(Math.min(0, e.clientY - start.current))}
+      onPointerUp={() => {
+        const moved = dy;
+        start.current = null;
+        if (moved < -120) {
+          setDy(-900);
+          setTimeout(onKill, 200);
+        } else {
+          setDy(0);
+          if (moved > -6) onOpen();
+        }
+      }}
+    >
+      <div className="flex items-center gap-[8px] text-white text-[14px] font-semibold ml-[4px]">
+        <AppIcon id={id} size={28} />
+        {APPS[id]?.label}
+      </div>
+      <div className="relative overflow-hidden rounded-[34px] shadow-[0_10px_40px_rgba(0,0,0,0.45)]" style={{ width: 393 * k, height: 852 * k, background: APPS[id]?.light ? "#fff" : "#000" }}>
+        <div className="absolute left-0 top-0 pointer-events-none" style={{ width: 393, height: 852, transform: `scale(${k})`, transformOrigin: "top left" }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ───────── 폰 본체 ───────── */
 type CallState = { name: string; lines: string[]; mode: "out" | "in"; ringing: boolean } | null;
 type Banner = { app: string; title: string; text: string; target?: string } | null;
@@ -425,6 +560,33 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   const [vvTop, setVvTop] = useState(0);
   const fired = useRef<Set<string>>(new Set());
   const ring = useRef<HTMLAudioElement | null>(null);
+  // 자동 잠금: 안 만지면 어두워졌다가(8초) 화면 꺼짐 → 누르면 잠금화면
+  const [idle, setIdle] = useState<null | "dim" | "off">(null);
+  const lastTouch = useRef(Date.now());
+  useEffect(() => {
+    if (embedded) return;
+    const touch = () => {
+      lastTouch.current = Date.now();
+      setIdle((x) => (x === "dim" ? null : x));
+    };
+    window.addEventListener("pointerdown", touch);
+    window.addEventListener("keydown", touch);
+    const iv = setInterval(() => {
+      const sec = d.autoLockSec ?? 120;
+      if (!sec || call || phase !== "home") return;
+      const gone = (Date.now() - lastTouch.current) / 1000;
+      if (gone > sec + 8) {
+        setIdle("off");
+        setApp(null);
+        setPhase("lock");
+      } else if (gone > sec) setIdle((x) => x ?? "dim");
+    }, 1000);
+    return () => {
+      window.removeEventListener("pointerdown", touch);
+      window.removeEventListener("keydown", touch);
+      clearInterval(iv);
+    };
+  }, [embedded, d.autoLockSec, call, phase]);
 
   // 벨소리: 전화가 울리는 동안 반복 재생
   useEffect(() => {
@@ -508,11 +670,16 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
     return () => window.removeEventListener("phone:open", f);
   }, [embedded]);
 
+  const [recents, setRecents] = useState<string[]>([]); // 최근 연 앱 (앱 전환기용)
+  const [switcher, setSwitcher] = useState(false);
+  const bar = useRef<{ y: number } | null>(null);
   const open = useCallback((id: string, arg?: unknown) => {
     setAppArg(arg ?? null);
     setApp(id);
     setAppKey((k) => k + 1);
     setStatusDark(!!APPS[id]?.light);
+    setRecents((r) => [id, ...r.filter((x) => x !== id)].slice(0, 8));
+    setSwitcher(false);
   }, []);
   const home = useCallback(() => {
     setApp(null);
@@ -744,17 +911,69 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
           />
         )}
 
+        {/* 자동 잠금 */}
+        {idle === "dim" && <div className="absolute inset-0 z-[100] pointer-events-none bg-black transition-opacity duration-1000" style={{ opacity: 0.55 }} />}
+        {idle === "off" && (
+          <button
+            aria-label="화면 켜기"
+            className="absolute inset-0 z-[101] bg-black"
+            onClick={() => {
+              lastTouch.current = Date.now();
+              setIdle(null);
+            }}
+          />
+        )}
+
         {/* 밝기 */}
         {bright < 1 && <div className="absolute inset-0 z-[99] pointer-events-none bg-black" style={{ opacity: (1 - bright) * 0.72 }} />}
         {torch && phase === "home" && <div className="absolute inset-0 z-[97] pointer-events-none" style={{ boxShadow: "inset 0 0 120px rgba(255,255,255,0.05)" }} />}
 
+        {/* 앱 전환기: 최근 앱 카드 (누르면 열기 · 위로 밀면 닫기) */}
+        {switcher && phase === "home" && (
+          <div className="absolute inset-0 z-[84] fade" onClick={() => setSwitcher(false)}>
+            <Wallpaper blur={24} dim={0.35} />
+            <div className="absolute inset-0 flex items-center gap-[18px] overflow-x-auto no-scrollbar px-[60px] snap-x snap-mandatory" onClick={(e) => e.target === e.currentTarget && setSwitcher(false)}>
+              {recents.map((id) => {
+                const C = APPS[id]?.C;
+                if (!C) return null;
+                return (
+                  <SwitchCard
+                    key={id}
+                    id={id}
+                    onOpen={() => open(id)}
+                    onKill={() => {
+                      setRecents((r) => r.filter((x) => x !== id));
+                      if (app === id) setApp(null);
+                      if (recents.length <= 1) setSwitcher(false);
+                    }}
+                  >
+                    <Ctx.Provider value={{ ...ctx, setStatusDark: () => {}, open: () => {}, home: () => {}, call: () => {}, toast: () => {} }}>
+                      <C />
+                    </Ctx.Provider>
+                  </SwitchCard>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 홈 인디케이터 */}
         {phase === "home" && (
           <button
-            aria-label="홈으로"
-            onClick={() => app && !call && home()}
-            onPointerUp={() => app && !call && home()}
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[85] w-[180px] h-[26px] flex items-end justify-center pb-[8px]"
+            aria-label="홈으로 · 위로 밀면 앱 전환기"
+            onPointerDown={(e) => {
+              bar.current = { y: e.clientY };
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerUp={(e) => {
+              const g = bar.current;
+              bar.current = null;
+              if (!g || call) return;
+              if (g.y - e.clientY > 50 && recents.length) setSwitcher(true);
+              else if (app) home();
+              else if (switcher) setSwitcher(false);
+            }}
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[85] w-[180px] h-[30px] flex items-end justify-center pb-[8px] touch-none"
           >
             <span className="block w-[134px] h-[5px] rounded-full" style={{ background: indicatorDark ? "#000" : "#fff" }} />
           </button>

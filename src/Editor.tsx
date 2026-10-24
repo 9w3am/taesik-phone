@@ -12,7 +12,7 @@ import { cloudEnabled, getSession, signIn, signOut, publish, SETUP_SQL, SB_URL }
 export function toScript(msgs: Msg[]) {
   return msgs
     .map((m) => {
-      const body = m.kind === "pay" ? `[송금] ${m.amount ?? 0}${m.text ? " " + m.text : ""}` : m.kind === "photo" ? `[사진] ${m.photo ?? ""}` : m.text;
+      const body = m.kind === "deleted" ? "[삭제됨]" : m.kind === "pay" ? `[송금] ${m.amount ?? 0}${m.text ? " " + m.text : ""}` : m.kind === "photo" ? `[사진] ${m.photo ?? ""}` : m.text;
       const lines = body.split("\n");
       const head = m.from === "system" ? `--- ${lines[0]}` : `${m.from === "me" ? "나" : m.who || "상대"}: ${lines[0]}`;
       return [head, ...lines.slice(1).map((l) => "  " + l)].join("\n");
@@ -46,7 +46,8 @@ export function fromScript(s: string): Msg[] {
     if (who) m.who = who;
     const pay = body.match(/^\[송금\]\s*([\d,]+)\s*(.*)$/);
     const pic = body.match(/^\[사진\]\s*(\S+)/);
-    if (pay) Object.assign(m, { kind: "pay", amount: Number(pay[1].replace(/,/g, "")), text: pay[2] || "" });
+    if (body === "[삭제됨]") Object.assign(m, { kind: "deleted", text: "" });
+    else if (pay) Object.assign(m, { kind: "pay", amount: Number(pay[1].replace(/,/g, "")), text: pay[2] || "" });
     else if (pic) Object.assign(m, { kind: "photo", photo: pic[1], text: "사진" });
     out.push(m);
   }
@@ -144,6 +145,9 @@ function Basic({ d }: { d: PhoneData }) {
           </F>
           <F label="암호 힌트 (암호 화면에 표시)">
             <T value={d.passcodeHint} onChange={(v) => s((x) => void (x.passcodeHint = v))} />
+          </F>
+          <F label="자동 잠금 (초 · 0이면 끔)">
+            <N value={d.autoLockSec ?? 120} onChange={(v) => s((x) => void (x.autoLockSec = v))} />
           </F>
           <F label="카카오톡 상태메시지">
             <T value={d.kakaoProfile.status} onChange={(v) => s((x) => void (x.kakaoProfile.status = v))} />
@@ -270,6 +274,34 @@ function Events({ d }: { d: PhoneData }) {
           </F>
         </div>
       </Card>
+      <Card title="숨은 장치 (키패드 번호 → 전화)">
+        <p className="text-[13px] text-black/50 mb-3">전화 앱 키패드에 정한 번호를 누르고 통화 버튼을 누르면 전화가 연결되거나(받음), 끊긴 뒤 그쪽에서 다시 걸려옵니다(걸려옴). 트위터 공지에 힌트로 쓰기 좋아요.</p>
+        <Rows
+          items={d.triggers ?? []}
+          set={(v) => update((x) => void (x.triggers = v))}
+          make={() => ({ id: uid(), code: "", name: "", mode: "out" as const, lines: [] })}
+          label="숨은 장치 추가"
+          render={(t, put) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <F label="누를 번호">
+                <T value={t.code} ph="예: 0417" onChange={(v) => put({ code: v.replace(/[^0-9*#]/g, "") })} />
+              </F>
+              <F label="상대 표시 이름">
+                <T value={t.name} onChange={(v) => put({ name: v })} />
+              </F>
+              <F label="방식">
+                <select value={t.mode} onChange={(e) => put({ mode: e.target.value as "out" })}>
+                  <option value="out">걸면 바로 받음</option>
+                  <option value="in">끊기고 잠시 뒤 걸려옴</option>
+                </select>
+              </F>
+              <F label="상대 대사 (한 줄 = 한 문장)" className="col-span-full">
+                <textarea rows={3} value={t.lines.join("\n")} onChange={(e) => put({ lines: e.target.value.split("\n") })} />
+              </F>
+            </div>
+          )}
+        />
+      </Card>
       <Card title="잠금화면 알림">
         <Rows
           items={d.lockNotifs}
@@ -335,8 +367,106 @@ function ScriptBox({ t }: { t: Thread }) {
       <div className="text-[12px] text-black/50 mt-2 leading-[19px] bg-black/[0.03] rounded-[10px] p-3">
         <b>쓰는 법</b> · <code>나: 내용</code> 최태식이 보낸 말 · <code>상대: 내용</code> 상대가 보낸 말 · 단체방은 <code>이름: 내용</code> · <code>--- 안내문</code> 가운데 회색 안내 · 줄 앞에 공백 두 칸이면 윗 말풍선에 줄바꿈으로 이어짐
         <br />
-        <code>나: [송금] 150000 메모</code> 송금 카드 · <code>상대: [사진] 사진ID</code> 사진 (ID는 에디터 사진 탭에서 확인)
+        <code>나: [송금] 150000 메모</code> 송금 카드 · <code>상대: [삭제됨]</code> 삭제된 메시지 · <code>상대: [사진] 사진ID</code> 사진 (ID는 에디터 사진 탭에서 확인)
       </div>
+    </div>
+  );
+}
+
+/* 대화 편집: '말풍선' 탭(하나씩 수정·삭제·순서 바꾸기) / '대본' 탭(한 번에 쓰기) */
+function MsgEditor({ t }: { t: Thread }) {
+  const [mode, setMode] = useState<"bubble" | "script">("bubble");
+  const setMsgs = (fn: (list: Msg[]) => Msg[]) =>
+    update((x) => {
+      const th = x.threads.find((y) => y.id === t.id);
+      if (th) th.messages = fn(th.messages);
+    });
+  const who = (m: Msg) => (m.from === "system" ? "__sys" : m.from === "me" ? "__me" : m.who || "__them");
+  const names = Array.from(new Set(t.messages.filter((m) => m.who).map((m) => m.who!)));
+  return (
+    <div>
+      <div className="flex gap-2 mb-3">
+        {(["bubble", "script"] as const).map((k) => (
+          <button key={k} onClick={() => setMode(k)} className={`h-[30px] px-3 rounded-full text-[13px] font-medium ${mode === k ? "bg-black text-white" : "bg-black/5"}`}>
+            {k === "bubble" ? "말풍선으로 편집" : "대본으로 한 번에 쓰기"}
+          </button>
+        ))}
+      </div>
+      {mode === "script" ? (
+        <ScriptBox key={t.id + t.messages.length} t={t} />
+      ) : (
+        <div className="space-y-2">
+          {t.messages.map((m, i) => (
+            <div key={m.id} className="flex gap-2 items-start">
+              <select
+                value={who(m)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMsgs((l) =>
+                    l.map((x) =>
+                      x.id !== m.id
+                        ? x
+                        : v === "__sys"
+                          ? { ...x, from: "system", who: undefined }
+                          : v === "__me"
+                            ? { ...x, from: "me", who: undefined }
+                            : v === "__them"
+                              ? { ...x, from: "them", who: undefined }
+                              : v === "__new"
+                                ? { ...x, from: "them", who: prompt("발신자 이름") || undefined }
+                                : { ...x, from: "them", who: v },
+                    ),
+                  );
+                }}
+                className="!w-[118px] shrink-0"
+              >
+                <option value="__me">나 (최태식)</option>
+                <option value="__them">상대</option>
+                {names.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+                <option value="__new">+ 이름 추가</option>
+                <option value="__sys">가운데 안내</option>
+              </select>
+              <textarea
+                rows={Math.min(4, Math.max(1, m.text.split("\n").length))}
+                value={m.kind === "pay" ? `[송금] ${m.amount ?? 0} ${m.text}` : m.kind === "photo" ? `[사진] ${m.photo ?? ""}` : m.kind === "deleted" ? "[삭제됨]" : m.text}
+                onChange={(e) => {
+                  const one = fromScript((m.from === "me" ? "나" : m.from === "system" ? "---" : m.who || "상대") + (m.from === "system" ? " " : ": ") + e.target.value.replace(/\n/g, "\n  "))[0];
+                  setMsgs((l) => l.map((x) => (x.id !== m.id ? x : { ...x, text: one?.text ?? e.target.value, kind: one?.kind, amount: one?.amount, photo: one?.photo })));
+                }}
+                className="flex-1"
+                style={{ background: m.from === "me" ? "#EAF3FF" : m.from === "system" ? "#F4F4F4" : "#fff" }}
+              />
+              <div className="flex shrink-0">
+                <button title="위로" onClick={() => i > 0 && setMsgs((l) => l.map((x, j) => (j === i - 1 ? l[i] : j === i ? l[i - 1] : x)))} className="w-7 h-[34px] text-black/45 hover:text-black">
+                  <ChevronUp size={16} className="mx-auto" />
+                </button>
+                <button title="아래로" onClick={() => i < t.messages.length - 1 && setMsgs((l) => l.map((x, j) => (j === i + 1 ? l[i] : j === i ? l[i + 1] : x)))} className="w-7 h-[34px] text-black/45 hover:text-black">
+                  <ChevronDown size={16} className="mx-auto" />
+                </button>
+                <button title="아래에 추가" onClick={() => setMsgs((l) => [...l.slice(0, i + 1), { id: uid(), from: m.from === "me" ? "them" : "me", text: "" }, ...l.slice(i + 1)])} className="w-7 h-[34px] text-black/45 hover:text-black">
+                  <Plus size={16} className="mx-auto" />
+                </button>
+                <button title="삭제" onClick={() => setMsgs((l) => l.filter((x) => x.id !== m.id))} className="w-7 h-[34px] text-[#FF3B30]/70 hover:text-[#FF3B30]">
+                  <Trash2 size={15} className="mx-auto" />
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="flex gap-2 pt-1">
+            <Btn onClick={() => setMsgs((l) => [...l, { id: uid(), from: "them", text: "" }])}>
+              <Plus size={15} /> 상대 말 추가
+            </Btn>
+            <Btn onClick={() => setMsgs((l) => [...l, { id: uid(), from: "me", text: "" }])}>
+              <Plus size={15} /> 내 말 추가
+            </Btn>
+          </div>
+          <p className="text-[12px] text-black/45">송금은 <code>[송금] 150000 메모</code>, 사진은 <code>[사진] 사진ID</code>, 삭제된 메시지는 <code>[삭제됨]</code>이라고 쓰면 됩니다.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -425,6 +555,11 @@ function Threads({ d }: { d: PhoneData }) {
                 <T value={t.last ?? ""} ph="어제 / 화요일 / 10. 21." onChange={(v) => put({ last: v })} />
               </F>
               {app === "kakao" && (
+                <F label="공지 (위에 고정)">
+                  <T value={t.notice ?? ""} onChange={(v) => put({ notice: v || undefined })} />
+                </F>
+              )}
+              {app === "kakao" && (
                 <F label="단체방 인원 (1:1이면 0)">
                   <N value={t.members ?? 0} onChange={(v) => put({ members: v || undefined })} />
                 </F>
@@ -432,9 +567,10 @@ function Threads({ d }: { d: PhoneData }) {
             </div>
             <div className="flex flex-wrap gap-5 mb-4">
               {app === "messages" && <C label="고정" value={!!t.pinned} onChange={(v) => put({ pinned: v })} />}
+              {app === "messages" && <C label="다 읽으면 상대가 전송 취소" value={!!t.unsendAfterRead} onChange={(v) => put({ unsendAfterRead: v })} />}
               {app === "kakao" && <C label="알림 끔" value={!!t.muted} onChange={(v) => put({ muted: v })} />}
             </div>
-            <ScriptBox t={t} />
+            <MsgEditor t={t} />
             <F label="보내지 않은 초안 (입력창에 미리 적혀 있고, 방문자가 전송 버튼을 누르면 최태식 메시지로 전송됨)" className="mt-4">
               <T value={t.draft ?? ""} onChange={(v) => put({ draft: v })} />
             </F>
@@ -844,6 +980,66 @@ function AiEd({ d }: { d: PhoneData }) {
   );
 }
 
+/* 회차 저장: 지금 폰 상태를 이름 붙여 여러 개 저장 → 골라서 불러오기 / 공개용 파일로 받기 */
+type Episode = { id: string; name: string; at: number; data: PhoneData };
+const EP_KEY = "taesik-phone:episodes";
+function loadEps(): Episode[] {
+  try {
+    return JSON.parse(localStorage.getItem(EP_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+function Episodes({ d, download }: { d: PhoneData; download: (name: string, obj: unknown) => void }) {
+  const [eps, setEps] = useState<Episode[]>(loadEps);
+  const [name, setName] = useState("");
+  const save = (list: Episode[]) => {
+    try {
+      localStorage.setItem(EP_KEY, JSON.stringify(list));
+      setEps(list);
+    } catch {
+      alert("저장 공간이 부족합니다. 오래된 회차를 지우거나 사진 수를 줄여 주세요.");
+    }
+  };
+  return (
+    <Card title="회차 저장 (연재용)">
+      <p className="text-[13px] text-black/50 mb-3 leading-[20px]">
+        지금 폰 상태를 '1화', '2화'처럼 이름 붙여 저장해 두고, 공개할 때 골라서 phone-data.json으로 받으면 됩니다. 회차는 이 브라우저에만 저장돼요.
+      </p>
+      <div className="flex gap-2 mb-3">
+        <input value={name} placeholder="회차 이름 (예: 1화 — 첫 의뢰)" onChange={(e) => setName(e.target.value)} />
+        <Btn
+          kind="primary"
+          onClick={() => {
+            save([{ id: uid(), name: name.trim() || `${eps.length + 1}화`, at: Date.now(), data: structuredClone(d) }, ...eps]);
+            setName("");
+          }}
+        >
+          <Plus size={15} /> 지금 상태 저장
+        </Btn>
+      </div>
+      {eps.length === 0 && <div className="text-[13px] text-black/40">저장된 회차가 없습니다.</div>}
+      <div className="space-y-2">
+        {eps.map((e) => (
+          <div key={e.id} className="flex flex-wrap items-center gap-2 border border-black/[0.08] rounded-[12px] px-3 py-2 bg-[#FAFAFC]">
+            <div className="flex-1 min-w-[140px]">
+              <div className="text-[14px] font-semibold">{e.name}</div>
+              <div className="text-[12px] text-black/45">{new Date(e.at).toLocaleString("ko-KR")}</div>
+            </div>
+            <Btn onClick={() => confirm(`'${e.name}' 상태로 폰을 바꿀까요? (지금 내용은 사라집니다. 먼저 저장해 두세요)`) && setData({ ...defaultData(), ...e.data })}>불러오기</Btn>
+            <Btn kind="primary" onClick={() => download("phone-data.json", { ...e.data, _rev: Date.now() })}>
+              <Download size={15} /> 이 회차로 공개 파일 받기
+            </Btn>
+            <Btn kind="danger" onClick={() => confirm("삭제할까요?") && save(eps.filter((x) => x.id !== e.id))}>
+              <Trash2 size={15} />
+            </Btn>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function Backup({ d }: { d: PhoneData }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
@@ -893,6 +1089,7 @@ function Backup({ d }: { d: PhoneData }) {
         </div>
         {msg && <div className="text-[13px] mt-3 text-black/60">{msg}</div>}
       </Card>
+      <Episodes d={d} download={download} />
       <Card title="방문자에게 반영하기 (게시)">
         <p className="text-[14px] text-black/70 leading-[23px]">
           여기서 고친 내용은 우선 <b>이 브라우저</b>에만 저장됩니다. 링크로 들어오는 모든 사람에게 보이게 하려면 아래 둘 중 하나를 하세요.
@@ -983,7 +1180,7 @@ const SECTIONS: [string, string, (p: { d: PhoneData }) => React.ReactElement][] 
   ["bank", "뱅킹", BankEd],
   ["json", "인스타 · 사파리 · 기타", JsonEd],
   ["ai", "AI 생성", AiEd],
-  ["backup", "백업 · 게시", Backup],
+  ["backup", "백업 · 회차 · 게시", Backup],
 ];
 
 /** 미리보기 폰에 '이 앱 열기' 신호 */

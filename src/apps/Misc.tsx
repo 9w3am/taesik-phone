@@ -245,7 +245,7 @@ export function Weather() {
         </div>
         <div className="mt-[10px] rounded-[16px] p-[14px] blur-bar" style={{ background: "rgba(255,255,255,0.08)" }}>
           <div className="text-[13px] opacity-60 pb-[6px] font-semibold">10일간의 일기예보</div>
-          {Array.from({ length: 7 }, (_, i) => {
+          {Array.from({ length: 10 }, (_, i) => {
             const day = new Date(now.getTime() + i * 86400000);
             const lo = w.lo + ((i * 3) % 4) - 1,
               hi = w.hi + ((i * 5) % 5) - 2;
