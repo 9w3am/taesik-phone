@@ -34,6 +34,8 @@ body {
   letter-spacing: -0.01em;
   overflow: hidden;
   overscroll-behavior: none;
+  touch-action: manipulation; /* 더블탭 확대 방지 */
+  -webkit-text-size-adjust: 100%;
 }
 button {
   font: inherit;
@@ -116,6 +118,8 @@ select {
   transform: translateZ(0);
   user-select: none;
   -webkit-user-select: none;
+  --kb: 0px;
+  --kbsab: max(var(--sab), var(--kb));
 }
 .screen input,
 .screen textarea {
@@ -126,9 +130,10 @@ select {
 .mobile .stage {
   background: #000;
 }
+.mobile .stage {
+  overflow: hidden;
+}
 .mobile .screen {
-  width: 100vw;
-  height: 100dvh;
   border-radius: 0;
 }
 
@@ -333,4 +338,26 @@ select {
   width: 26px;
   background: var(--page, #fff);
   border-bottom-right-radius: 10px;
+}
+
+/* 인스타 스토리: 사람 바뀔 때 큐브 넘김 */
+@keyframes storyCubeIn {
+  from {
+    transform: rotateY(-70deg) translateX(30%);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes storyCubeBack {
+  from {
+    transform: rotateY(70deg) translateX(-30%);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }

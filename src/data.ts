@@ -9,6 +9,9 @@ import type { Msg, PhoneData } from "./store";
   · 사진은 기본으로 넣지 않음 (에디터에서 직접 올린 사진만 표시)
 */
 
+/** 기본 콘텐츠를 고치면 이 숫자를 올리세요 → 방문자 브라우저의 예전 저장본이 새 내용으로 바뀝니다 */
+export const DATA_VERSION = 4;
+
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
 const me = (text: string, x: Partial<Msg> = {}): Msg => ({ id: id(), from: "me", text, ...x });
@@ -40,8 +43,8 @@ export function defaultData(): PhoneData {
     },
     lockNotifs: [
       { app: "messages", title: "W", text: "새 번호로 다시 연락함. 이 방은 오늘 닫는다.", when: "지금" },
-      { app: "messages", title: "[구로] 장 사장", text: "내일 사무실로 한번 와요.", when: "12분 전" },
-      { app: "kakao", title: "[서초] 박 실장", text: "[부고] 故 김OO님 별세", when: "40분 전" },
+      { app: "messages", title: "장 사장", text: "내일 사무실로 한번 와요.", when: "12분 전" },
+      { app: "kakao", title: "박 실장", text: "[부고] 故 김OO님 별세", when: "40분 전" },
       { app: "phone", title: "부재중 전화 (2)", text: "알 수 없음", when: "1시간 전" },
     ],
 
@@ -65,20 +68,28 @@ export function defaultData(): PhoneData {
         pinned: true,
         last: "지금",
         messages: [
-          th("건 하나."),
-          th("소재 파악만. 손은 안 댐. 사흘 안에."),
-          me("자료"),
-          th("평소 거기. 셋째 테이블 밑."),
-          me("착수금 먼저"),
-          th("반 넣음. 확인해."),
+          sys("지난 건"),
+          th("물건 정리 확인."),
+          th("잔금 들어감. 이번 건은 없던 일."),
           me("확인"),
+          sys("이번 건"),
+          th("건 하나."),
+          th("위치만. 손은 안 댐. 사흘."),
+          me("자료"),
+          th("평소 거기. 셋째 테이블 밑. 사진 두 장."),
+          me("값"),
+          th("평소의 두 배. 반은 지금."),
+          me("왜 두 배"),
+          th("묻지 않는 값까지."),
+          me("확인"),
+          th("끝나면 이 번호 버려."),
           th("새 번호로 다시 연락함. 이 방은 오늘 닫는다."),
         ],
       },
       {
         id: "park",
         app: "messages",
-        name: "[서초] 박 실장",
+        name: "박 실장",
         unread: 0,
         last: "월요일",
         messages: [
@@ -120,6 +131,38 @@ export function defaultData(): PhoneData {
           th("그건 값 따로"),
           me("보내"),
           th("오늘 밤에. 평소대로"),
+          th("그리고 형님"),
+          th("요즘 형님 얘기 묻고 다니는 놈 있어요. 번호, 차, 다니는 데"),
+          me("누구"),
+          th("장 사장 쪽 애들 같은데 확실친 않음"),
+          th("저는 아무 말 안 했습니다. 진짜로"),
+        ],
+      },
+      {
+        id: "police",
+        app: "messages",
+        name: "02-***-0112",
+        unread: 1,
+        last: "어제",
+        messages: [
+          th("[OO경찰서] 최태식 님 휴대전화 맞으십니까. 형사과 강력팀 OOO 경위입니다."),
+          th("지난주 새벽 지하주차장 사건 관련해 참고인으로 몇 가지 여쭤볼 게 있습니다. 회신 부탁드립니다."),
+          th("부재 시 재연락 드리겠습니다."),
+        ],
+      },
+      {
+        id: "debtor",
+        app: "messages",
+        name: "채무_ㅂ",
+        unread: 0,
+        last: "금요일",
+        messages: [
+          th("다음 주엔 진짜 꼭 드리겠습니다"),
+          th("제발 집으로는 오지 마세요"),
+          me("금요일"),
+          th("금요일까지 반이라도"),
+          me("전부"),
+          th("……알겠습니다"),
         ],
       },
       {
@@ -211,7 +254,7 @@ export function defaultData(): PhoneData {
       {
         id: "jang",
         app: "messages",
-        name: "[구로] 장 사장",
+        name: "장 사장",
         unread: 1,
         last: "오후 9:31",
         messages: [
@@ -277,7 +320,7 @@ export function defaultData(): PhoneData {
       {
         id: "k_park",
         app: "kakao",
-        name: "[서초] 박 실장",
+        name: "박 실장",
         unread: 1,
         last: "오후 9:12",
         messages: [
@@ -440,7 +483,7 @@ export function defaultData(): PhoneData {
     calls: [
       {
         id: id(),
-        name: "[구로] 장 사장",
+        name: "장 사장",
         kind: "in",
         label: "휴대전화",
         when: "오후 9:20",
@@ -451,7 +494,7 @@ export function defaultData(): PhoneData {
       { id: id(), name: "알 수 없음", kind: "missed", label: "발신자 정보 없음", count: 2, when: "오후 8:51", lines: ["……", "(아무 말 없이 숨소리만 들리다 끊긴다)"] },
       {
         id: id(),
-        name: "[서초] 박 실장",
+        name: "박 실장",
         number: "010-****-0004",
         kind: "in",
         label: "휴대전화",
@@ -467,14 +510,14 @@ export function defaultData(): PhoneData {
 
     /* ───────── 연락처 ───────── */
     contacts: [
-      { id: id(), name: "[구로] 장 사장", phone: "010-****-7700", label: "휴대전화", note: "전화로 일 얘기 X. 사무실." },
+      { id: id(), name: "장 사장", phone: "010-****-7700", label: "휴대전화", note: "전화로 일 얘기 X. 사무실." },
       { id: id(), name: "사채 강", phone: "010-****-4040", label: "휴대전화", note: "ㅂ 건 같이 걸림" },
       { id: id(), name: "하우스 정 실장", phone: "010-****-1313", label: "휴대전화" },
       { id: id(), name: "변호사 윤 (형사)", phone: "02-***-5800", label: "직장" },
-      { id: id(), name: "청담 마담", phone: "010-****-2525", label: "휴대전화" },
+      { id: id(), name: "마담", phone: "010-****-2525", label: "휴대전화" },
       { id: id(), name: "OO장례식장", phone: "02-***-4444", label: "직장" },
       { id: id(), name: "번호변경_이유노", phone: "010-****-0417", label: "휴대전화", fav: true },
-      { id: id(), name: "[서초] 박 실장", phone: "010-****-0004", label: "휴대전화", fav: true, note: "일 물어오는 사람. 수수료 떼감" },
+      { id: id(), name: "박 실장", phone: "010-****-0004", label: "휴대전화", fav: true, note: "일 물어오는 사람. 수수료 떼감" },
       { id: id(), name: "W", phone: "070-****-0319", label: "기타", note: "번호 자주 바뀜" },
       { id: id(), name: "오 원장 (뒷문)", phone: "010-****-8890", label: "휴대전화", note: "현금만. 새벽 가능." },
       { id: id(), name: "김기사 (탁송)", phone: "010-****-1123", label: "휴대전화" },
@@ -601,9 +644,9 @@ export function defaultData(): PhoneData {
       // 스토리: 사진 없이 글자 스토리(인스타 만들기 텍스트 모드). photo에 사진 ID를 넣으면 사진 스토리
       storyItems: [
         { id: id(), user: "seoul_incident", text: "[제보 받습니다]\nOO동 지하주차장 사건\n당일 블랙박스 있으신 분 DM", bg: "linear-gradient(160deg,#1c1c1e,#3a0d0d)", when: "2시간" },
-        { id: id(), user: "seoul_incident", text: "OO구역 철거 현장\n오늘도 경찰 대기 중", bg: "linear-gradient(160deg,#111,#2b2b2b)", when: "5시간" },
+        { id: id(), user: "seoul_incident", text: "OO구역 철거 현장\n오늘도 경찰 대기 중", bg: "linear-gradient(160deg,#111,#2b2b2b)", when: "5시간", style: "box" },
         { id: id(), user: "night.drive.seoul", text: "비 오는 날은\n이면도로가 제일 조용함", bg: "linear-gradient(170deg,#0f1b2d,#273a55)", when: "8시간" },
-        { id: id(), user: "used_car.kim", text: "그랜저 IG 블랙 입고\n현금 상담 DM\n명의 문의 X", bg: "linear-gradient(160deg,#2c2c2c,#000)", when: "11시간" },
+        { id: id(), user: "used_car.kim", text: "그랜저 IG 블랙 입고\n현금 상담 DM\n명의 문의 X", bg: "linear-gradient(160deg,#2c2c2c,#000)", when: "11시간", style: "box" },
         { id: id(), user: "gukbap_24h", text: "오늘도 새벽까지\n끓입니다", bg: "linear-gradient(160deg,#3b2414,#120a05)", when: "15시간" },
       ],
       // DM 상단 노트
@@ -815,5 +858,6 @@ export function defaultData(): PhoneData {
       { id: id(), name: "정비", note: "", x: 0.48, y: 0.8 },
     ],
     kakaoProfile: { status: "" },
+    sounds: { muted: false },
   };
 }

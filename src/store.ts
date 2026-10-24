@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { defaultData } from "./data";
+import { defaultData, DATA_VERSION } from "./data";
 
 /* ───────── 타입 ───────── */
 export type AppKind = "messages" | "kakao" | "insta";
@@ -43,7 +43,7 @@ export type Tx = { id: string; when: string; name: string; amount: number; memo:
 export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number };
 export type Photo = { id: string; kind?: string; asset?: string; src?: string; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
-export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string };
+export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string; style?: "box" | "classic" };
 export type IgUser = { handle: string; name: string; bio: string; posts: number; followers: number; following: number; private?: boolean; avatar?: string };
 export type SearchResult = { title: string; url: string; desc: string; source?: string };
 export type Comment = { who: string; text: string };
@@ -93,6 +93,8 @@ export type PhoneData = {
   alarms: Alarm[];
   places: Place[];
   kakaoProfile: { status: string };
+  /** 벨소리·알림음 (에디터에서 올린 소리 파일, data URL) */
+  sounds?: { ringtone?: string; notify?: string; muted?: boolean };
 };
 
 /* ───────── 저장소 (LocalStorage 자동 동기화) ───────── */
@@ -106,7 +108,9 @@ function load(): PhoneData {
   const base = defaultData();
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...base, ...JSON.parse(raw) };
+    const ver = localStorage.getItem(KEY + ":ver");
+    // 기본 콘텐츠가 바뀌면(DATA_VERSION 증가) 예전 저장본 대신 새 내용으로 시작
+    if (raw && ver === String(DATA_VERSION)) return { ...base, ...JSON.parse(raw) };
   } catch {
     /* 비공개 창 등 */
   }
@@ -120,6 +124,7 @@ export function setData(next: PhoneData) {
   state = next;
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
+    localStorage.setItem(KEY + ":ver", String(DATA_VERSION));
   } catch {
     alert("저장 공간이 부족합니다. 업로드한 사진 수를 줄여 주세요.");
   }

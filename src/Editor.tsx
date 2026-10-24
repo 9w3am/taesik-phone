@@ -5,6 +5,7 @@ import { useData, update, setData, resetData, uid, DAYS, type PhoneData, type Ms
 import { defaultData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
+import Phone from "./Phone";
 import { cloudEnabled, getSession, signIn, signOut, publish, SETUP_SQL, SB_URL } from "./cloud";
 
 /* ───────── 대화 스크립트 ↔ 메시지 ───────── */
@@ -151,6 +152,42 @@ function Basic({ d }: { d: PhoneData }) {
         <div className="mt-4">
           <C label="방문자가 입력창에 타자 쳐서 메시지 보내기 허용 (기본 켜짐 · 끄면 제작자가 넣은 초안만 전송 가능)" value={d.allowSend} onChange={(v) => s((x) => void (x.allowSend = v))} />
         </div>
+      </Card>
+      <Card title="소리 (벨소리 · 알림음)">
+        <p className="text-[13px] text-black/50 mb-3 leading-[20px]">
+          전화가 걸려올 때 반복 재생할 벨소리, 배너 알림이 뜰 때 한 번 재생할 알림음을 올리세요. (mp3/m4a/wav, 1MB 이하 권장 · 저장 공간 때문에)
+          <br />
+          아이폰 정품 벨소리는 애플 저작권이라 넣지 않았습니다. 본인이 쓸 권리가 있는 소리나 무료 소리(CC0)만 쓰세요. 제어 센터의 종 모양 버튼이 무음 모드입니다.
+        </p>
+        {(["ringtone", "notify"] as const).map((k) => (
+          <div key={k} className="flex flex-wrap items-center gap-2 py-2 border-t border-black/5">
+            <span className="w-[80px] text-[14px] font-medium">{k === "ringtone" ? "벨소리" : "알림음"}</span>
+            <span className="text-[13px] text-black/50 flex-1 min-w-[120px]">{d.sounds?.[k] ? `등록됨 (${Math.round((d.sounds[k]!.length * 0.75) / 1024)}KB)` : "없음"}</span>
+            {d.sounds?.[k] && <Btn onClick={() => new Audio(d.sounds![k]!).play().catch(() => {})}>들어보기</Btn>}
+            <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
+              파일 올리기
+              <input
+                type="file"
+                accept="audio/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  if (f.size > 2_500_000) return alert("파일이 너무 큽니다. 2.5MB 이하로 줄여 주세요.");
+                  const r = new FileReader();
+                  r.onload = () => s((x) => void (x.sounds = { ...(x.sounds ?? {}), [k]: String(r.result) }));
+                  r.readAsDataURL(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {d.sounds?.[k] && (
+              <Btn kind="danger" onClick={() => s((x) => void (x.sounds = { ...(x.sounds ?? {}), [k]: undefined }))}>
+                삭제
+              </Btn>
+            )}
+          </div>
+        ))}
       </Card>
       <Card title="날씨 위젯">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -309,6 +346,9 @@ function Threads({ d }: { d: PhoneData }) {
   const list = d.threads.filter((t) => t.app === app);
   const [sel, setSel] = useState<string | null>(list[0]?.id ?? null);
   const t = d.threads.find((x) => x.id === sel && x.app === app) ?? list[0];
+  useEffect(() => {
+    if (t) preview(t.app, t.id);
+  }, [t?.id]); // eslint-disable-line
   const put = (v: Partial<Thread>) =>
     update((x) => {
       const y = x.threads.find((z) => z.id === t!.id);
@@ -342,7 +382,7 @@ function Threads({ d }: { d: PhoneData }) {
       </div>
       <div className="grid lg:grid-cols-[230px_1fr] gap-4 items-start">
         <Card>
-          <div className="space-y-1 -mx-2">
+          <div className="space-y-1 -mx-2 max-h-[260px] lg:max-h-[calc(100vh-260px)] overflow-auto">
             {list.map((x) => (
               <button key={x.id} onClick={() => setSel(x.id)} className={`w-full text-left px-3 py-2 rounded-[9px] text-[14px] flex justify-between ${t?.id === x.id ? "bg-[#007AFF] text-white" : "hover:bg-black/5"}`}>
                 <span className="truncate">{x.name}</span>
@@ -946,18 +986,69 @@ const SECTIONS: [string, string, (p: { d: PhoneData }) => React.ReactElement][] 
   ["backup", "백업 · 게시", Backup],
 ];
 
+/** 미리보기 폰에 '이 앱 열기' 신호 */
+export const preview = (app?: string, arg?: unknown, phase?: "lock") => {
+  const detail = { app, arg, phase };
+  (window as unknown as { __lastPreview?: unknown }).__lastPreview = detail; // 미리보기가 나중에 열려도 같은 화면으로
+  window.dispatchEvent(new CustomEvent("phone:open", { detail }));
+};
+
+/* 섹션을 고르면 미리보기 폰에서 그 앱이 열림 */
+const SECTION_APP: Record<string, string | undefined> = {
+  calls: "phone",
+  contacts: "contacts",
+  notes: "notes",
+  calendar: "calendar",
+  songs: "music",
+  photos: "photos",
+  bank: "bank",
+  json: "safari",
+};
+
+function PreviewPane({ onClose }: { onClose?: () => void }) {
+  const [s, setS] = useState(() => Math.min(0.8, (window.innerHeight - 150) / 892));
+  useEffect(() => {
+    const f = () => setS(Math.min(0.8, (window.innerHeight - 150) / 892));
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex gap-2 items-center">
+        <Btn onClick={() => preview(undefined, undefined, "lock")}>잠금화면</Btn>
+        <Btn onClick={() => preview()}>홈</Btn>
+        {onClose && <Btn onClick={onClose}>닫기</Btn>}
+      </div>
+      <Phone embedded previewScale={s} />
+      <p className="text-[12px] text-black/45 text-center leading-[18px]">
+        고치는 즉시 여기에 반영됩니다.
+        <br />
+        미리보기 폰도 직접 눌러서 써 볼 수 있어요.
+      </p>
+    </div>
+  );
+}
+
 export default function Editor() {
   const d = useData();
   const [sec, setSec] = useState(() => sessionStorage.getItem("ed-sec") || "threads");
+  const [showPrev, setShowPrev] = useState(false);
+  const [wide, setWide] = useState(() => window.innerWidth >= 1200);
   useEffect(() => {
     sessionStorage.setItem("ed-sec", sec);
+    if (sec === "events") preview(undefined, undefined, "lock");
+    else if (sec === "basic") preview();
+    else if (SECTION_APP[sec]) preview(SECTION_APP[sec]);
   }, [sec]);
   useEffect(() => {
     document.title = "편집 — 최태식의 iPhone";
     document.body.style.overflow = "auto";
+    const f = () => setWide(window.innerWidth >= 1200);
+    window.addEventListener("resize", f);
     return () => {
       document.title = "최태식의 iPhone";
       document.body.style.overflow = "";
+      window.removeEventListener("resize", f);
     };
   }, []);
   const Cur = SECTIONS.find((s) => s[0] === sec)?.[2] ?? Threads;
@@ -967,20 +1058,22 @@ export default function Editor() {
   };
   return (
     <div className="ed min-h-full bg-[#F2F2F7] text-black" style={{ fontFamily: "var(--font)" }}>
-      <header className="sticky top-0 z-10 bg-white/85 backdrop-blur border-b border-black/[0.06]">
-        <div className="max-w-[1180px] mx-auto px-4 h-[56px] flex items-center gap-3">
+      <header className="sticky top-0 z-20 bg-white/85 backdrop-blur border-b border-black/[0.06]">
+        <div className="max-w-[1600px] mx-auto px-4 h-[56px] flex items-center gap-3">
           <button onClick={goPhone} className="flex items-center gap-1 text-[#007AFF] text-[15px]">
             <ArrowLeft size={18} /> 폰 보기
           </button>
           <div className="font-semibold text-[16px] ml-2">최태식 폰 편집기</div>
-          <span className="text-[12px] text-black/40 hidden sm:inline">수정 즉시 이 브라우저에 자동 저장 · 다른 탭에 열린 폰 화면에도 바로 반영</span>
+          <span className="text-[12px] text-black/40 hidden md:inline">수정 즉시 자동 저장 · 오른쪽 미리보기에 바로 반영</span>
           <span className="flex-1" />
-          <a href="./" target="_blank" className="hidden sm:flex items-center gap-1 text-[14px] text-black/60 hover:text-black no-underline">
-            <Smartphone size={16} /> 새 탭에서 폰 열기
-          </a>
+          {!wide && (
+            <Btn kind="primary" onClick={() => setShowPrev(true)}>
+              <Smartphone size={15} /> 미리보기
+            </Btn>
+          )}
         </div>
       </header>
-      <div className="max-w-[1180px] mx-auto px-4 py-5 grid md:grid-cols-[210px_1fr] gap-5">
+      <div className={`max-w-[1600px] mx-auto px-4 py-5 grid gap-5 ${wide ? "grid-cols-[190px_minmax(0,1fr)_auto]" : "md:grid-cols-[190px_minmax(0,1fr)]"}`}>
         <nav className="md:sticky md:top-[76px] self-start flex md:flex-col gap-1 overflow-x-auto no-scrollbar">
           {SECTIONS.map(([id, label]) => (
             <button key={id} onClick={() => setSec(id)} className={`text-left px-3 h-[36px] rounded-[9px] text-[14px] whitespace-nowrap ${sec === id ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06)] font-semibold" : "hover:bg-black/5 text-black/70"}`}>
@@ -991,7 +1084,19 @@ export default function Editor() {
         <main className="min-w-0">
           <Cur d={d} />
         </main>
+        {wide && (
+          <aside className="sticky top-[76px] self-start">
+            <PreviewPane />
+          </aside>
+        )}
       </div>
+      {!wide && showPrev && (
+        <div className="fixed inset-0 z-30 bg-black/40 flex items-start justify-center pt-[70px] overflow-auto" onClick={() => setShowPrev(false)}>
+          <div className="bg-[#F2F2F7] rounded-[20px] p-4" onClick={(e) => e.stopPropagation()}>
+            <PreviewPane onClose={() => setShowPrev(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

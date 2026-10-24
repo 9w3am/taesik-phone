@@ -1,7 +1,7 @@
 /* 제어 센터(오른쪽 위에서 끌어내리기) · 알림 센터(왼쪽 위에서 끌어내리기) */
 import { useState } from "react";
-import { Plane, Antenna, Wifi, Bluetooth, Moon, Flashlight, Timer, Calculator, Camera, Sun, Volume2, Lock, Play, Pause, FastForward, Rewind, Radio, X } from "lucide-react";
-import { DAYS, type PhoneData, type Song } from "./store";
+import { Plane, Antenna, Wifi, Bluetooth, Moon, Flashlight, Timer, Calculator, Camera, Sun, Volume2, Lock, Play, Pause, FastForward, Rewind, Radio, X, BellOff, Bell } from "lucide-react";
+import { DAYS, update, type PhoneData, type Song } from "./store";
 import { AppIcon } from "./icons";
 import { hm, useNow } from "./ui";
 import { Wallpaper } from "./Phone";
@@ -123,10 +123,8 @@ export function ControlCenter({
             <Tile on={t.lock} color="#fff" onClick={() => tg("lock")}>
               <Lock size={22} color={t.lock ? "#FF3B30" : "#fff"} strokeWidth={2.4} />
             </Tile>
-            <Tile on={false}>
-              <span className="text-[11px] font-semibold leading-tight">화면
-                <br />
-                미러링</span>
+            <Tile on={!!d.sounds?.muted} color="#FF3B30" onClick={() => update((x) => void (x.sounds = { ...(x.sounds ?? {}), muted: !x.sounds?.muted }))}>
+              {d.sounds?.muted ? <BellOff size={22} strokeWidth={2.2} /> : <Bell size={22} strokeWidth={2.2} />}
             </Tile>
             <button
               onClick={(e) => {

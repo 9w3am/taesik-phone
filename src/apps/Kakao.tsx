@@ -110,7 +110,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           );
         })}
       </div>
-      <div className="bg-white flex items-end gap-[6px] px-[8px] pt-[7px]" style={{ paddingBottom: "calc(var(--sab) + 2px)" }}>
+      <div className="bg-white flex items-end gap-[6px] px-[8px] pt-[7px]" style={{ paddingBottom: "calc(var(--kbsab) + 2px)" }}>
         <span className="w-[34px] h-[34px] flex items-center justify-center text-[#555] shrink-0">
           <Plus size={26} strokeWidth={1.6} />
         </span>
@@ -357,7 +357,7 @@ export default function Kakao() {
       />
       {join && (
         <div className="absolute inset-0 z-40 flex items-end fade" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => (setJoin(null), setPw(""))}>
-          <div className="w-full bg-white rounded-t-[18px] px-[20px] pt-[22px] sheet" style={{ paddingBottom: "calc(var(--sab) + 16px)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="w-full bg-white rounded-t-[18px] px-[20px] pt-[22px] sheet" style={{ paddingBottom: "calc(var(--kbsab) + 16px)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center">
               <KakaoAvatar size={64} group />
               <div className="text-[18px] font-bold mt-[10px] text-center">{join}</div>

@@ -1,5 +1,5 @@
 /* Instagram (2025 하단 탭: 홈 · 릴스 · DM · 검색 · 프로필) */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Home as HomeI, Clapperboard, Send, Search, Heart, MessageCircle, Bookmark, MoreHorizontal, Plus, ChevronDown, ChevronLeft, Lock, Camera, SquarePen, Phone, Video, Music2, Grid3x3, UserSquare2, Menu, X } from "lucide-react";
 import { useData, update, won, type Post, type Thread } from "../store";
 import { photoSrc } from "../photos";
@@ -70,12 +70,20 @@ function PostView({ p }: { p: Post }) {
   );
 }
 
-/* 스토리 뷰어: 위 진행 막대 · 좌우 탭 이동 · 5초 자동 넘김 */
+/* 스토리 뷰어 — 실제 인스타처럼
+   · 위 진행 막대(그 사람 스토리 개수만큼) · 5초 자동 넘김
+   · 짧게 탭: 왼쪽 1/3 이전 / 나머지 다음 · 꾹 누르면 멈춤(화면 위 UI 숨김)
+   · 아래로 쓸어내리면 닫힘 · 다른 사람으로 넘어갈 때 큐브처럼 넘어감 */
 function StoryViewer({ start, onClose }: { start: number; onClose: () => void }) {
   const d = useData();
   const items = d.ig.storyItems;
   const [i, setI] = useState(start);
   const [t, setT] = useState(0);
+  const [hold, setHold] = useState(false);
+  const [dy, setDy] = useState(0);
+  const [dir, setDir] = useState<1 | -1>(1);
+  const press = useRef<{ x: number; y: number; at: number; w: number; left: number } | null>(null);
+  const holdTimer = useRef<number | undefined>(undefined);
   const { setStatusDark } = usePhoneCtx();
   const it = items[i];
   useEffect(() => {
@@ -90,52 +98,106 @@ function StoryViewer({ start, onClose }: { start: number; onClose: () => void })
     setT(0);
   }, [i]); // eslint-disable-line
   useEffect(() => {
+    if (hold || dy) return;
     const iv = setInterval(() => setT((x) => x + 1), 50);
     return () => clearInterval(iv);
-  }, [i]);
+  }, [i, hold, dy]);
+  const go = (n: number) => {
+    if (n < 0) return setT(0);
+    if (n >= items.length) return onClose();
+    setDir(n > i ? 1 : -1);
+    setI(n);
+  };
   useEffect(() => {
-    if (t >= 100) {
-      if (i < items.length - 1) setI(i + 1);
-      else onClose();
-    }
+    if (t >= 100) go(i + 1);
   }, [t]); // eslint-disable-line
   if (!it) return null;
   const same = items.map((x, k) => ({ x, k })).filter((o) => o.x.user === it.user);
   const img = it.photo ? photoSrc(it.photo, d.photos) : "";
+  const box = it.style === "box";
   return (
-    <div className="fixed inset-0 z-40 bg-black text-white fade">
-      <div className="absolute inset-x-0 top-[50px] bottom-[86px] rounded-[10px] overflow-hidden flex items-center justify-center" style={{ background: img ? "#000" : it.bg }}>
-        {img ? (
-          <img src={img} className="w-full h-full object-cover" alt="" />
-        ) : (
-          <p className="text-center text-[26px] font-bold leading-[36px] px-[30px] whitespace-pre-wrap" style={{ wordBreak: "keep-all", textShadow: "0 1px 8px rgba(0,0,0,0.3)" }}>
-            {it.text}
-          </p>
-        )}
-        <button className="absolute left-0 top-0 bottom-0 w-1/3" aria-label="이전" onClick={() => (i > 0 ? setI(i - 1) : setT(0))} />
-        <button className="absolute right-0 top-0 bottom-0 w-2/3" aria-label="다음" onClick={() => (i < items.length - 1 ? setI(i + 1) : onClose())} />
-      </div>
-      <div className="absolute left-[8px] right-[8px] top-[58px] flex gap-[3px]">
-        {same.map((o) => (
-          <span key={o.k} className="flex-1 h-[2.5px] rounded-full bg-white/35 overflow-hidden">
-            <span className="block h-full bg-white" style={{ width: o.k < i ? "100%" : o.k === i ? `${Math.min(100, t)}%` : "0%" }} />
-          </span>
-        ))}
-      </div>
-      <div className="absolute left-[12px] right-[12px] top-[70px] flex items-center gap-[8px]">
-        <IgAvatar handle={it.user} size={32} />
-        <span className="text-[14px] font-semibold">{it.user}</span>
-        <span className="text-[14px] text-white/70">{it.when}</span>
-        <span className="flex-1" />
-        <MoreHorizontal size={22} />
-        <button onClick={onClose} aria-label="닫기" className="ml-[8px]">
-          <X size={26} strokeWidth={1.8} />
-        </button>
-      </div>
-      <div className="absolute left-[12px] right-[12px] bottom-[34px] flex items-center gap-[14px]">
-        <div className="flex-1 h-[44px] rounded-full border border-white/60 flex items-center px-[16px] text-[14px] text-white/80">메시지 보내기...</div>
-        <Heart size={26} strokeWidth={1.8} />
-        <Send size={25} strokeWidth={1.8} />
+    <div className="fixed inset-0 z-40 bg-black text-white" style={{ perspective: 1200 }}>
+      <div
+        key={it.user}
+        className="absolute inset-0 touch-none select-none"
+        style={{
+          transform: dy ? `translateY(${dy}px) scale(${1 - dy / 1600})` : undefined,
+          transition: press.current ? "none" : "transform .25s",
+          animation: `${dir > 0 ? "storyCubeIn" : "storyCubeBack"} .38s cubic-bezier(.3,.8,.3,1)`,
+          transformOrigin: dir > 0 ? "left center" : "right center",
+        }}
+        onPointerDown={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          press.current = { x: e.clientX, y: e.clientY, at: Date.now(), w: r.width, left: r.left };
+          e.currentTarget.setPointerCapture(e.pointerId);
+          holdTimer.current = window.setTimeout(() => setHold(true), 180);
+        }}
+        onPointerMove={(e) => {
+          const g = press.current;
+          if (g && e.clientY - g.y > 8) setDy(Math.max(0, e.clientY - g.y));
+        }}
+        onPointerUp={(e) => {
+          const g = press.current;
+          press.current = null;
+          clearTimeout(holdTimer.current);
+          const wasHold = hold;
+          setHold(false);
+          if (!g) return;
+          if (dy > 110) return onClose();
+          setDy(0);
+          if (wasHold || Math.abs(e.clientY - g.y) > 10) return;
+          const x = (e.clientX - g.left) / g.w;
+          go(x < 0.33 ? i - 1 : i + 1);
+        }}
+      >
+        {/* 스토리 카드 */}
+        <div className="absolute left-0 right-0 overflow-hidden rounded-[10px] flex items-center justify-center" style={{ top: 47, bottom: 82, background: img ? "#000" : it.bg }}>
+          {img ? (
+            <img src={img} className="w-full h-full object-cover" alt="" draggable={false} />
+          ) : box ? (
+            <p className="text-center px-[28px] text-[22px] font-bold leading-[38px]" style={{ wordBreak: "keep-all" }}>
+              {it.text.split("\n").map((l, k) => (
+                <span key={k}>
+                  <span className="bg-white text-black px-[8px] py-[3px] rounded-[6px]" style={{ boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                    {l}
+                  </span>
+                  <br />
+                </span>
+              ))}
+            </p>
+          ) : (
+            <p className="text-center text-[25px] font-bold leading-[34px] px-[30px] whitespace-pre-wrap tracking-[-0.01em]" style={{ wordBreak: "keep-all" }}>
+              {it.text}
+            </p>
+          )}
+          <div className="absolute inset-x-0 top-0 h-[110px] pointer-events-none" style={{ background: "linear-gradient(rgba(0,0,0,0.35), transparent)", opacity: hold ? 0 : 1, transition: "opacity .2s" }} />
+        </div>
+        {/* 진행 막대 + 머리 */}
+        <div className="absolute left-0 right-0 transition-opacity" style={{ top: 47, opacity: hold ? 0 : 1 }}>
+          <div className="flex gap-[4px] px-[8px] pt-[8px]">
+            {same.map((o) => (
+              <span key={o.k} className="flex-1 h-[2px] rounded-full bg-white/35 overflow-hidden">
+                <span className="block h-full bg-white" style={{ width: o.k < i ? "100%" : o.k === i ? `${Math.min(100, t)}%` : "0%" }} />
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-[8px] px-[12px] pt-[10px]">
+            <IgAvatar handle={it.user} size={32} />
+            <span className="text-[14px] font-semibold">{it.user}</span>
+            <span className="text-[14px] text-white/70">{it.when}</span>
+            <span className="flex-1" />
+            <MoreHorizontal size={22} />
+            <button onPointerDown={(e) => e.stopPropagation()} onClick={onClose} aria-label="닫기" className="ml-[10px]">
+              <X size={27} strokeWidth={1.7} />
+            </button>
+          </div>
+        </div>
+        {/* 답장 줄 */}
+        <div className="absolute left-[12px] right-[12px] bottom-[28px] flex items-center gap-[16px] transition-opacity" style={{ opacity: hold ? 0 : 1 }}>
+          <div className="flex-1 h-[44px] rounded-full border border-white/50 flex items-center px-[18px] text-[15px] text-white/85">메시지 보내기</div>
+          <Heart size={27} strokeWidth={1.8} />
+          <Send size={25} strokeWidth={1.8} />
+        </div>
       </div>
     </div>
   );
@@ -309,7 +371,7 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
           );
         })}
       </div>
-      <div className="px-[10px] pt-[6px]" style={{ paddingBottom: "calc(var(--sab) + 4px)" }}>
+      <div className="px-[10px] pt-[6px]" style={{ paddingBottom: "calc(var(--kbsab) + 4px)" }}>
         <div className="h-[46px] rounded-full bg-[#EFEFEF] flex items-center pl-[5px] pr-[14px] gap-[10px]">
           <span className="w-[36px] h-[36px] rounded-full bg-[#3797F0] flex items-center justify-center shrink-0">
             <Camera size={19} color="#fff" />

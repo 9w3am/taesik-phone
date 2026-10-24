@@ -113,7 +113,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
         })}
       </div>
       {/* 입력창 */}
-      <div className="flex items-end gap-[8px] px-[10px] pt-[6px] bg-white" style={{ paddingBottom: "calc(var(--sab) + 4px)" }}>
+      <div className="flex items-end gap-[8px] px-[10px] pt-[6px] bg-white" style={{ paddingBottom: "calc(var(--kbsab) + 4px)" }}>
         <span className="w-[34px] h-[34px] rounded-full bg-[#E9E9EB] flex items-center justify-center shrink-0 text-[#7c7c80]">
           <Plus size={22} strokeWidth={2.2} />
         </span>

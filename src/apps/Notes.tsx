@@ -138,7 +138,7 @@ function NoteView({ n, onBack }: { n: Note; onBack: () => void }) {
         )}
       </div>
       {/* 하단 도구 막대 */}
-      <div className="flex justify-between items-center px-[22px] pt-[10px] bg-white" style={{ paddingBottom: "calc(var(--sab) + 2px)", color: TINT }}>
+      <div className="flex justify-between items-center px-[22px] pt-[10px] bg-white" style={{ paddingBottom: "calc(var(--kbsab) + 2px)", color: TINT }}>
         <ListChecks size={23} strokeWidth={1.8} />
         <Table size={22} strokeWidth={1.8} />
         <Camera size={23} strokeWidth={1.8} />

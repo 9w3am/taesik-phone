@@ -397,9 +397,10 @@ function Incoming({ name, sub, onAccept, onDecline }: { name: string; sub: strin
 type CallState = { name: string; lines: string[]; mode: "out" | "in"; ringing: boolean } | null;
 type Banner = { app: string; title: string; text: string; target?: string } | null;
 
-export default function Phone() {
+/** embedded: 에디터 옆 실시간 미리보기용 (잠금 건너뜀, 체류 이벤트 끔) */
+export default function Phone({ embedded = false, previewScale = 0.78 }: { embedded?: boolean; previewScale?: number } = {}) {
   const d = useData();
-  const [phase, setPhase] = useState<"lock" | "code" | "home">("lock");
+  const [phase, setPhase] = useState<"lock" | "code" | "home">(embedded ? "home" : "lock");
   const [app, setApp] = useState<string | null>(null);
   const [appArg, setAppArg] = useState<unknown>(null);
   const [appKey, setAppKey] = useState(0);
@@ -419,7 +420,31 @@ export default function Phone() {
   const edge = useRef<{ x: number; y: number } | null>(null);
   const [mobile, setMobile] = useState(false);
   const [scale, setScale] = useState(1);
+  const [mScale, setMScale] = useState(1); // 모바일 화면 배율 (디자인은 항상 393x852 그대로)
+  const [kb, setKb] = useState(0); // 키보드 높이 (폰 화면 기준 px)
+  const [vvTop, setVvTop] = useState(0);
   const fired = useRef<Set<string>>(new Set());
+  const ring = useRef<HTMLAudioElement | null>(null);
+
+  // 벨소리: 전화가 울리는 동안 반복 재생
+  useEffect(() => {
+    const src = d.sounds?.ringtone;
+    if (call?.ringing && src && !d.sounds?.muted) {
+      const a = new Audio(src);
+      a.loop = true;
+      a.play().catch(() => {});
+      ring.current = a;
+      return () => {
+        a.pause();
+        ring.current = null;
+      };
+    }
+  }, [call?.ringing, d.sounds?.ringtone, d.sounds?.muted]); // eslint-disable-line
+  // 알림음: 배너가 뜰 때 한 번
+  useEffect(() => {
+    const src = d.sounds?.notify;
+    if (banner && src && !d.sounds?.muted) new Audio(src).play().catch(() => {});
+  }, [banner]); // eslint-disable-line
 
   // 레이아웃: 모바일은 전체화면, PC는 기기 목업 중앙
   useEffect(() => {
@@ -427,11 +452,61 @@ export default function Phone() {
       const m = window.innerWidth <= 500 || (window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 820 && window.innerHeight > window.innerWidth);
       setMobile(m);
       setScale(Math.min(1, (window.innerHeight - 32) / 892, (window.innerWidth - 24) / 433));
+      // 키보드가 열려 있을 땐 배율을 바꾸지 않는다 (화면이 줄어드는 것 방지)
+      const typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement;
+      if (!typing) setMScale(Math.min(window.innerWidth / 393, window.innerHeight / 852));
     };
     f();
     window.addEventListener("resize", f);
     return () => window.removeEventListener("resize", f);
   }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv || !mobile) return;
+    const f = () => {
+      const typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement;
+      const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const phoneTop = (window.innerHeight - 852 * mScale) / 2; // 폰 화면이 화면 가운데에 놓인 위치
+      const phoneBottomGap = phoneTop; // 폰 아래 검은 여백
+      const kbOnPhone = typing && covered > 120 ? Math.max(0, covered - phoneBottomGap) / mScale : 0;
+      setKb(kbOnPhone);
+      setVvTop(vv.offsetTop);
+    };
+    vv.addEventListener("resize", f);
+    vv.addEventListener("scroll", f);
+    window.addEventListener("focusin", f);
+    window.addEventListener("focusout", () => setTimeout(f, 50));
+    return () => {
+      vv.removeEventListener("resize", f);
+      vv.removeEventListener("scroll", f);
+      window.removeEventListener("focusin", f);
+    };
+  }, [mobile, mScale]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    const f = (e: Event) => {
+      const { app: a, arg, phase: ph } = (e as CustomEvent).detail || {};
+      if (ph === "lock") {
+        setApp(null);
+        setPhase("lock");
+        return;
+      }
+      setPhase("home");
+      setCall(null);
+      if (a) {
+        setAppArg(arg ?? null);
+        setApp(a);
+        setAppKey((k) => k + 1);
+        setStatusDark(!!APPS[a]?.light);
+      } else setApp(null);
+    };
+    window.addEventListener("phone:open", f);
+    const last = (window as unknown as { __lastPreview?: unknown }).__lastPreview;
+    if (last) f(new CustomEvent("phone:open", { detail: last }));
+    return () => window.removeEventListener("phone:open", f);
+  }, [embedded]);
 
   const open = useCallback((id: string, arg?: unknown) => {
     setAppArg(arg ?? null);
@@ -456,7 +531,7 @@ export default function Phone() {
 
   // 체류 시간 이벤트 (배너 · 수신 전화 · 배터리)
   useEffect(() => {
-    if (phase !== "home") return;
+    if (phase !== "home" || embedded) return;
     const ts: number[] = [];
     const ev = d.events;
     if (ev.banner.enabled && !fired.current.has("banner"))
@@ -495,7 +570,7 @@ export default function Phone() {
   const indicatorDark = phase === "home" && !!app && statusDark && !call;
 
   const screen = (
-    <div className="screen" style={mobile ? undefined : undefined}>
+    <div className="screen" style={{ ["--kb" as string]: `${kb}px` } as React.CSSProperties}>
       <Ctx.Provider value={ctx}>
         {phase === "lock" && (
           <LockScreen
@@ -689,7 +764,22 @@ export default function Phone() {
     </div>
   );
 
-  if (mobile) return <div className="mobile">{screen}</div>;
+  if (embedded)
+    return (
+      <div className="relative" style={{ width: 433 * previewScale, height: 892 * previewScale }}>
+        <div className="device absolute left-0 top-0" style={{ transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
+          {screen}
+        </div>
+      </div>
+    );
+  if (mobile)
+    return (
+      <div className="mobile">
+        <div className="stage" style={{ transform: vvTop ? `translateY(${vvTop}px)` : undefined }}>
+          <div style={{ width: 393, height: 852, transform: `scale(${mScale})`, transformOrigin: "center center", flexShrink: 0 }}>{screen}</div>
+        </div>
+      </div>
+    );
   return (
     <div className="stage">
       <div className="device" style={{ transform: `scale(${scale})` }}>
