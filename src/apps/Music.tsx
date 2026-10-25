@@ -345,6 +345,12 @@ export default function Music() {
     m.playAt(i);
     setFull("cover");
   };
+  // 편집 화면에서 "폰에서 들어 보기"를 누르면 큰 재생 화면으로
+  useEffect(() => {
+    const f = () => setFull("cover");
+    window.addEventListener("music:play", f);
+    return () => window.removeEventListener("music:play", f);
+  }, []);
   const row = (x: Song, i: number) => <SongRow key={x.id} x={x} i={i} active={i === m.idx && m.playing} onPlay={playAt} onMore={(s2, i2) => setMenu({ s: s2, i: i2 })} />;
   const titles: Record<string, string> = { home: "홈", browse: "둘러보기", radio: "라디오", lib: "보관함", search: "검색" };
   const all = songs.map((x, i) => [x, i] as const);

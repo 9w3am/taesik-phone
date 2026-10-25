@@ -20,7 +20,7 @@ export const safePreview = (u?: string) => {
 };
 
 /* ───────── 유튜브 재생기 불러오기 ───────── */
-type YTPlayer = {
+export type YTPlayer = {
   playVideo(): void;
   pauseVideo(): void;
   seekTo(s: number, allow: boolean): void;
@@ -33,7 +33,7 @@ type YTPlayer = {
 };
 type YTNs = { Player: new (el: HTMLElement, o: object) => YTPlayer };
 let ytApi: Promise<YTNs> | null = null;
-function loadYT(): Promise<YTNs> {
+export function loadYT(): Promise<YTNs> {
   if (ytApi) return ytApi;
   ytApi = new Promise((res) => {
     const w = window as unknown as { YT?: YTNs; onYouTubeIframeAPIReady?: () => void };
@@ -308,6 +308,19 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     }, 150);
     return () => clearInterval(i);
   }, [playing, kind, ytReady, ytId, dur, next]);
+
+  // 편집 화면의 "폰에서 들어 보기": 그 곡 바로 재생
+  const playRef = useRef(playAt);
+  playRef.current = playAt;
+  useEffect(() => {
+    const f = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      const i = songs.findIndex((x) => x.id === id);
+      if (i >= 0) playRef.current(i);
+    };
+    window.addEventListener("music:play", f);
+    return () => window.removeEventListener("music:play", f);
+  }, [songs]);
 
   const api: MusicApi = {
     songs,

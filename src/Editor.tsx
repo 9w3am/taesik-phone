@@ -1,11 +1,11 @@
 /* 제작자용 편집 화면 (/editor 또는 #/editor) */
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
 import { useData, update, setData, resetData, sanitize, uid, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song } from "./store";
 import { defaultData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
 import { fromLink, searchSong, fetchLyrics, isSpCollection, songYtId, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
-import { ytUrl } from "./apps/Music";
+import { soundYtId, loadYT, type YTPlayer } from "./music";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
 import Phone from "./Phone";
 import { RINGTONES, NOTIFY_SOUNDS, toggleSound, stopSound, onSoundChange } from "./sounds";
@@ -102,26 +102,90 @@ const Card = ({ children, title, right }: { children: React.ReactNode; title?: s
 );
 
 /** 배열 편집 공용 */
+/** 요약에 보이는 값 한국어로 */
+const VAL_KO: Record<string, string> = { missed: "부재중", in: "수신", out: "발신", me: "나", them: "상대", new: "새 업무", doing: "진행 중", done: "끝남", declined: "거절" };
+/** 항목 한 줄 요약: 글자 칸 앞의 두 개 (예: "박 실장 · 수신") */
+const summaryOf = (it: unknown) => {
+  if (!it || typeof it !== "object") return String(it ?? "");
+  const parts = Object.entries(it as Record<string, unknown>)
+    .filter(([k, v]) => k !== "id" && typeof v === "string" && v.trim() && !v.startsWith("data:") && !/^https?:/.test(v))
+    .slice(0, 2)
+    .map(([, v]) => VAL_KO[v as string] ?? (v as string).replace(/\s+/g, " "));
+  return parts.join(" · ").slice(0, 70) || "(빈 항목)";
+};
 function Rows<X>({ items, set, make, render, label = "추가" }: { items: X[]; set: (x: X[]) => void; make: () => NoInfer<X>; render: (it: X, put: (v: Partial<X>) => void, i: number) => React.ReactNode; label?: string }) {
+  const keyOf = (it: X, i: number) => String((it as { id?: string })?.id ?? i);
+  // 항목이 많으면 한 줄로 접어 두고, 누르면 펼쳐서 고치기
+  const many = items.length > 4;
+  const [open, setOpen] = useState<Set<string>>(() => new Set(many ? [] : items.map(keyOf)));
+  const lastAdded = useRef<string | null>(null);
+  const toggle = (k: string) => setOpen((s) => (s.has(k) ? (s.delete(k), new Set(s)) : new Set(s).add(k)));
+  useEffect(() => {
+    if (!lastAdded.current) return;
+    document.querySelector(`[data-row-key="${lastAdded.current}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    lastAdded.current = null;
+  });
   return (
-    <div className="space-y-3">
-      {items.map((it, i) => (
-        <div key={i} className="relative border border-black/[0.08] rounded-[12px] p-3 pr-11 bg-[#FAFAFC]">
-          {render(it, (v) => set(items.map((x, j) => (j === i ? { ...x, ...v } : x))), i)}
-          <div className="absolute right-2 top-2 flex flex-col gap-1">
-            <button title="위로" onClick={() => i > 0 && set(items.map((x, j) => (j === i - 1 ? items[i] : j === i ? items[i - 1] : x)))} className="w-7 h-7 rounded-md hover:bg-black/5 flex items-center justify-center text-black/50">
-              <ChevronUp size={16} />
-            </button>
-            <button title="아래로" onClick={() => i < items.length - 1 && set(items.map((x, j) => (j === i + 1 ? items[i] : j === i ? items[i + 1] : x)))} className="w-7 h-7 rounded-md hover:bg-black/5 flex items-center justify-center text-black/50">
-              <ChevronDown size={16} />
-            </button>
-            <button title="삭제" onClick={() => confirm("삭제할까요?") && set(items.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md hover:bg-[#FF3B30]/10 flex items-center justify-center text-[#FF3B30]">
-              <Trash2 size={15} />
-            </button>
-          </div>
+    <div className="space-y-2">
+      {many && (
+        <div className="flex gap-2 justify-end">
+          <button className="text-[13px] text-[#007AFF]" onClick={() => setOpen(new Set(items.map(keyOf)))}>
+            모두 펼치기
+          </button>
+          <span className="text-black/20">|</span>
+          <button className="text-[13px] text-[#007AFF]" onClick={() => setOpen(new Set())}>
+            모두 접기
+          </button>
         </div>
-      ))}
-      <Btn onClick={() => set([...items, make()])}>
+      )}
+      {items.map((it, i) => {
+        const k = keyOf(it, i);
+        const isOpen = open.has(k);
+        return (
+          <div key={k} data-row-key={k} className={`relative border border-black/[0.08] rounded-[12px] bg-[#FAFAFC] ${isOpen ? "p-3 pr-11" : "pr-11"}`}>
+            {isOpen ? (
+              <>
+                {render(it, (v) => set(items.map((x, j) => (j === i ? { ...x, ...v } : x))), i)}
+                {many && (
+                  <button onClick={() => toggle(k)} className="mt-2 text-[13px] text-black/45 hover:text-black/70 flex items-center gap-1">
+                    <ChevronUp size={14} /> 접기
+                  </button>
+                )}
+              </>
+            ) : (
+              <button onClick={() => toggle(k)} className="w-full text-left px-3 h-[44px] flex items-center gap-2 text-[14px]">
+                <ChevronRight size={15} className="text-black/35 shrink-0" />
+                <span className="text-black/35 tabular w-[22px] shrink-0">{i + 1}</span>
+                <span className="truncate">{summaryOf(it)}</span>
+              </button>
+            )}
+            <div className={`absolute right-2 flex gap-1 ${isOpen ? "top-2 flex-col" : "top-[7px]"}`}>
+              {isOpen && (
+                <>
+                  <button title="위로" onClick={() => i > 0 && set(items.map((x, j) => (j === i - 1 ? items[i] : j === i ? items[i - 1] : x)))} className="w-7 h-7 rounded-md hover:bg-black/5 flex items-center justify-center text-black/50">
+                    <ChevronUp size={16} />
+                  </button>
+                  <button title="아래로" onClick={() => i < items.length - 1 && set(items.map((x, j) => (j === i + 1 ? items[i] : j === i ? items[i + 1] : x)))} className="w-7 h-7 rounded-md hover:bg-black/5 flex items-center justify-center text-black/50">
+                    <ChevronDown size={16} />
+                  </button>
+                </>
+              )}
+              <button title="삭제" onClick={() => confirm("삭제할까요?") && set(items.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md hover:bg-[#FF3B30]/10 flex items-center justify-center text-[#FF3B30]">
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      <Btn
+        onClick={() => {
+          const n = make();
+          const k = keyOf(n, items.length);
+          lastAdded.current = k;
+          setOpen((s) => new Set(s).add(k));
+          set([...items, n]);
+        }}
+      >
         <Plus size={15} /> {label}
       </Btn>
     </div>
@@ -269,7 +333,6 @@ function Basic({ d }: { d: PhoneData }) {
 const APP_OPTS: [string, string][] = [
   ["messages", "메시지"],
   ["kakao", "카카오톡"],
-  ["insta", "Instagram"],
   ["phone", "전화"],
   ["bank", "뱅킹"],
 ];
@@ -301,7 +364,7 @@ function Events({ d }: { d: PhoneData }) {
           </F>
           <F label="앱">
             <select value={e.banner.app} onChange={(ev) => update((x) => void (x.events.banner.app = ev.target.value as AppKind))}>
-              {APP_OPTS.slice(0, 3).map(([v, l]) => (
+              {APP_OPTS.slice(0, 2).map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
                 </option>
@@ -569,7 +632,7 @@ function Threads({ d }: { d: PhoneData }) {
   return (
     <>
       <div className="flex gap-2 mb-4">
-        {(APP_OPTS.slice(0, 3) as [AppKind, string][]).map(([v, l]) => (
+        {(APP_OPTS.slice(0, 2) as [AppKind, string][]).map(([v, l]) => (
           <button key={v} onClick={() => (setApp(v), setSel(null))} className={`h-[34px] px-4 rounded-full text-[14px] font-medium ${app === v ? "bg-black text-white" : "bg-white border border-black/10"}`}>
             {l} <span className="opacity-50 ml-1">{d.threads.filter((x) => x.app === v).length}</span>
           </button>
@@ -784,82 +847,197 @@ function Cal({ d }: { d: PhoneData }) {
   );
 }
 
-/** 가사 싱크 맞추기: 노래를 틀면서 줄이 시작될 때마다 버튼(또는 스페이스바)을 누르면 시간이 찍힘 */
+/** 가사 싱크 맞추기: 이 창 안에서 노래가 나옴 → 파란 줄을 부르기 시작할 때 '지금!'(스페이스바) → 그 순간 재생 시간이 찍힘.
+ *  다 찍으면 바로 들어 보며 확인. 줄을 누르면 그 부분부터 다시 찍기. */
 function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string) => void; onClose: () => void }) {
-  const lines = parseLyrics(song.lyrics).map((l) => l.text);
-  const [times, setTimes] = useState<number[]>([]);
-  const [start, setStart] = useState<number | null>(null);
+  const parsed = parseLyrics(song.lyrics);
+  const lines = parsed.map((l) => l.text);
+  const vid = soundYtId(song);
+  // 이미 싱크가 있으면 그 시간부터 시작 (고칠 부분만 다시 찍으면 됨)
+  const [times, setTimes] = useState<number[]>(() => (parsed.every((l) => l.t !== null) ? parsed.map((l) => l.t as number) : []));
+  const [cursor, setCursor] = useState(() => (parsed.every((l) => l.t !== null) ? lines.length : 0));
   const [now, setNow] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [ready, setReady] = useState(!vid);
+  const host = useRef<HTMLDivElement>(null);
+  const yt = useRef<YTPlayer | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // 유튜브 링크가 없을 때: 그냥 시계 (다른 데서 노래를 틀고 같이 시작)
+  const clock = useRef<{ base: number; at: number | null }>({ base: 0, at: null });
+  const getT = () => (yt.current ? yt.current.getCurrentTime() || 0 : clock.current.base + (clock.current.at !== null ? (performance.now() - clock.current.at) / 1000 : 0));
+
   useEffect(() => {
-    if (start === null) return;
-    const i = setInterval(() => setNow((performance.now() - start) / 1000), 50);
+    if (!vid || !host.current) return;
+    let dead = false;
+    loadYT().then((YT) => {
+      if (dead || !host.current) return;
+      const el = document.createElement("div");
+      host.current.appendChild(el);
+      const p = new YT.Player(el, {
+        host: "https://www.youtube-nocookie.com",
+        videoId: vid,
+        width: "100%",
+        height: "100%",
+        playerVars: { playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3 },
+        events: {
+          onReady: () => {
+            yt.current = p;
+            setReady(true);
+          },
+          onStateChange: (e: { data: number }) => setPlaying(e.data === 1),
+        },
+      });
+    });
+    return () => {
+      dead = true;
+      yt.current = null;
+    };
+  }, [vid]);
+  useEffect(() => {
+    const i = setInterval(() => setNow(getT()), 60);
     return () => clearInterval(i);
-  }, [start]);
+  });
+  const play = () => {
+    if (yt.current) yt.current.playVideo();
+    else if (clock.current.at === null) {
+      clock.current.at = performance.now();
+      setPlaying(true);
+    }
+  };
+  const pause = () => {
+    if (yt.current) yt.current.pauseVideo();
+    else if (clock.current.at !== null) {
+      clock.current.base = getT();
+      clock.current.at = null;
+      setPlaying(false);
+    }
+  };
+  const seek = (x: number) => {
+    const t = Math.max(0, x);
+    if (yt.current) yt.current.seekTo(t, true);
+    else clock.current = { base: t, at: clock.current.at !== null ? performance.now() : null };
+    setNow(t);
+  };
   const stamp = () => {
-    if (start === null) return setStart(performance.now());
-    setTimes((t) => (t.length < lines.length ? [...t, (performance.now() - start) / 1000] : t));
+    if (!playing) return play();
+    if (cursor >= lines.length) return;
+    const t = Math.round(getT() * 100) / 100;
+    setTimes((old) => {
+      const n = old.slice(0, cursor);
+      n[cursor] = t;
+      return n;
+    });
+    setCursor((c) => c + 1);
+  };
+  const undo = () => {
+    if (!cursor) return;
+    const c = cursor - 1;
+    setCursor(c);
+    setTimes((old) => old.slice(0, c));
+    seek((times[c - 1] ?? times[c] ?? 2) - 1);
+  };
+  /** 이 줄부터 다시 찍기: 바로 앞 줄 시간 조금 전으로 돌아가서 */
+  const redoFrom = (i: number) => {
+    setCursor(i);
+    setTimes((old) => old.slice(0, i));
+    seek((times[i - 1] ?? 0) - (i ? 0.5 : 0));
+    play();
   };
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
+      if (e.code === "Space" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
         e.preventDefault();
         stamp();
+      }
+      if (e.code === "Backspace" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        undo();
       }
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   });
+  const done = cursor >= lines.length;
+  // 확인용: 지금 시간에 해당하는 줄 (다 찍은 뒤 들어 보면 이 줄이 따라 움직임)
+  let live = -1;
+  times.forEach((t, i) => t <= now + 0.1 && (live = i));
+  const focus = done ? live : cursor;
   useEffect(() => {
-    listRef.current?.querySelector("[data-cur]")?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [times.length]);
-  const done = times.length >= lines.length;
+    listRef.current?.querySelector(`[data-row="${Math.max(0, focus)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [focus]);
+  const save = () => onDone(lines.map((l, i) => (times[i] !== undefined ? `[${fmtTime(times[i])}] ${l}` : l)).join("\n"));
   return (
-    <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-[18px] w-full max-w-[520px] max-h-[90vh] flex flex-col p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="text-[18px] font-bold">가사 싱크 맞추기</div>
-        <ol className="text-[13px] text-black/55 mt-2 leading-[20px] list-decimal pl-5">
-          <li>
-            다른 창에서 노래를 틀 준비를 하세요.{" "}
-            <a href={ytUrl(song)} target="_blank" rel="noopener noreferrer" className="text-[#007AFF]">
-              노래 열기
-            </a>
-          </li>
-          <li>
-            노래 재생과 동시에 <b>시작</b>을 누르세요.
-          </li>
-          <li>
-            파란 줄을 부르기 시작할 때마다 <b>지금!</b>을 누르세요. (컴퓨터는 스페이스바)
-          </li>
-        </ol>
-        <div className="text-[28px] font-bold tabular text-center my-3">{fmtTime(now)}</div>
-        <div ref={listRef} className="flex-1 overflow-auto rounded-[12px] bg-black/[0.03] p-3 min-h-[160px]">
-          {lines.map((l, i) => (
-            <div key={i} {...(i === times.length ? { "data-cur": "" } : {})} className={`flex gap-3 py-[5px] text-[15px] ${i === times.length ? "text-[#007AFF] font-bold" : i < times.length ? "text-black" : "text-black/35"}`}>
-              <span className="tabular w-[64px] shrink-0 text-black/40 text-[13px] pt-[1px]">{times[i] !== undefined ? fmtTime(times[i]) : ""}</span>
-              <span>{l || "♪"}</span>
-            </div>
-          ))}
+    <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-3" onClick={onClose}>
+      <div className="bg-white rounded-[18px] w-full max-w-[560px] max-h-[94vh] flex flex-col p-4 sm:p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <div className="text-[18px] font-bold">가사 싱크 맞추기</div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-black/5 text-black/50 text-[18px]" aria-label="닫기">
+            ✕
+          </button>
         </div>
-        <div className="flex flex-wrap gap-2 mt-4">
-          <Btn kind="primary" onClick={stamp} disabled={done}>
-            {start === null ? "시작" : "지금!"}
+        <div className="text-[13px] text-black/55 mt-1 leading-[19px]">
+          {done ? (
+            <>
+              <b>다 찍었어요!</b> 재생해서 들어 보세요. 파란 줄이 노래랑 맞으면 <b>저장</b>. 틀린 줄은 눌러서 거기부터 다시 찍으면 돼요.
+            </>
+          ) : (
+            <>
+              <b>▶ 재생</b> 누르고, <b>파란 줄을 부르기 시작할 때</b> <b>지금!</b>을 누르세요 (컴퓨터: 스페이스바 · 되돌리기: ← 지우기 키).
+            </>
+          )}
+        </div>
+        {vid ? (
+          <div ref={host} className="mt-3 w-full aspect-video max-h-[180px] rounded-[12px] overflow-hidden bg-black shrink-0" />
+        ) : (
+          <div className="mt-3 rounded-[12px] bg-[#FFF4E5] text-[13px] text-[#8a5a00] p-3 leading-[19px]">
+            유튜브 링크가 없어서 여기서 노래를 틀 수 없어요. 곡 링크나 <b>소리용 유튜브 링크</b>를 넣으면 이 창에서 바로 나와요. (지금은 다른 데서 노래를 틀고 ▶를 같이 누르면 시계로 찍혀요)
+          </div>
+        )}
+        <div className="flex items-center gap-2 mt-3 shrink-0">
+          <Btn kind="primary" disabled={!ready} onClick={() => (playing ? pause() : play())}>
+            {playing ? "❚❚ 일시정지" : "▶ 재생"}
           </Btn>
-          <Btn onClick={() => setTimes((t) => t.slice(0, -1))} disabled={!times.length}>
+          <Btn onClick={() => seek(getT() - 5)}>5초 뒤로</Btn>
+          <span className="flex-1 text-right text-[20px] font-bold tabular">{fmtTime(now)}</span>
+        </div>
+        <div ref={listRef} className="flex-1 overflow-auto rounded-[12px] bg-black/[0.03] p-2 mt-3 min-h-[150px]">
+          {lines.map((l, i) => {
+            const cur = i === focus;
+            return (
+              <button
+                key={i}
+                data-row={i}
+                onClick={() => redoFrom(i)}
+                title="이 줄부터 다시 찍기"
+                className={`w-full flex gap-3 px-2 py-[6px] rounded-[8px] text-left text-[15px] hover:bg-black/[0.04] ${cur ? (done ? "bg-[#007AFF]/10 text-[#007AFF] font-bold" : "bg-[#007AFF] text-white font-bold") : i < cursor ? "text-black" : "text-black/35"}`}
+              >
+                <span className={`tabular w-[64px] shrink-0 text-[13px] pt-[1px] ${cur && !done ? "text-white/80" : "text-black/40"}`}>{times[i] !== undefined ? fmtTime(times[i]) : ""}</span>
+                <span>{l || "♪ (간주)"}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap gap-2 mt-3 shrink-0">
+          <button
+            onClick={stamp}
+            disabled={done || !ready}
+            className="flex-1 min-w-[160px] h-[52px] rounded-[14px] bg-[#007AFF] text-white text-[18px] font-bold disabled:opacity-40 active:scale-[0.98] transition-transform"
+          >
+            {!playing && !done ? "▶ 재생하고 시작" : done ? "다 찍었어요" : `지금! (${cursor + 1}/${lines.length})`}
+          </button>
+          <Btn onClick={undo} disabled={!cursor}>
             한 줄 되돌리기
           </Btn>
           <Btn
             onClick={() => {
               setTimes([]);
-              setStart(null);
-              setNow(0);
+              setCursor(0);
+              seek(0);
             }}
           >
             처음부터
           </Btn>
-          <span className="flex-1" />
-          <Btn onClick={onClose}>취소</Btn>
-          <Btn kind="primary" disabled={!times.length} onClick={() => onDone(lines.map((l, i) => (times[i] !== undefined ? `[${fmtTime(times[i])}] ${l}` : l)).join("\n"))}>
+          <Btn kind="primary" disabled={!times.length} onClick={save}>
             저장
           </Btn>
         </div>
@@ -980,6 +1158,15 @@ function SongEd({ s, put: putNow }: { s: Song; put: (v: Partial<Song>) => void }
       </F>
       <div className="col-span-full flex flex-wrap items-center gap-3">
         {s.cover ? <img src={s.cover} alt="" className="w-[48px] h-[48px] rounded-[8px] object-cover" /> : <span className="w-[48px] h-[48px] rounded-[8px]" style={{ background: `hsl(${s.hue} 35% 35%)` }} />}
+        <Btn
+          kind="primary"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent("phone:open", { detail: { app: "music" } }));
+            setTimeout(() => window.dispatchEvent(new CustomEvent("music:play", { detail: { id: s.id } })), 150);
+          }}
+        >
+          ▶ 폰에서 들어 보기
+        </Btn>
         <Btn disabled={!(s.title || s.artist) || !!busy} onClick={() => fill("search")}>
           {busy === "search" ? "찾는 중…" : "제목으로 표지 찾기"}
         </Btn>
@@ -1009,7 +1196,7 @@ function SongEd({ s, put: putNow }: { s: Song; put: (v: Partial<Song>) => void }
             {busy === "lyrics" ? "찾는 중…" : s.lyrics?.trim() ? "가사 다시 가져오기" : "가사 자동으로 가져오기"}
           </Btn>
           <Btn disabled={!s.lyrics?.trim()} onClick={() => setSync(true)}>
-            싱크 직접 맞추기
+            싱크 맞추기 (여기서 노래 들으며)
           </Btn>
           {synced && <Btn onClick={() => putNow({ lyrics: parseLyrics(s.lyrics).map((l) => l.text).join("\n") })}>싱크 지우기</Btn>}
           <span className="inline-flex items-center gap-1.5 text-[13px] text-black/60">
@@ -1143,43 +1330,177 @@ function BankEd({ d }: { d: PhoneData }) {
   );
 }
 
+/* ───────── 쉬운 편집: 어떤 데이터든 입력 칸으로 (JSON 몰라도 됨) ───────── */
+const KEY_KO: Record<string, string> = {
+  title: "제목", name: "이름", text: "내용", body: "본문", time: "시간", when: "언제", date: "날짜", label: "이름표", url: "주소", q: "검색어", query: "검색어",
+  type: "종류", kind: "종류", desc: "설명", sub: "부제", note: "메모", memo: "메모", value: "값", amount: "금액", count: "개수", steps: "걸음 수", cash: "캐시",
+  goal: "목표", on: "켜짐", enabled: "사용", days: "요일", hour: "시", minute: "분", city: "도시", temp: "기온", hi: "최고", lo: "최저", cond: "날씨", icon: "아이콘",
+  address: "주소", addr: "주소", place: "장소", dist: "거리", host: "사이트", site: "사이트", tabs: "탭", history: "방문 기록", bookmarks: "즐겨찾기", private: "비공개",
+  code: "번호", notes: "메모", items: "항목", list: "목록", friends: "친구", rank: "순위", points: "점수", price: "가격", photo: "사진 ID", photos: "사진 ID", duration: "길이",
+  dur: "길이", hourly: "시간별", daily: "10일 예보", rings: "링", sleep: "수면", heart: "심박수", move: "움직이기", exercise: "운동", stand: "일어서기", weekly: "주간",
+  favorites: "즐겨찾기", page: "페이지", engine: "검색 엔진", results: "검색 결과", area: "지역", seller: "판매자", meta: "부가 정보", specs: "사양", dealer: "판매처",
+  discount: "할인", rating: "별점", reviews: "리뷰 수", delivery: "배송", x: "가로 위치", y: "세로 위치", todayWon: "오늘 번 돈", streak: "연속 출석", bubbles: "받기 버블",
+  badges: "배지", quiz: "퀴즈", options: "보기", answer: "정답", shop: "교환 상품", moveGoal: "움직이기 목표", km: "거리(km)", lines: "줄", hours: "시간",
+  apps: "앱", total: "합계", pickups: "화면 켠 횟수", firstPickup: "처음 켠 시각", peakAt: "가장 많이 쓴 시각", author: "작성자", source: "출처", views: "조회수",
+};
+const keyName = (k: string) => KEY_KO[k] ?? k;
+/** 새 항목: 마지막 항목 모양을 따라 빈 값으로 */
+const blankLike = (v: unknown): unknown => {
+  if (typeof v === "string") return "";
+  if (typeof v === "number") return 0;
+  if (typeof v === "boolean") return false;
+  if (Array.isArray(v)) return [];
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k === "id" ? uid() : blankLike(x)]));
+  return "";
+};
+function AutoField({ value, onChange, label, depth = 0 }: { value: unknown; onChange: (v: unknown) => void; label?: string; depth?: number }) {
+  // 긴 목록은 접어 두기 (눌러서 펼침)
+  const [open, setOpen] = useState(depth < 1 || !Array.isArray(value) || value.length <= 5);
+  if (typeof value === "boolean") return <C label={label ?? ""} value={value} onChange={onChange} />;
+  if (typeof value === "number")
+    return (
+      <F label={label ?? ""}>
+        <N value={value} onChange={onChange} />
+      </F>
+    );
+  if (value === null || value === undefined || typeof value === "string") {
+    const s = (value as string) ?? "";
+    const long = s.length > 60 || s.includes("\n");
+    return (
+      <F label={label ?? ""} className={long ? "col-span-full" : ""}>
+        {long ? <textarea rows={Math.min(8, s.split("\n").length + 1)} value={s} onChange={(e) => onChange(e.target.value)} /> : <input value={s} onChange={(e) => onChange(e.target.value)} />}
+      </F>
+    );
+  }
+  if (Array.isArray(value)) {
+    const prim = value.length > 0 && value.every((x) => typeof x !== "object" || x === null);
+    const sample = value[value.length - 1];
+    const set = (i: number, v: unknown) => onChange(value.map((x, j) => (j === i ? v : x)));
+    const move = (i: number, d: number) => {
+      const j = i + d;
+      if (j < 0 || j >= value.length) return;
+      const n = value.slice();
+      [n[i], n[j]] = [n[j], n[i]];
+      onChange(n);
+    };
+    return (
+      <div className="col-span-full">
+        <button onClick={() => setOpen(!open)} className="text-[13px] font-semibold text-black/70 mb-2 flex items-center gap-1">
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />} {label} <span className="text-black/35 font-normal">({value.length}개)</span>
+        </button>
+        {open && (
+          <div className="flex flex-col gap-2">
+            {value.map((x, i) => (
+              <div key={(x as { id?: string })?.id ?? i} className={`flex gap-2 items-start ${prim ? "" : "rounded-[12px] border border-black/[0.08] p-3"}`}>
+                <div className={`flex-1 min-w-0 ${prim ? "" : "grid grid-cols-2 md:grid-cols-3 gap-3"}`}>
+                  {prim ? <AutoField value={x} onChange={(v) => set(i, v)} depth={depth + 1} /> : <AutoField value={x} onChange={(v) => set(i, v)} depth={depth + 1} />}
+                </div>
+                <div className="flex flex-col shrink-0">
+                  <button title="위로" onClick={() => move(i, -1)} className="w-7 h-7 rounded-md hover:bg-black/5 flex items-center justify-center text-black/50">
+                    <ChevronUp size={15} />
+                  </button>
+                  <button title="아래로" onClick={() => move(i, 1)} className="w-7 h-7 rounded-md hover:bg-black/5 flex items-center justify-center text-black/50">
+                    <ChevronDown size={15} />
+                  </button>
+                  <button title="삭제" onClick={() => onChange(value.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md hover:bg-[#FF3B30]/10 flex items-center justify-center text-[#FF3B30]">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div>
+              <Btn onClick={() => onChange([...value, value.length ? blankLike(sample) : ""])}>
+                <Plus size={15} /> 추가
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  // 객체: 칸 여러 개
+  const obj = value as Record<string, unknown>;
+  const fields = Object.entries(obj).filter(([k]) => k !== "id");
+  const inner = fields.map(([k, v]) => <AutoField key={k} label={keyName(k)} value={v} onChange={(nv) => onChange({ ...obj, [k]: nv })} depth={depth + 1} />);
+  if (depth === 0 || !label) return <>{inner}</>;
+  return (
+    <div className="col-span-full rounded-[12px] bg-black/[0.025] p-3">
+      <button onClick={() => setOpen(!open)} className="text-[13px] font-semibold text-black/70 flex items-center gap-1">
+        {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />} {label}
+      </button>
+      {open && <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">{inner}</div>}
+    </div>
+  );
+}
+
 function JsonEd({ d }: { d: PhoneData }) {
-  const keys = ["jobs", "ig", "safari", "cashwalk", "health", "voiceMemos", "screenTime", "vault", "alarms", "places", "weather"] as const;
-  const [k, setK] = useState<(typeof keys)[number]>("ig");
+  // 폰에서 숨긴 앱(인스타 · 업무)은 목록에서 뺌 — 데이터는 그대로 보관
+  const keys = ["safari", "weather", "alarms", "places", "cashwalk", "health", "voiceMemos", "screenTime", "vault"] as const;
+  const [k, setK] = useState<(typeof keys)[number]>("safari");
+  const [mode, setMode] = useState<"easy" | "json">("easy");
   const [text, setText] = useState(() => JSON.stringify(d[k], null, 2));
   const [err, setErr] = useState("");
-  useEffect(() => setText(JSON.stringify(d[k], null, 2)), [k]); // eslint-disable-line
-  const names: Record<string, string> = { ig: "인스타그램 (피드·스토리·프로필)", safari: "사파리 (탭·검색기록·즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨", cashwalk: "캐시워크 (걸음·캐시·친구·교환)", health: "건강 (운동 링·심박수·수면)", voiceMemos: "음성 메모", jobs: "업무 앱 (의뢰)", screenTime: "스크린 타임", vault: "계산기 금고 (숫자·메모)" };
+  useEffect(() => {
+    setText(JSON.stringify(d[k], null, 2));
+    setErr("");
+  }, [k, mode]); // eslint-disable-line
+  const names: Record<string, string> = { safari: "사파리 (탭 · 검색 기록 · 즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨", cashwalk: "캐시워크", health: "건강", voiceMemos: "음성 메모", screenTime: "스크린 타임", vault: "계산기 금고 (숫자 · 메모)" };
+  const val = (d as unknown as Record<string, unknown>)[k];
   return (
     <Card
-      title="고급 편집 (JSON)"
+      title="사파리 · 그 밖의 앱"
       right={
-        <Btn
-          kind="primary"
-          onClick={() => {
-            try {
-              const v = JSON.parse(text);
-              update((x) => void ((x as Record<string, unknown>)[k] = v));
-              setErr("적용됨");
-            } catch (e) {
-              setErr("JSON 오류: " + (e as Error).message);
-            }
-          }}
-        >
-          <Check size={15} /> 적용
-        </Btn>
+        <div className="flex gap-1 bg-black/[0.05] rounded-[10px] p-[3px]">
+          {(
+            [
+              ["easy", "쉬운 편집"],
+              ["json", "JSON (고급)"],
+            ] as const
+          ).map(([m, l]) => (
+            <button key={m} onClick={() => setMode(m)} className={`h-[28px] px-3 rounded-[8px] text-[13px] ${mode === m ? "bg-white shadow-sm font-semibold" : "text-black/55"}`}>
+              {l}
+            </button>
+          ))}
+        </div>
       }
     >
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-2 mb-4">
         {keys.map((x) => (
           <button key={x} onClick={() => setK(x)} className={`h-[30px] px-3 rounded-full text-[13px] ${k === x ? "bg-black text-white" : "bg-black/5"}`}>
             {names[x]}
           </button>
         ))}
       </div>
-      <textarea rows={24} spellCheck={false} className="font-mono !text-[12px]" value={text} onChange={(e) => setText(e.target.value)} />
-      {err && <div className={`text-[13px] mt-2 ${err === "적용됨" ? "text-[#34C759]" : "text-[#FF3B30]"}`}>{err}</div>}
-      <p className="text-[12px] text-black/45 mt-2">사파리 페이지 type: search(검색결과) / cafe(카페글) / market(중고거래) / job(구인) / news(기사). 사진은 사진 탭의 ID.</p>
+      {mode === "easy" ? (
+        <>
+          <p className="text-[13px] text-black/50 mb-3">고치면 바로 저장되고 오른쪽 폰에 바로 보여요.</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <AutoField value={val} label={names[k]} onChange={(v) => update((x) => void ((x as unknown as Record<string, unknown>)[k] = v))} />
+          </div>
+          {k === "safari" && <p className="text-[12px] text-black/45 mt-3">페이지 종류(type): search(검색 결과) / cafe(카페 글) / market(중고거래) / job(구인) / news(기사). 사진은 사진 탭의 ID.</p>}
+        </>
+      ) : (
+        <>
+          <textarea rows={24} spellCheck={false} className="font-mono !text-[12px]" value={text} onChange={(e) => setText(e.target.value)} />
+          <div className="flex items-center gap-3 mt-2">
+            <Btn
+              kind="primary"
+              onClick={() => {
+                try {
+                  const v = JSON.parse(text);
+                  update((x) => void ((x as unknown as Record<string, unknown>)[k] = v));
+                  setErr("적용됨");
+                } catch (e) {
+                  setErr("JSON 오류: " + (e as Error).message);
+                }
+              }}
+            >
+              <Check size={15} /> 적용
+            </Btn>
+            {err && <span className={`text-[13px] ${err === "적용됨" ? "text-[#34C759]" : "text-[#FF3B30]"}`}>{err}</span>}
+          </div>
+        </>
+      )}
     </Card>
   );
 }
@@ -1246,7 +1567,7 @@ function AiEd({ d }: { d: PhoneData }) {
         {target === "thread" && (
           <F label="앱">
             <select value={app} onChange={(e) => setApp(e.target.value as AppKind)}>
-              {APP_OPTS.slice(0, 3).map(([v, l]) => (
+              {APP_OPTS.slice(0, 2).map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
                 </option>
@@ -1483,7 +1804,7 @@ const SECTIONS: [string, string, (p: { d: PhoneData }) => React.ReactElement][] 
   ["songs", "음악", Songs],
   ["photos", "사진", PhotosEd],
   ["bank", "뱅킹", BankEd],
-  ["json", "인스타 · 사파리 · 기타", JsonEd],
+  ["json", "사파리 · 그 밖의 앱", JsonEd],
   ["ai", "AI 생성", AiEd],
   ["backup", "백업 · 회차 · 게시", Backup],
 ];
