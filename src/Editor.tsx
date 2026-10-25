@@ -6,7 +6,7 @@ import { defaultData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
 import Phone from "./Phone";
-import { RINGTONES, NOTIFY_SOUNDS, playOnce } from "./sounds";
+import { RINGTONES, NOTIFY_SOUNDS, toggleSound, stopSound, onSoundChange } from "./sounds";
 import { cloudEnabled, getSession, signIn, signOut, publish, SETUP_SQL, SB_URL } from "./cloud";
 
 /* ───────── 대화 스크립트 ↔ 메시지 ───────── */
@@ -129,6 +129,15 @@ function Rows<X>({ items, set, make, render, label = "추가" }: { items: X[]; s
 /* ───────── 섹션들 ───────── */
 function Basic({ d }: { d: PhoneData }) {
   const s = (fn: (x: PhoneData) => void) => update(fn);
+  // 지금 재생 중인 미리듣기 (■ 표시용) · 이 화면을 떠나면 소리 멈춤
+  const [playing, setPlaying] = useState("");
+  useEffect(() => {
+    const off = onSoundChange(setPlaying);
+    return () => {
+      off();
+      stopSound();
+    };
+  }, []);
   return (
     <>
       <Card title="폰 기본">
@@ -164,7 +173,7 @@ function Basic({ d }: { d: PhoneData }) {
       </Card>
       <Card title="소리 (벨소리 · 알림음)">
         <p className="text-[13px] text-black/50 mb-3 leading-[20px]">
-          ▶를 눌러 들어 보고 마음에 드는 걸 '선택'하세요. 벨소리는 전화가 걸려올 때 반복, 알림음은 배너 알림이 뜰 때 한 번 나옵니다.
+          ▶를 눌러 들어 보고(한 번 더 누르면 멈춤, 다른 걸 누르면 이전 소리는 자동으로 멈춤) 마음에 드는 걸 '선택'하세요. 벨소리는 전화가 걸려올 때 반복, 알림음은 배너 알림이 뜰 때 한 번 나옵니다.
           <br />
           기본 소리는 Mixkit · Pixabay 무료 효과음(무료 라이선스, 출처 표기 불필요)입니다. 아이폰 정품 벨소리는 애플 저작권이라 넣지 않았어요. 직접 파일을 올려도 됩니다. 제어 센터의 종 버튼이 무음 모드.
         </p>
@@ -176,8 +185,11 @@ function Basic({ d }: { d: PhoneData }) {
                 const on = d.sounds?.[k] === `preset:${id}`;
                 return (
                   <div key={id} className={`flex items-center rounded-[10px] border ${on ? "border-[#007AFF] bg-[#007AFF]/10" : "border-black/10 bg-white"}`}>
-                    <button onClick={() => playOnce(`preset:${id}`)} className="px-[10px] h-[34px] text-[14px]" title="들어보기">
-                      ▶ {label}
+                    <button onClick={() => toggleSound(`preset:${id}`)} className="px-[10px] h-[34px] text-[14px]" title={playing === `preset:${id}` ? "멈추기" : "들어보기"}>
+                      <span className="inline-block w-[14px]" style={{ color: playing === `preset:${id}` ? "#FF3B30" : undefined }}>
+                        {playing === `preset:${id}` ? "■" : "▶"}
+                      </span>{" "}
+                      {label}
                     </button>
                     <button
                       onClick={() => s((x) => void (x.sounds = { ...(x.sounds ?? {}), [k]: `preset:${id}` }))}
@@ -197,7 +209,7 @@ function Basic({ d }: { d: PhoneData }) {
             <span className="text-[13px] text-black/50 flex-1 min-w-[120px]">
               {d.sounds?.[k]?.startsWith("preset:") ? `기본 소리: ${[...RINGTONES, ...NOTIFY_SOUNDS].find(([id]) => `preset:${id}` === d.sounds?.[k])?.[1] ?? ""}` : d.sounds?.[k] ? `직접 올린 파일 (${Math.round((d.sounds[k]!.length * 0.75) / 1024)}KB)` : "없음"}
             </span>
-            {d.sounds?.[k] && <Btn onClick={() => playOnce(d.sounds![k])}>들어보기</Btn>}
+            {d.sounds?.[k] && <Btn onClick={() => toggleSound(d.sounds![k]!)}>{playing === d.sounds[k] ? "■ 멈추기" : "▶ 들어보기"}</Btn>}
             <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
               파일 올리기
               <input

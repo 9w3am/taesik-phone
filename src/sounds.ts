@@ -38,7 +38,42 @@ export function soundSrc(ref?: string) {
   if (ref.startsWith("preset:")) return url(ref.slice(7));
   return ref;
 }
+/* 미리듣기: 한 번에 하나만 재생 (새로 누르면 이전 소리는 멈춤) */
+let current: HTMLAudioElement | null = null;
+let currentRef = "";
+const listeners = new Set<(ref: string) => void>();
+const emit = () => listeners.forEach((f) => f(currentRef));
+export function stopSound() {
+  if (current) {
+    current.pause();
+    current.currentTime = 0;
+  }
+  current = null;
+  currentRef = "";
+  emit();
+}
 export function playOnce(ref?: string) {
+  stopSound();
   const s = soundSrc(ref);
-  if (s) new Audio(s).play().catch(() => {});
+  if (!s || !ref) return;
+  const a = new Audio(s);
+  current = a;
+  currentRef = ref;
+  a.onended = () => {
+    if (current === a) stopSound();
+  };
+  a.play().catch(() => stopSound());
+  emit();
+}
+/** 같은 소리를 다시 누르면 멈춤 */
+export function toggleSound(ref: string) {
+  if (currentRef === ref) stopSound();
+  else playOnce(ref);
+}
+/** 지금 재생 중인 소리 (에디터 버튼 표시용) */
+export function onSoundChange(f: (ref: string) => void) {
+  listeners.add(f);
+  return () => {
+    listeners.delete(f);
+  };
 }
