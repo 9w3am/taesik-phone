@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Flashlight, Camera, Lock, MapPin, Cloud, Search, Phone as PhoneIcon, PhoneOff, MessageCircle, AlarmClock } from "lucide-react";
+import { Flashlight, Camera, Lock, MapPin, Cloud, Search, Phone as PhoneIcon, PhoneOff, MessageCircle, AlarmClock, Play, Pause, FastForward, Rewind, Airplay, Volume2, Volume1, VolumeX } from "lucide-react";
 import { useData, update, DAYS, type PhoneData, type Song } from "./store";
 import { AppIcon } from "./icons";
 import { Avatar, Ctx, hm, useNow, type PhoneCtx } from "./ui";
@@ -8,6 +8,8 @@ import { CallScreen } from "./apps/Call";
 import { soundSrc } from "./sounds";
 import { ControlCenter, NotifCenter } from "./Overlays";
 import { Handset, HandsetDown } from "./phoneIcons";
+import { MusicProvider, MusicHosts, useMusic } from "./music";
+import { Cover } from "./apps/Music";
 
 /** 수신 화면 보조 문구: 연락처에 있으면 라벨(휴대전화 등), 번호면 대한민국, 모르면 비움 */
 function callerSub(d: PhoneData, name: string) {
@@ -74,13 +76,19 @@ function StatusBar({ dark, battery, lowPower, onLongPress, hideTime, carrier }: 
 }
 
 /* ───────── 다이내믹 아일랜드 ───────── */
-function Island({ playing, calling }: { playing: Song | null; calling: boolean }) {
+function Island({ calling, onOpenMusic }: { calling: boolean; onOpenMusic: () => void }) {
+  const m = useMusic();
+  const playing = m.playing ? m.song : null;
   const wide = !!playing || calling;
   return (
-    <div className="absolute top-[11px] left-1/2 -translate-x-1/2 z-[70] bg-black rounded-full flex items-center justify-between px-[7px] transition-all duration-500" style={{ width: wide ? 200 : 125, height: 37 }}>
+    <div
+      onClick={() => playing && !calling && onOpenMusic()}
+      className="absolute top-[11px] left-1/2 -translate-x-1/2 z-[70] bg-black rounded-full flex items-center justify-between px-[7px] transition-all duration-500"
+      style={{ width: wide ? 200 : 125, height: 37, cursor: playing ? "pointer" : undefined }}
+    >
       {wide && playing && !calling && (
         <>
-          {playing.cover?.startsWith("data:image/") ? <img src={playing.cover} alt="" className="w-[22px] h-[22px] rounded-[6px] object-cover" /> : <div className="w-[22px] h-[22px] rounded-[6px]" style={{ background: `linear-gradient(135deg,hsl(${playing.hue} 60% 55%),hsl(${playing.hue + 40} 50% 25%))` }} />}
+          <Cover s={playing} size={22} radius={6} />
           <div className="flex items-end gap-[2px] h-[14px] mr-2">
             {[0, 1, 2, 3].map((i) => (
               <span key={i} className="w-[3px] h-full rounded-full origin-bottom" style={{ background: `hsl(${playing.hue} 70% 65%)`, animation: `eq ${0.7 + i * 0.15}s ease-in-out ${i * 0.1}s infinite` }} />
@@ -94,6 +102,66 @@ function Island({ playing, calling }: { playing: Song | null; calling: boolean }
           <span className="w-2 h-2 rounded-full bg-[#34C759] mr-2" />
         </>
       )}
+    </div>
+  );
+}
+
+/* ───────── 잠금화면 '지금 재생 중' (실제 아이폰 잠금화면 음악 카드) ───────── */
+function NowPlaying() {
+  const m = useMusic();
+  const s = m.song;
+  if (!m.started || !s) return null;
+  const f = (x: number) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, "0")}`;
+  return (
+    <div className="rounded-[24px] px-[16px] pt-[14px] pb-[10px] blur-bar text-white" style={{ background: "rgba(30,30,32,0.45)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-[12px]">
+        <Cover s={s} size={52} radius={8} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-semibold truncate">{s.title}</div>
+          <div className="text-[15px] text-white/60 truncate">{s.artist}</div>
+        </div>
+        <Airplay size={20} className="text-white/70" />
+      </div>
+      <div className="mt-[12px] h-[5px] rounded-full bg-white/25 overflow-hidden">
+        <div className="h-full bg-white/85" style={{ width: `${Math.min(100, (m.t / m.dur) * 100)}%` }} />
+      </div>
+      <div className="flex justify-between text-[11px] text-white/55 mt-[4px] tabular font-medium">
+        <span>{f(m.t)}</span>
+        <span>-{f(Math.max(0, m.dur - m.t))}</span>
+      </div>
+      <div className="flex items-center justify-center gap-[46px] mt-[2px] mb-[2px]">
+        <button onClick={m.prev} aria-label="이전" className="active:opacity-50">
+          <Rewind size={30} fill="#fff" strokeWidth={0} />
+        </button>
+        <button onClick={() => m.setPlay(!m.playing)} aria-label={m.playing ? "일시 정지" : "재생"} className="active:opacity-50">
+          {m.playing ? <Pause size={38} fill="#fff" strokeWidth={0} /> : <Play size={38} fill="#fff" strokeWidth={0} />}
+        </button>
+        <button onClick={m.next} aria-label="다음" className="active:opacity-50">
+          <FastForward size={30} fill="#fff" strokeWidth={0} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── 아이폰 볼륨 표시 (옆 버튼 · 제어 센터 볼륨 바꾸면 왼쪽 위에 잠깐 뜸) ───────── */
+function VolumeHud() {
+  const m = useMusic();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!m.volAt) return;
+    setShow(true);
+    const t = setTimeout(() => setShow(false), 1500);
+    return () => clearTimeout(t);
+  }, [m.volAt]);
+  const Icon = m.volume === 0 ? VolumeX : m.volume < 0.5 ? Volume1 : Volume2;
+  return (
+    <div
+      className="absolute left-[10px] top-[150px] z-[96] w-[46px] h-[150px] rounded-[23px] overflow-hidden blur-bar pointer-events-none flex flex-col justify-end"
+      style={{ background: "rgba(60,60,64,0.55)", opacity: show ? 1 : 0, transform: show ? "translateX(0) scale(1)" : "translateX(-20px) scale(0.92)", transition: "opacity .25s, transform .3s cubic-bezier(.2,1,.3,1)" }}
+    >
+      <div className="absolute left-0 right-0 bottom-0 bg-white" style={{ height: `${m.volume * 100}%`, transition: "height .15s" }} />
+      <Icon size={20} className="relative mx-auto mb-[12px]" style={{ color: m.volume > 0.12 ? "#555" : "#fff" }} />
     </div>
   );
 }
@@ -146,6 +214,7 @@ function LockScreen({ d, onUnlock, onCamera, onOpen }: { d: PhoneData; onUnlock:
         {/* 알림 스택 */}
         {/* 같은 앱 알림은 겹쳐 쌓이고, 누르면 펼쳐짐 */}
         <div className="w-full px-[8px] flex flex-col gap-[8px] mb-[118px]" onPointerDown={(e) => e.stopPropagation()}>
+          <NowPlaying />
           {groups.map(([app, list]) => {
             const open = list.length === 1 || expanded === app;
             const card = (n: (typeof list)[number], k: number) => (
@@ -647,7 +716,16 @@ type CallState = { name: string; lines: string[]; mode: "out" | "in"; ringing: b
 type Banner = { app: string; title: string; text: string; target?: string } | null;
 
 /** embedded: 에디터 옆 실시간 미리보기용 (잠금 건너뜀, 체류 이벤트 끔) */
-export default function Phone({ embedded = false, previewScale = 0.78 }: { embedded?: boolean; previewScale?: number } = {}) {
+export default function Phone(props: { embedded?: boolean; previewScale?: number } = {}) {
+  return (
+    <MusicProvider>
+      <PhoneInner {...props} />
+    </MusicProvider>
+  );
+}
+
+function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: boolean; previewScale?: number }) {
+  const music = useMusic();
   const d = useData();
   const [phase, setPhase] = useState<"lock" | "code" | "home" | "decoy">(embedded ? "home" : "lock");
   const [app, setApp] = useState<string | null>(null);
@@ -660,7 +738,6 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   const [watch, setWatch] = useState(false);
   const [lowPower, setLowPower] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
-  const [playing, setPlaying] = useState<Song | null>(null);
   const [cc, setCc] = useState(false); // 제어 센터
   const [nc, setNc] = useState(false); // 알림 센터
   const [bright, setBright] = useState(1);
@@ -823,9 +900,9 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   }, []);
   const startCall = useCallback((name: string, lines: string[], mode: "out" | "in" = "out") => setCall({ name, lines, mode, ringing: mode === "in" }), []);
 
-  const ctx: PhoneCtx & { setPlaying: (s: Song | null) => void; playing: Song | null } = useMemo(
-    () => ({ open, home, setStatusDark, call: startCall, toast, appArg, setPlaying, playing }),
-    [open, home, startCall, toast, appArg, playing],
+  const ctx: PhoneCtx = useMemo(
+    () => ({ open, home, setStatusDark, call: startCall, toast, appArg }),
+    [open, home, startCall, toast, appArg],
   );
 
   // 체류 시간 이벤트 (배너 · 수신 전화 · 배터리)
@@ -1039,11 +1116,13 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
         )}
 
         {/* 제어 센터 · 알림 센터 */}
-        {cc && <ControlCenter d={d} close={() => setCc(false)} open={open} playing={playing} brightness={bright} setBrightness={setBright} torch={torch} setTorch={setTorch} />}
+        {cc && <ControlCenter d={d} close={() => setCc(false)} open={open} brightness={bright} setBrightness={setBright} torch={torch} setTorch={setTorch} />}
         {nc && <NotifCenter d={d} close={() => setNc(false)} open={open} />}
 
         <StatusBar dark={onDarkSurface && !(call && true)} battery={d.battery} lowPower={lowPower} onLongPress={goEditor} hideTime={phase === "lock"} carrier={d.carrier} />
-        <Island playing={playing} calling={false} />
+        <Island calling={false} onOpenMusic={() => phase === "home" && open("music")} />
+        <MusicHosts />
+        <VolumeHud />
 
         {/* 화면 맨 위: 왼쪽에서 끌어내리면 알림 센터, 오른쪽이면 제어 센터 (오른쪽 위 탭도 됨) · 시계 길게 누르면 에디터 */}
         {phase !== "code" && !(call && call.ringing) && !cc && !nc && (
@@ -1071,6 +1150,9 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
               if (!g) return;
               clearTimeout(g.t);
               if (!g.moved && g.x > 0.66) setCc(true);
+              // 실제 아이폰: 맨 위 시계 쪽을 톡 누르면 보던 목록이 맨 위로
+              else if (!g.moved && app && appRoot.current)
+                appRoot.current.querySelectorAll<HTMLElement>(".scroll").forEach((el) => el.scrollTop > 0 && el.scrollTo({ top: 0, behavior: "smooth" }));
             }}
             onPointerLeave={() => top.current && clearTimeout(top.current.t)}
           />
@@ -1232,9 +1314,10 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
     <div className="stage">
       <div className="device" style={{ transform: `scale(${scale})` }}>
         <span className="btn" style={{ left: -3, top: 170, height: 32 }} />
-        <span className="btn" style={{ left: -3, top: 230, height: 62 }} />
-        <span className="btn" style={{ left: -3, top: 305, height: 62 }} />
-        <span className="btn" style={{ right: -3, top: 260, height: 100 }} />
+        <button className="btn cursor-pointer active:brightness-75" aria-label="볼륨 크게" style={{ left: -3, top: 230, height: 62 }} onClick={() => music.setVolume(Math.round((music.volume + 1 / 16) * 16) / 16)} />
+        <button className="btn cursor-pointer active:brightness-75" aria-label="볼륨 작게" style={{ left: -3, top: 305, height: 62 }} onClick={() => music.setVolume(Math.round((music.volume - 1 / 16) * 16) / 16)} />
+        {/* 오른쪽 옆 버튼 = 잠금(전원) 버튼: 누르면 화면이 잠김 */}
+        <button className="btn cursor-pointer active:brightness-75" aria-label="잠금 버튼" style={{ right: -3, top: 260, height: 100 }} onClick={() => !call && (phase === "home" || phase === "decoy") && setPhase("lock")} />
         {screen}
       </div>
       <a href="#/editor" className="fixed bottom-4 right-5 text-[12px] text-white/25 hover:text-white/60 transition-colors no-underline">

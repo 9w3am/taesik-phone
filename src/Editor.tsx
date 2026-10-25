@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Download, Upload, Rota
 import { useData, update, setData, resetData, sanitize, uid, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song } from "./store";
 import { defaultData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
-import { fromLink, searchSong, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
+import { fromLink, searchSong, fetchLyrics, isSpCollection, songYtId, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
 import { ytUrl } from "./apps/Music";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
 import Phone from "./Phone";
@@ -868,52 +868,115 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
   );
 }
 
-function SongEd({ s, put }: { s: Song; put: (v: Partial<Song>) => void }) {
+function SongEd({ s, put: putNow }: { s: Song; put: (v: Partial<Song>) => void }) {
   const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState("");
   const [sync, setSync] = useState(false);
-  const fill = async (kind: "link" | "search") => {
+  const lastLink = useRef(s.url);
+  // 기다렸다가 저장할 땐 곡 ID로 바로 (그 사이 다른 칸을 고쳐도 덮어쓰지 않게)
+  const put = (v: Partial<Song>) =>
+    update((x) => {
+      const y = x.songs.find((z) => z.id === s.id);
+      if (y) Object.assign(y, v);
+    });
+  /** 링크(또는 제목)로 표지 · 제목 · 가수 · 길이 · 미리듣기 · 가사까지 전부 자동으로 */
+  const fill = async (kind: "link" | "search", url = s.url, silent = false) => {
     setBusy(kind);
+    setMsg("");
+    const cur = { title: s.title, artist: s.artist, album: s.album, dur: s.dur, lyrics: s.lyrics };
     try {
-      const m = kind === "link" ? await fromLink(s.url) : await searchSong(s.title, s.artist);
+      let m: Awaited<ReturnType<typeof fromLink>>;
+      if (kind === "link") {
+        try {
+          m = await fromLink(url);
+        } catch (err) {
+          // 멜론 · 지니 등 외부에서 못 읽는 링크: 써 둔 제목으로 찾기
+          if (!cur.title) throw err;
+          m = await searchSong(cur.title, cur.artist);
+        }
+      } else m = await searchSong(cur.title, cur.artist);
       const v: Partial<Song> = {};
       // 제목으로 찾을 땐 이미 쓴 제목·가수는 그대로 (해외 스토어 결과가 영어 제목일 수 있음)
       const keep = kind === "search";
-      if (m.title && !(keep && s.title)) v.title = m.title;
-      if (m.artist && !(keep && s.artist)) v.artist = m.artist;
-      if ((m.album || m.title) && !(keep && s.album)) v.album = m.album || m.title;
+      if (m.title && !(keep && cur.title)) v.title = m.title;
+      if (m.artist && !(keep && cur.artist)) v.artist = m.artist;
+      if ((m.album || m.title) && !(keep && cur.album)) v.album = m.album || m.title;
       if (m.cover) v.cover = m.cover;
       if (m.dur) v.dur = m.dur;
+      if (m.preview) v.preview = m.preview;
       put(v);
+      const ytSound = !!(songYtId(url) || songYtId(s.yt || ""));
+      if (isSpCollection(url)) setMsg("✓ 넣었어요. 이건 앨범/플레이리스트 링크라 가사는 못 붙여요 — 곡 링크(주소에 /track/ 이 있는 것)를 넣으면 가사까지 돼요");
+      // 유튜브로 소리 나는 곡: 가사는 재생할 때 그 영상 길이에 맞는 싱크로 자동 (미리 저장하면 길이가 다른 버전일 수 있음)
+      else if (ytSound && !cur.lyrics?.trim()) setMsg("✓ 표지 · 정보 넣었어요. 가사는 재생할 때 유튜브 길이에 맞춰 자동으로 싱크돼요");
+      // 가사가 비어 있으면 자동으로 (싱크 가사 우선)
+      else if (!cur.lyrics?.trim()) {
+        setMsg("가사 찾는 중…");
+        const lr = await fetchLyrics(v.title || cur.title, v.artist || cur.artist, v.dur || cur.dur);
+        if (lr) put({ lyrics: lr });
+        setMsg(lr ? (parseLyrics(lr).some((l) => l.t !== null) ? "✓ 표지 · 정보 · 싱크 가사까지 다 넣었어요" : "✓ 다 넣었어요 (이 곡은 싱크 없는 가사만 있음)") : "✓ 표지 · 정보 넣음 (가사는 못 찾음 — 재생할 때 한 번 더 찾아봐요)");
+      } else setMsg("✓ 표지 · 정보 넣었어요");
     } catch {
-      alert(kind === "link" ? "이 링크에서는 정보를 못 가져왔어요.\n유튜브 · 스포티파이 · 애플뮤직 곡 링크만 됩니다.\n(멜론 등은 '제목으로 표지 찾기'를 눌러 보세요)" : "못 찾았어요. 곡 제목과 가수 이름을 확인해 주세요.");
+      setMsg("");
+      if (!silent) alert(kind === "link" ? "이 링크에서는 정보를 못 가져왔어요.\n유튜브 · 스포티파이 · 애플뮤직 곡 링크가 가장 잘 돼요.\n(멜론 등은 곡 제목을 먼저 쓰고 다시 눌러 보세요)" : "못 찾았어요. 곡 제목과 가수 이름을 확인해 주세요.");
     }
     setBusy("");
+  };
+  const fetchLy = async () => {
+    setBusy("lyrics");
+    setMsg("");
+    const lr = await fetchLyrics(s.title, s.artist, s.dur).catch(() => "");
+    if (lr) put({ lyrics: lr });
+    setMsg(lr ? "✓ 가사 넣었어요" : "가사를 못 찾았어요. 제목 · 가수 이름을 확인해 주세요.");
+    setBusy("");
+  };
+  /** 링크를 붙여넣거나 칸에서 나가면 알아서 채우기 */
+  const autoFill = (url: string) => {
+    if (!/^https?:\/\//.test(url.trim()) || url === lastLink.current || busy) return;
+    lastLink.current = url;
+    fill("link", url, true);
   };
   const synced = parseLyrics(s.lyrics).some((l) => l.t !== null);
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-      <F label="링크 (유튜브 · 스포티파이 · 애플뮤직)" className="col-span-full">
+      <F label="곡 링크 (유튜브 · 스포티파이 · 애플뮤직) — 붙여넣으면 표지 · 제목 · 가수가 자동으로 채워져요" className="col-span-full">
         <div className="flex gap-2">
-          <T value={s.url} ph="https://youtu.be/..." onChange={(v) => put({ url: v })} />
+          <input
+            value={s.url ?? ""}
+            placeholder="https://youtu.be/..."
+            onChange={(e) => putNow({ url: e.target.value })}
+            onPaste={(e) => {
+              const v = e.clipboardData.getData("text").trim();
+              setTimeout(() => autoFill(v), 0);
+            }}
+            onBlur={(e) => autoFill(e.target.value)}
+          />
           <Btn kind="primary" disabled={!s.url || !!busy} onClick={() => fill("link")}>
-            <span className="whitespace-nowrap">{busy === "link" ? "가져오는 중…" : "링크로 채우기"}</span>
+            <span className="whitespace-nowrap">{busy === "link" ? "가져오는 중…" : "다시 채우기"}</span>
           </Btn>
         </div>
+        {!songYtId(s.url) && (
+          <div className="mt-2">
+            <label>소리용 유튜브 링크 — 넣으면 전곡이 나와요 (없으면 30초 미리듣기)</label>
+            <input value={s.yt ?? ""} placeholder="https://youtu.be/... (공식 음원 · Topic 영상이 가사 싱크가 가장 잘 맞아요)" onChange={(ev) => putNow({ yt: ev.target.value })} />
+          </div>
+        )}
+        {msg && <div className="text-[13px] mt-1.5" style={{ color: msg.startsWith("✓") ? "#248A3D" : "rgba(0,0,0,0.5)" }}>{msg}</div>}
       </F>
       <F label="곡">
-        <T value={s.title} onChange={(v) => put({ title: v })} />
+        <T value={s.title} onChange={(v) => putNow({ title: v })} />
       </F>
       <F label="아티스트">
-        <T value={s.artist} onChange={(v) => put({ artist: v })} />
+        <T value={s.artist} onChange={(v) => putNow({ artist: v })} />
       </F>
       <F label="앨범">
-        <T value={s.album} onChange={(v) => put({ album: v })} />
+        <T value={s.album} onChange={(v) => putNow({ album: v })} />
       </F>
       <F label="곡 길이 (예: 3:25)">
         <input key={s.dur ?? 0} defaultValue={showDur(s.dur)} placeholder="자동" onBlur={(e) => put({ dur: parseDur(e.target.value) || undefined })} />
       </F>
       <F label="커버 색 (사진 없을 때)">
-        <N value={s.hue} onChange={(v) => put({ hue: v })} />
+        <N value={s.hue} onChange={(v) => putNow({ hue: v })} />
       </F>
       <div className="col-span-full flex flex-wrap items-center gap-3">
         {s.cover ? <img src={s.cover} alt="" className="w-[48px] h-[48px] rounded-[8px] object-cover" /> : <span className="w-[48px] h-[48px] rounded-[8px]" style={{ background: `hsl(${s.hue} 35% 35%)` }} />}
@@ -922,17 +985,39 @@ function SongEd({ s, put }: { s: Song; put: (v: Partial<Song>) => void }) {
         </Btn>
         <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
           앨범 사진 올리기
-          <input type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) put({ cover: await shrinkImage(f, 500) }); e.target.value = ""; }} />
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) put({ cover: await shrinkImage(f, 500) });
+            }}
+          />
         </label>
-        {s.cover && <Btn kind="danger" onClick={() => put({ cover: undefined })}>앨범 사진 지우기</Btn>}
-      </div>
-      <F label={`가사 ${synced ? "(싱크 맞춤 ✓)" : "(직접 붙여넣기)"}`} className="col-span-full">
-        <textarea rows={6} value={s.lyrics ?? ""} placeholder={"한 줄에 한 소절씩 붙여넣으세요.\n[00:12.50] 처럼 시간을 붙이면 노래에 맞춰 내려갑니다."} onChange={(e) => put({ lyrics: e.target.value })} />
-        <div className="flex flex-wrap gap-2 mt-2">
-          <Btn disabled={!s.lyrics?.trim()} onClick={() => setSync(true)}>
-            싱크 맞추기 (노래 들으며 누르기)
+        {s.cover && (
+          <Btn kind="danger" onClick={() => putNow({ cover: undefined })}>
+            앨범 사진 지우기
           </Btn>
-          {synced && <Btn onClick={() => put({ lyrics: parseLyrics(s.lyrics).map((l) => l.text).join("\n") })}>싱크 지우기</Btn>}
+        )}
+      </div>
+      <F label={`가사 ${synced ? "(싱크 맞춤 ✓)" : s.lyrics?.trim() ? "(싱크 없음)" : "(비워 두면 재생할 때 자동으로 찾아요)"}`} className="col-span-full">
+        <textarea rows={6} value={s.lyrics ?? ""} placeholder={"비워 두면 재생할 때 알아서 찾아서 보여 줘요.\n직접 넣으려면 한 줄에 한 소절씩. [00:12.50] 처럼 시간을 붙이면 노래에 맞춰 내려가요."} onChange={(e) => putNow({ lyrics: e.target.value })} />
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <Btn disabled={!s.title.trim() || !!busy} onClick={fetchLy}>
+            {busy === "lyrics" ? "찾는 중…" : s.lyrics?.trim() ? "가사 다시 가져오기" : "가사 자동으로 가져오기"}
+          </Btn>
+          <Btn disabled={!s.lyrics?.trim()} onClick={() => setSync(true)}>
+            싱크 직접 맞추기
+          </Btn>
+          {synced && <Btn onClick={() => putNow({ lyrics: parseLyrics(s.lyrics).map((l) => l.text).join("\n") })}>싱크 지우기</Btn>}
+          <span className="inline-flex items-center gap-1.5 text-[13px] text-black/60">
+            싱크 조절
+            <Btn onClick={() => putNow({ lyricsOffset: Math.round(((s.lyricsOffset || 0) - 0.5) * 10) / 10 })}>가사 빨리</Btn>
+            <span className="tabular w-[44px] text-center">{(s.lyricsOffset || 0) > 0 ? "+" : ""}{(s.lyricsOffset || 0).toFixed(1)}초</span>
+            <Btn onClick={() => putNow({ lyricsOffset: Math.round(((s.lyricsOffset || 0) + 0.5) * 10) / 10 })}>가사 늦게</Btn>
+          </span>
         </div>
       </F>
       {sync && (
@@ -953,7 +1038,7 @@ function Songs({ d }: { d: PhoneData }) {
   return (
     <Card title="음악">
       <p className="text-[13px] text-black/50 mb-3">
-        곡 링크를 넣고 <b>링크로 채우기</b>를 누르면 표지 · 제목 · 가수가 자동으로 들어갑니다. 가사는 직접 붙여넣고, <b>싱크 맞추기</b>로 노래에 맞춰 내려가게 할 수 있어요.
+        곡 링크를 <b>붙여넣기만 하면</b> 표지 · 제목 · 가수 · 길이가 자동으로 들어가요. <b>유튜브 링크면 전곡</b>이 나오고, 가사는 재생할 때 영상 길이에 맞는 싱크 가사를 알아서 찾아요. 스포티파이 · 애플뮤직 링크는 30초 미리듣기 (아래 소리용 유튜브 링크를 넣으면 전곡).
       </p>
       <Rows
         items={d.songs}

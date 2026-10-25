@@ -44,7 +44,7 @@ export type Contact = { id: string; name: string; phone: string; label: string; 
 export type Note = { id: string; folder: string; title: string; body: string; pinned?: boolean; lockCode?: string; when: string };
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
-export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number; cover?: string; /** 곡 길이(초) */ dur?: number; /** 가사. [00:12.34] 처럼 시간을 붙이면 노래에 맞춰 내려감 */ lyrics?: string };
+export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number; cover?: string; /** 곡 길이(초) */ dur?: number; /** 가사. [00:12.34] 처럼 시간을 붙이면 노래에 맞춰 내려감 */ lyrics?: string; /** 가사 싱크 조절(초): + 면 가사가 늦게, - 면 빨리 */ lyricsOffset?: number; /** 30초 미리듣기 주소 (애플) */ preview?: string; /** 소리용 유튜브 링크 (곡 링크가 유튜브가 아닐 때 전곡 재생용) */ yt?: string };
 export type Photo = { id: string; kind?: string; asset?: string; src?: string; deleted?: boolean; vault?: boolean; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
 export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string; style?: "box" | "classic" };
@@ -151,6 +151,25 @@ export function sanitize(o: unknown): PhoneData | null {
   }
   // 기본값에 없는 선택 항목들
   for (const k of ["sounds", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen"]) if (k in x) out[k] = x[k];
+  // 노래: 칸마다 모양 검사 (이상한 값이 들어 있으면 고쳐서 받음 — 앱이 멈추지 않게)
+  const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  out.songs = (Array.isArray(out.songs) ? out.songs : [])
+    .filter((v): v is Record<string, unknown> => !!v && typeof v === "object")
+    .map((v) => ({
+      id: str(v.id, 64) || Math.random().toString(36).slice(2),
+      title: str(v.title, 300),
+      artist: str(v.artist, 300),
+      album: str(v.album, 300),
+      url: str(v.url),
+      hue: num(v.hue) ?? 200,
+      cover: str(v.cover, 3_000_000).startsWith("data:image/") ? str(v.cover, 3_000_000) : undefined,
+      dur: num(v.dur),
+      lyrics: str(v.lyrics, 20000) || undefined,
+      lyricsOffset: num(v.lyricsOffset),
+      preview: str(v.preview) || undefined,
+      yt: str(v.yt) || undefined,
+    }));
   return out as unknown as PhoneData;
 }
 

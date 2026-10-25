@@ -1,7 +1,8 @@
 /* 제어 센터(오른쪽 위에서 끌어내리기) · 알림 센터(왼쪽 위에서 끌어내리기) */
 import { useState } from "react";
 import { Plane, Antenna, Wifi, Bluetooth, Moon, Flashlight, Timer, Calculator, Camera, Sun, Volume2, Lock, Play, Pause, FastForward, Rewind, Radio, X, BellOff, Bell } from "lucide-react";
-import { DAYS, update, type PhoneData, type Song } from "./store";
+import { DAYS, update, type PhoneData } from "./store";
+import { useMusic } from "./music";
 import { AppIcon } from "./icons";
 import { hm, useNow } from "./ui";
 import { Wallpaper } from "./Phone";
@@ -51,7 +52,6 @@ export function ControlCenter({
   d,
   close,
   open,
-  playing,
   brightness,
   setBrightness,
   torch,
@@ -60,14 +60,14 @@ export function ControlCenter({
   d: PhoneData;
   close: () => void;
   open: (id: string) => void;
-  playing: Song | null;
   brightness: number;
   setBrightness: (v: number) => void;
   torch: boolean;
   setTorch: (v: boolean) => void;
 }) {
   const [t, setT] = useState({ air: false, cell: true, wifi: false, bt: false, dnd: true, lock: true });
-  const [vol, setVol] = useState(0.55);
+  const m = useMusic();
+  const playing = m.started ? m.song : null;
   const tg = (k: keyof typeof t) => setT((x) => ({ ...x, [k]: !x[k] }));
   const go = (id: string) => {
     close();
@@ -101,7 +101,11 @@ export function ControlCenter({
           <div className="rounded-[26px] p-[14px] flex flex-col" style={{ background: "rgba(84,84,90,0.55)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-[8px]">
               {playing ? (
-                <span className="w-[34px] h-[34px] rounded-[8px] shrink-0" style={{ background: `linear-gradient(135deg,hsl(${playing.hue} 50% 50%),hsl(${playing.hue + 30} 40% 20%))` }} />
+                playing.cover?.startsWith("data:image/") ? (
+                  <img src={playing.cover} alt="" className="w-[34px] h-[34px] rounded-[8px] shrink-0 object-cover" />
+                ) : (
+                  <span className="w-[34px] h-[34px] rounded-[8px] shrink-0" style={{ background: `linear-gradient(135deg,hsl(${playing.hue} 50% 50%),hsl(${playing.hue + 30} 40% 20%))` }} />
+                )
               ) : (
                 <Radio size={20} className="text-white/60" />
               )}
@@ -112,9 +116,13 @@ export function ControlCenter({
             </div>
             <div className="flex-1" />
             <div className="flex justify-around items-center">
-              <Rewind size={22} fill="#fff" strokeWidth={0} />
-              <button onClick={() => go("music")}>{playing ? <Pause size={28} fill="#fff" strokeWidth={0} /> : <Play size={28} fill="#fff" strokeWidth={0} />}</button>
-              <FastForward size={22} fill="#fff" strokeWidth={0} />
+              <button onClick={m.prev} aria-label="이전" disabled={!playing} className="disabled:opacity-40">
+                <Rewind size={22} fill="#fff" strokeWidth={0} />
+              </button>
+              <button onClick={() => (playing ? m.setPlay(!m.playing) : go("music"))} aria-label="재생">{m.playing ? <Pause size={28} fill="#fff" strokeWidth={0} /> : <Play size={28} fill="#fff" strokeWidth={0} />}</button>
+              <button onClick={m.next} aria-label="다음" disabled={!playing} className="disabled:opacity-40">
+                <FastForward size={22} fill="#fff" strokeWidth={0} />
+              </button>
             </div>
           </div>
         </div>
@@ -141,7 +149,7 @@ export function ControlCenter({
             </button>
           </div>
           <Slider value={brightness} onChange={setBrightness} icon={<Sun size={24} strokeWidth={2.4} />} />
-          <Slider value={vol} onChange={setVol} icon={<Volume2 size={24} strokeWidth={2.4} />} />
+          <Slider value={m.volume} onChange={m.setVolume} icon={<Volume2 size={24} strokeWidth={2.4} />} />
         </div>
         <div className="grid grid-cols-4 gap-[14px] mt-[14px] justify-items-center">
           <Tile on={torch} color="#fff" onClick={() => setTorch(!torch)}>

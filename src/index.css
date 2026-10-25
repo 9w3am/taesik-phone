@@ -101,6 +101,12 @@ select {
   border-radius: 67px;
   background: #000;
 }
+/* 옆 버튼은 가늘어서 누르기 쉽게 터치 영역을 넓힘 */
+.device button.btn::after {
+  content: "";
+  position: absolute;
+  inset: -4px -12px;
+}
 .device .btn {
   position: absolute;
   width: 4px;

@@ -1,12 +1,16 @@
 /* 노래 링크 → 표지 · 제목 · 가수 자동 채우기 (유튜브 / 스포티파이 / 애플뮤직), 제목으로 표지 찾기 (애플뮤직 검색) */
 import { shrinkImage } from "./photos";
 
-export type SongMeta = { title?: string; artist?: string; album?: string; cover?: string; dur?: number };
+export type SongMeta = { title?: string; artist?: string; album?: string; cover?: string; dur?: number; preview?: string };
 
+/** 가져오기: 상대 사이트가 잠깐 바쁘면(5xx · 429) 조금 기다렸다가 두 번 더 */
 const getJson = async (u: string) => {
-  const r = await fetch(u, { referrerPolicy: "no-referrer" });
-  if (!r.ok) throw new Error(String(r.status));
-  return r.json();
+  for (let i = 0; ; i++) {
+    const r = await fetch(u, { referrerPolicy: "no-referrer" }).catch(() => null);
+    if (r?.ok) return r.json();
+    if (i >= 2 || (r && r.status < 500 && r.status !== 429)) throw new Error(String(r?.status ?? "network"));
+    await new Promise((res) => setTimeout(res, 700 * (i + 1)));
+  }
 };
 
 /** 표지 사진을 받아 작게 줄여 저장 (사이트 밖 주소에 기대지 않게). square: 가운데를 정사각형으로 잘라냄 */
@@ -27,10 +31,12 @@ async function toCover(u: string, square = false) {
 }
 
 export const ytId = (u: URL) => {
-  if (u.hostname === "youtu.be") return u.pathname.slice(1).split("/")[0];
-  if (u.searchParams.get("v")) return u.searchParams.get("v")!;
-  const m = u.pathname.match(/\/(shorts|embed|live)\/([\w-]{6,})/);
-  return m ? m[2] : "";
+  let id = "";
+  if (u.hostname === "youtu.be") id = u.pathname.slice(1).split("/")[0];
+  else if (u.searchParams.get("v")) id = u.searchParams.get("v")!;
+  else id = (u.pathname.match(/\/(shorts|embed|live)\/([\w-]+)/) || [])[2] || "";
+  // 보안: 유튜브 영상 ID 모양(영문·숫자·-·_ 11자)만 통과
+  return /^[\w-]{11}$/.test(id) ? id : "";
 };
 
 /** "가수 - 제목 (Official Video)" 같은 유튜브 제목 정리 */
@@ -70,6 +76,18 @@ export async function fromLink(link: string): Promise<SongMeta> {
     const j = await getJson(`https://open.spotify.com/oembed?url=${encodeURIComponent(u.href)}`);
     const meta: SongMeta = { title: String(j.title || "") };
     if (j.thumbnail_url) meta.cover = await toCover(String(j.thumbnail_url));
+    // 앨범 · 플레이리스트 링크는 이름만
+    if (/\/(album|playlist)\//.test(u.pathname)) return { ...meta, album: meta.title };
+    // 스포티파이는 가수 이름을 안 알려 줘서 애플뮤직에서 같은 제목으로 찾아 채움
+    try {
+      const m = await searchSong(meta.title || "", "", false);
+      if (m.artist) meta.artist = m.artist;
+      if (m.album) meta.album = m.album;
+      if (m.dur) meta.dur = m.dur;
+      if (m.preview) meta.preview = m.preview;
+    } catch {
+      /* 못 찾으면 제목만 */
+    }
     return meta;
   }
   if (u.hostname === "music.apple.com" || h === "itunes.apple.com") {
@@ -84,15 +102,16 @@ export async function fromLink(link: string): Promise<SongMeta> {
   throw new Error("지원 안 함");
 }
 
-async function fromItunes(r: Record<string, unknown>): Promise<SongMeta> {
+async function fromItunes(r: Record<string, unknown>, withCover = true): Promise<SongMeta> {
   const meta: SongMeta = { title: String(r.trackName || r.collectionName || ""), artist: String(r.artistName || ""), album: String(r.collectionName || "") };
   if (r.trackTimeMillis) meta.dur = Math.round(Number(r.trackTimeMillis) / 1000);
-  if (r.artworkUrl100) meta.cover = await toCover(big(String(r.artworkUrl100)));
+  if (typeof r.previewUrl === "string" && r.previewUrl.startsWith("https://")) meta.preview = r.previewUrl;
+  if (withCover && r.artworkUrl100) meta.cover = await toCover(big(String(r.artworkUrl100)));
   return meta;
 }
 
 /** 제목 · 가수로 애플뮤직에서 찾아 표지 · 앨범 · 길이 채우기 (멜론 링크 등일 때) */
-export async function searchSong(title: string, artist: string): Promise<SongMeta> {
+export async function searchSong(title: string, artist: string, withCover = true): Promise<SongMeta> {
   const q = `${artist} ${title}`.trim();
   if (!q) throw new Error("제목");
   // 한국 스토어 검색이 비면 미국 스토어로 다시 (한국 노래도 대부분 있음)
@@ -102,7 +121,7 @@ export async function searchSong(title: string, artist: string): Promise<SongMet
     if (r) break;
   }
   if (!r) throw new Error("못 찾음");
-  return fromItunes(r);
+  return fromItunes(r, withCover);
 }
 
 /* ───────── 가사 ───────── */
@@ -118,7 +137,11 @@ export function parseLyrics(src = ""): LyricLine[] {
     else if (/^\[[a-z]+:/i.test(raw)) continue; // [ar:가수] 같은 정보 줄
     else out.push({ t: null, text });
   }
-  if (out.some((l) => l.t !== null)) out.sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
+  // 싱크 가사면 시간 없는 줄(제목 · 크레딧 등)은 빼고 시간순으로
+  if (out.some((l) => l.t !== null)) {
+    for (let i = out.length - 1; i >= 0; i--) if (out[i].t === null) out.splice(i, 1);
+    out.sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
+  }
   // 앞뒤 빈 줄 정리
   while (out.length && !out[0].text) out.shift();
   while (out.length && !out[out.length - 1].text) out.pop();
@@ -149,3 +172,76 @@ export const songYtId = (url: string) => {
     return "";
   }
 };
+
+/** 스포티파이 링크면 "track:ID" / "album:ID" / "playlist:ID" (스포티파이 재생기로 재생). 아니면 "" */
+export const songSpId = (url: string) => {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== "open.spotify.com") return "";
+    const m = u.pathname.match(/^\/(?:intl-[a-z]{2}(?:-[a-z]{2})?\/)?(track|album|playlist)\/([A-Za-z0-9]{22})\/?$/);
+    return m ? `${m[1]}:${m[2]}` : "";
+  } catch {
+    return "";
+  }
+};
+/** 곡 하나가 아닌 링크(앨범 · 플레이리스트)인지 — 이런 링크는 가사를 붙일 수 없음 */
+export const isSpCollection = (url: string) => /^(album|playlist):/.test(songSpId(url));
+
+/* ───────── 가사 자동으로 가져오기 (LRCLIB: 무료 공개 가사 모음, 싱크 가사 포함) ───────── */
+type LrcHit = { trackName?: string; artistName?: string; duration?: number; syncedLyrics?: string | null; plainLyrics?: string | null; instrumental?: boolean };
+const cleanTitle = (s: string) => s.replace(/\s*[([].*?[)\]]\s*/g, " ").replace(/\s{2,}/g, " ").trim();
+
+/** 비교용: 괄호 · 공백 · 기호 빼고 소문자 (단, 제목이 기호뿐이면 그대로) */
+const norm = (s = "") => {
+  const a = s.toLowerCase().replace(/[([（【].*?[)\]）】]/g, " ");
+  const b = a.replace(/[^\p{L}\p{N}]+/gu, "");
+  return b || a.replace(/\s+/g, "");
+};
+/** 가수 이름 후보: "LEON (딥상어)" → ["leon", "딥상어"], "A & B" → ["a", "b"] */
+const artistNames = (s = "") =>
+  s
+    .split(/[()（）,&/·]|feat\.?|ft\.?/i)
+    .map((x) => norm(x))
+    .filter(Boolean);
+/** 제목 후보: "Through the Night (밤편지)" → [전체, "throughthenight", "밤편지"] (괄호 안 이름도 같은 곡으로 봄) */
+const titleNames = (s = "") => [norm(s), ...s.split(/[()（）[\]【】]/).map((x) => norm(x))].filter(Boolean);
+const sameTitle = (a: string, b: string) => {
+  const xs = titleNames(a);
+  const ys = titleNames(b);
+  return xs.some((x) => ys.some((y) => x === y || (Math.min(x.length, y.length) >= 3 && (x.includes(y) || y.includes(x)))));
+};
+const sameArtist = (hit: string, want: string) => {
+  const hs = artistNames(hit);
+  const ws = artistNames(want);
+  return ws.some((w) => hs.some((h) => h === w || (Math.min(h.length, w.length) >= 2 && (h.includes(w) || w.includes(h)))));
+};
+
+/** 제목 · 가수(· 곡 길이)로 가사를 찾아 돌려줌. 싱크 가사가 있으면 그걸, 없으면 줄글 가사. 못 찾으면 ""
+ *  엉뚱한 노래 가사가 오지 않게: 제목이 맞아야 하고, 가수를 적었으면 가수도 맞아야 함 */
+export async function fetchLyrics(title: string, artist: string, dur?: number): Promise<string> {
+  const t = cleanTitle(title) || title.trim();
+  if (!t) return "";
+  const a = artist.trim();
+  const tries = [
+    `https://lrclib.net/api/search?track_name=${encodeURIComponent(t)}&artist_name=${encodeURIComponent(a)}`,
+    `https://lrclib.net/api/search?q=${encodeURIComponent(`${a} ${t}`.trim())}`,
+    ...a.split(/[()（）]/).map((x) => x.trim()).filter((x) => x && x !== a).map((x) => `https://lrclib.net/api/search?track_name=${encodeURIComponent(t)}&artist_name=${encodeURIComponent(x)}`),
+  ];
+  for (const u of tries) {
+    let list: LrcHit[] = [];
+    try {
+      const j = await getJson(u);
+      list = Array.isArray(j) ? j : [];
+    } catch {
+      continue;
+    }
+    const good = list.filter((x) => !x.instrumental && (x.syncedLyrics || x.plainLyrics) && sameTitle(x.trackName || "", t) && (!a || sameArtist(x.artistName || "", a)));
+    if (!good.length) continue;
+    // 싱크 가사 우선, 곡 길이가 비슷한 것 우선 (길이가 10초 넘게 다르면 다른 버전일 가능성 → 뒤로)
+    const gap = (x: LrcHit) => (dur ? Math.abs((x.duration ?? 0) - dur) : 0);
+    good.sort((p, q) => Number(gap(p) > 10) - Number(gap(q) > 10) || Number(!!q.syncedLyrics) - Number(!!p.syncedLyrics) || gap(p) - gap(q));
+    const best = good[0];
+    return String(best.syncedLyrics || best.plainLyrics || "").slice(0, 20000);
+  }
+  return "";
+}
