@@ -36,7 +36,8 @@ export const NOTIFY_SOUNDS: [string, string][] = [
 export function soundSrc(ref?: string) {
   if (!ref) return "";
   if (ref.startsWith("preset:")) return url(ref.slice(7));
-  return ref;
+  // 보안: 직접 올린 소리 파일(data:audio)만 허용
+  return ref.startsWith("data:audio/") ? ref : "";
 }
 /* 미리듣기: 한 번에 하나만 재생 (새로 누르면 이전 소리는 멈춤) */
 let current: HTMLAudioElement | null = null;

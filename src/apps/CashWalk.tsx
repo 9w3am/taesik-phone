@@ -20,16 +20,10 @@ export default function CashWalk() {
   const d = useData();
   const cw = d.cashwalk;
   const [tab, setTab] = useState("home");
-  const [coins, setCoins] = useState(cw.bubbles);
+  const [pending, setPending] = useState(cw.bubbles);
   const [quizDone, setQuizDone] = useState<null | boolean>(null);
   const goal = 10000;
   const pct = Math.min(1, cw.steps / goal);
-  const R = 92,
-    C = 2 * Math.PI * R;
-  const collect = () =>
-    update((x) => {
-      x.cashwalk.cash += 1;
-    });
 
   return (
     <div className="absolute inset-0 bg-[#F6F6F6]">
@@ -50,42 +44,52 @@ export default function CashWalk() {
 
         {tab === "home" && (
           <>
-            {/* 걸음 원 + 동전 줍기 */}
-            <div className="relative mx-[16px] rounded-[24px] bg-white pt-[26px] pb-[22px] flex flex-col items-center shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
-              <svg width="220" height="220" viewBox="0 0 220 220">
-                <circle cx="110" cy="110" r={R} fill="none" stroke="#F1F1F1" strokeWidth="14" />
-                <circle cx="110" cy="110" r={R} fill="none" stroke={Y} strokeWidth="14" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - pct)} transform="rotate(-90 110 110)" />
-              </svg>
-              <div className="absolute top-[70px] flex flex-col items-center">
-                <Footprints size={22} className="text-black/40" />
-                <div className="text-[40px] font-black tracking-[-0.03em] tabular leading-[46px]">{won(cw.steps)}</div>
-                <div className="text-[13px] text-black/45">목표 {won(goal)}걸음</div>
+            {/* 오늘 걸음 + 적립 버튼 (실제 앱 메인처럼) */}
+            <div className="mx-[16px] rounded-[24px] px-[20px] pt-[20px] pb-[22px]" style={{ background: Y }}>
+              <div className="flex items-center gap-[6px] text-[14px] font-semibold" style={{ color: INK }}>
+                <Footprints size={16} /> 오늘 걸음
               </div>
-              {/* 떠다니는 동전 */}
-              {Array.from({ length: coins }).map((_, i) => (
+              <div className="flex items-end justify-between mt-[2px]">
+                <div className="text-[44px] font-black tracking-[-0.04em] tabular leading-[50px]" style={{ color: INK }}>
+                  {won(cw.steps)}
+                </div>
                 <button
-                  key={i}
                   onClick={() => {
-                    setCoins((c) => c - 1);
-                    collect();
+                    if (!pending) return;
+                    update((x) => void (x.cashwalk.cash += pending));
+                    setPending(0);
                   }}
-                  className="absolute flex flex-col items-center animate-bounce"
-                  style={{ left: [22, 260, 40, 250, 150][i % 5], top: [40, 60, 170, 180, 14][i % 5], animationDelay: `${i * 0.2}s` }}
+                  className="w-[86px] h-[86px] rounded-full flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(0,0,0,0.18)] active:scale-95 transition-transform"
+                  style={{ background: INK, color: Y }}
                 >
-                  <Coin size={34} />
-                  <span className="text-[10px] font-bold mt-[2px]">+1</span>
+                  <span className="text-[22px] font-black leading-[24px]">{pending ? `+${pending}` : "0"}</span>
+                  <span className="text-[13px] font-bold">{pending ? "받기" : "완료"}</span>
                 </button>
-              ))}
-              <div className="text-[13px] text-black/55 mt-[8px]">100걸음마다 1캐시 · 오늘 {Math.floor(cw.steps / 100) > 100 ? 100 : Math.floor(cw.steps / 100)}캐시 적립 가능</div>
+              </div>
+              <div className="h-[8px] rounded-full bg-black/10 mt-[14px] overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${pct * 100}%`, background: INK }} />
+              </div>
+              <div className="flex justify-between text-[12px] font-semibold mt-[6px]" style={{ color: "rgba(26,26,26,0.6)" }}>
+                <span>100걸음 = 1캐시</span>
+                <span>하루 최대 100캐시</span>
+              </div>
             </div>
 
-            {/* 오늘 번 돈 */}
-            <div className="mx-[16px] mt-[12px] rounded-[20px] bg-white p-[18px] flex items-center shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
-              <div className="flex-1">
-                <div className="text-[13px] text-black/50">오늘 걸어서 번 돈</div>
-                <div className="text-[22px] font-black mt-[2px]">{cw.todayWon}원</div>
-              </div>
-              <span className="text-[13px] text-black/40">통장 잔액은 따로 있음</span>
+            {/* 메뉴 */}
+            <div className="mx-[16px] mt-[12px] rounded-[20px] bg-white py-[16px] grid grid-cols-4 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+              {[
+                ["출석체크", "home", <Check key="c" size={20} strokeWidth={2.6} />],
+                ["돈버는 퀴즈", "benefit", <Gift key="g" size={20} />],
+                ["캐시딜", "shop", <ShoppingBag key="s" size={20} />],
+                ["친구", "friends", <Users key="u" size={20} />],
+              ].map(([label, to, icon]) => (
+                <button key={label as string} onClick={() => setTab(to as string)} className="flex flex-col items-center gap-[6px]">
+                  <span className="w-[44px] h-[44px] rounded-[14px] bg-[#FFF6CC] flex items-center justify-center" style={{ color: INK }}>
+                    {icon}
+                  </span>
+                  <span className="text-[12px] font-medium">{label as string}</span>
+                </button>
+              ))}
             </div>
 
             {/* 출석 */}

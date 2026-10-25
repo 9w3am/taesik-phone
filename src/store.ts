@@ -44,7 +44,7 @@ export type Contact = { id: string; name: string; phone: string; label: string; 
 export type Note = { id: string; folder: string; title: string; body: string; pinned?: boolean; lockCode?: string; when: string };
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
-export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number };
+export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number; cover?: string };
 export type Photo = { id: string; kind?: string; asset?: string; src?: string; deleted?: boolean; vault?: boolean; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
 export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string; style?: "box" | "classic" };
@@ -65,6 +65,7 @@ export type Page =
   | { type: "news"; press: string; title: string; body: string; reporter: string }
   | { type: "blank" };
 export type SafariTab = { id: string; title: string; url: string; page: Page };
+export type Job = { id: string; code: string; title: string; kind: string; via: string; due: string; pay: string; memo: string; status: "new" | "doing" | "done" | "declined"; step: number };
 export type Alarm = { id: string; time: string; label: string; on: boolean };
 export type Place = { id: string; name: string; note: string; x: number; y: number };
 
@@ -104,6 +105,8 @@ export type PhoneData = {
   kakaoProfile: { status: string };
   /** 숨은 장치: 키패드에 번호를 누르면 전화 (out: 걸면 받음 / in: 끊기면 잠시 뒤 걸려옴) */
   triggers?: { id: string; code: string; name: string; mode: "out" | "in"; lines: string[] }[];
+  /** '업무' 앱: 들어온 의뢰와 진행 단계 */
+  jobs: Job[];
   /** 스크린 타임 */
   screenTime: { total: string; hours: number[]; apps: [string, string][]; pickups: number; firstPickup: string };
   /** 음성 메모 (재생하면 글자로) */
@@ -134,13 +137,29 @@ export const uid = () => Math.random().toString(36).slice(2, 10);
 let state: PhoneData = load();
 const listeners = new Set<() => void>();
 
+/** 보안: 불러온 데이터가 폰 데이터 모양인지 확인하고, 모르는 항목·위험한 키는 버림 */
+export function sanitize(o: unknown): PhoneData | null {
+  if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+  const x = o as Record<string, unknown>;
+  if (!Array.isArray(x.threads) || !Array.isArray(x.contacts) || !Array.isArray(x.notes)) return null;
+  const base = defaultData() as unknown as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...base };
+  for (const k of Object.keys(base)) {
+    if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+    if (k in x && x[k] !== undefined && typeof x[k] === typeof base[k]) out[k] = x[k];
+  }
+  // 기본값에 없는 선택 항목들
+  for (const k of ["sounds", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen"]) if (k in x) out[k] = x[k];
+  return out as unknown as PhoneData;
+}
+
 function load(): PhoneData {
   const base = defaultData();
   try {
     const raw = localStorage.getItem(KEY);
     const ver = localStorage.getItem(KEY + ":ver");
     // 기본 콘텐츠가 바뀌면(DATA_VERSION 증가) 예전 저장본 대신 새 내용으로 시작
-    if (raw && ver === String(DATA_VERSION)) return { ...base, ...JSON.parse(raw) };
+    if (raw && ver === String(DATA_VERSION)) return sanitize(JSON.parse(raw)) ?? base;
   } catch {
     /* 비공개 창 등 */
   }
@@ -183,8 +202,11 @@ if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key === KEY && e.newValue) {
       try {
-        state = { ...defaultData(), ...JSON.parse(e.newValue) };
-        listeners.forEach((l) => l());
+        const s = sanitize(JSON.parse(e.newValue));
+        if (s) {
+          state = s;
+          listeners.forEach((l) => l());
+        }
       } catch {
         /* ignore */
       }
@@ -201,9 +223,9 @@ export async function syncPublished() {
   const { fetchPublished, localRev, setLocalRev } = await import("./cloud");
   const pub = await fetchPublished();
   if (!pub || pub.rev <= localRev()) return false;
-  const { _rev, ...rest } = pub.data as PhoneData & { _rev?: number };
-  void _rev;
-  setData({ ...defaultData(), ...rest });
+  const clean = sanitize(pub.data);
+  if (!clean) return false;
+  setData(clean);
   setLocalRev(pub.rev);
   return true;
 }

@@ -13,7 +13,9 @@ export const ASSETS: Record<string, string> = { alley, gukbap, parking };
 /** 사진 참조 → 이미지 URL. data URL / http 주소 / 사진 id. 없으면 "" */
 export function photoSrc(ref: string, photos: Photo[]) {
   if (!ref) return "";
-  if (ref.startsWith("data:") || ref.startsWith("http")) return ref;
+  // 보안: 이미지 데이터와 https 주소만 허용
+  if (ref.startsWith("data:")) return ref.startsWith("data:image/") ? ref : "";
+  if (ref.startsWith("http")) return ref.startsWith("https://") ? ref : "";
   const p = photos.find((x) => x.id === ref);
   return (p?.asset && ASSETS[p.asset]) || p?.src || "";
 }

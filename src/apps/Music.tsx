@@ -7,6 +7,9 @@ import { LargeTitle, NavBar, TabBar, useScrolled, usePhoneCtx, useStatusBar } fr
 const RED = "#FA2D48";
 export function Cover({ s, size, radius = 8 }: { s: Song; size: number | string; radius?: number }) {
   const h = s.hue;
+  // 앨범 사진: 에디터에서 올린 사진이 있으면 그걸로
+  const img = s.cover && s.cover.startsWith("data:image/") ? s.cover : "";
+  if (img) return <img src={img} alt="" className="shrink-0 object-cover" style={{ width: size, height: size, borderRadius: radius, boxShadow: "0 0 0 0.5px rgba(0,0,0,0.08)" }} />;
   return (
     <div
       className="shrink-0 relative overflow-hidden"
@@ -22,7 +25,16 @@ export function Cover({ s, size, radius = 8 }: { s: Song; size: number | string;
     </div>
   );
 }
-export const ytUrl = (s: Song) => s.url || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${s.artist} ${s.title}`)}`;
+/** 보안: http/https 주소만 허용 (javascript: 같은 위험한 주소는 무시하고 유튜브 검색으로) */
+const safeUrl = (u: string) => {
+  try {
+    const x = new URL(u);
+    return x.protocol === "https:" || x.protocol === "http:" ? x.href : "";
+  } catch {
+    return "";
+  }
+};
+export const ytUrl = (s: Song) => safeUrl(s.url) || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${s.artist} ${s.title}`)}`;
 const spUrl = (s: Song) => `https://open.spotify.com/search/${encodeURIComponent(`${s.artist} ${s.title}`)}`;
 
 function Player({ s, playing, setPlay, onClose, next, prev }: { s: Song; playing: boolean; setPlay: (b: boolean) => void; onClose: () => void; next: () => void; prev: () => void }) {

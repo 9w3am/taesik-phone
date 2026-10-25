@@ -10,7 +10,7 @@ import type { Msg, PhoneData } from "./store";
 */
 
 /** 기본 콘텐츠를 고치면 이 숫자를 올리세요 → 방문자 브라우저의 예전 저장본이 새 내용으로 바뀝니다 */
-export const DATA_VERSION = 18;
+export const DATA_VERSION = 20;
 
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
@@ -62,7 +62,18 @@ export function defaultData(): PhoneData {
         unread: 0,
         pinned: true,
         last: "어제",
-        messages: [sys("이 대화는 제작자가 직접 작성합니다. /editor 에서 수정하세요."), me("도착했습니다.")],
+        // ── 이유노 대화 틀 (괄호 안은 전부 제작자가 바꿀 칸) ──
+        messages: [
+          day("10월 23일 목요일"),
+          th("(이유노가 보낸 말)"),
+          me("(최태식 답장)"),
+          th("(이유노)"),
+          day("어제"),
+          me("(최태식)"),
+          th("(이유노)"),
+          me("도착했습니다."),
+        ],
+        draft: "",
       },
       {
         id: "w",
@@ -262,6 +273,15 @@ export function defaultData(): PhoneData {
       },
 
       /* ── 카카오톡 ── */
+      // ── 이유노 카톡 틀 ──
+      {
+        id: "k_yuno",
+        app: "kakao",
+        name: "이유노",
+        unread: 0,
+        last: "어제",
+        messages: [day("2026년 10월 24일 토요일"), th("(이유노가 보낸 카톡)"), me("(최태식 답장)"), th("(이유노)")],
+      },
       {
         id: "k_park",
         app: "kakao",
@@ -357,7 +377,8 @@ export function defaultData(): PhoneData {
         when: "오후 6:20",
         lines: ["어, 태식아. 바쁘냐.", "다른 게 아니고, 밤에 건 하나 있는데.", "니가 요즘 낮엔 안 된다는 거 알아. 그러니까 밤이라고.", "겁만 주면 돼. 손은 안 대는 걸로.", "생각해 보고 연락 줘. 끊는다."],
       },
-      { id: id(), name: "번호변경_이유노", kind: "out", label: "휴대전화", when: "어제", lines: ["(제작자가 작성할 통화 내용)"] },
+      { id: id(), name: "번호변경_이유노", kind: "out", label: "휴대전화", when: "어제", lines: ["(이유노 대사 1)", "(이유노 대사 2)", "(이유노 대사 3)"] },
+      { id: id(), name: "번호변경_이유노", kind: "in", label: "휴대전화", when: "목요일", lines: ["(이유노 대사 1)", "(이유노 대사 2)"] },
       { id: id(), name: "오 원장 (뒷문)", kind: "out", label: "휴대전화", when: "화요일", lines: ["또 다쳤어요?", "본인 거 아니라고요. 그 말 몇 번째예요.", "뒷문 열어둘 테니까 현금 챙겨 와요."] },
       { id: id(), name: "김기사 (탁송)", kind: "in", label: "휴대전화", when: "월요일", lines: ["형님, 차 빼놨습니다.", "번호판은 원래 걸로 다시 끼워놨고요.", "키는 늘 두던 데 있어요."] },
       { id: id(), name: "+82 10-****-4471", kind: "missed", label: "휴대전화", count: 3, when: "일요일", lines: ["저, 소개받고 연락드렸던…", "통화 가능하실 때 연락 부탁드려요."] },
@@ -662,6 +683,16 @@ export function defaultData(): PhoneData {
     kakaoProfile: { status: "" },
     sounds: { muted: false, ringtone: "preset:ring-marimba3", notify: "preset:noti-clear" },
     triggers: [],
+    // '업무' 앱: 의뢰 받는 화면 (전부 에디터에서 수정)
+    jobs: [
+      { id: id(), code: "1031", title: "받을 돈 대신 받아 주기", kind: "수금 대행", via: "박 실장 소개", due: "이번 주", pay: "받은 돈의 3할", memo: "상대 연락처만 있음.\n얼굴 보고 얘기하자고 함.", status: "new", step: 0 },
+      { id: id(), code: "1029", title: "밤에 차 한 대 옮기기", kind: "운전", via: "W", due: "모레 밤", pay: "평소의 두 배", memo: "키는 평소 거기.\n질문 없음.", status: "new", step: 0 },
+      { id: id(), code: "0101", title: "이유노 전담", kind: "경호", via: "(제작자가 쓰는 칸)", due: "기한 없음", pay: "월정", memo: "(제작자가 쓰는 칸)", status: "doing", step: 2 },
+      { id: id(), code: "0927", title: "확인 업무 (접촉 X)", kind: "확인", via: "W", due: "사흘", pay: "평소의 두 배 · 착수금 반", memo: "자료는 평소 거기.\n확인되면 W한테 보고.", status: "doing", step: 2 },
+      { id: id(), code: "1103", title: "차 옮기기 + 정리", kind: "운전", via: "박 실장 소개", due: "끝남", pay: "착수금 받음 · 잔금 월말", memo: "잔금만 남음.", status: "doing", step: 4 },
+      { id: id(), code: "0915", title: "받을 돈 회수", kind: "수금 대행", via: "박 실장", due: "끝남", pay: "3할 · 정산 완료", memo: "세탁 끝.", status: "done", step: 4 },
+      { id: id(), code: "0902", title: "아는 얼굴 건", kind: "기타", via: "직접 연락", due: "-", pay: "-", memo: "소개 없는 번호.", status: "declined", step: 0 },
+    ],
     // 스크린 타임: 사용 시간이 새벽에 몰려 있음 (시간대별 분, 0시~23시)
     screenTime: {
       total: "5시간 41분",
@@ -700,7 +731,7 @@ export function defaultData(): PhoneData {
       cash: 4812,
       todayWon: 23,
       streak: 365,
-      bubbles: 4,
+      bubbles: 23,
       badges: ["카페인 0일차 — 3,650일째", "금연 · 금주 — 영원히", "새벽 러닝 30일 연속", "하루 2만 보 100일"],
       friends: [
         { name: "김기사", steps: 2140 },

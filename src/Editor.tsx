@@ -1,7 +1,7 @@
 /* 제작자용 편집 화면 (/editor 또는 #/editor) */
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
-import { useData, update, setData, resetData, uid, DAYS, type PhoneData, type Msg, type Thread, type AppKind } from "./store";
+import { useData, update, setData, resetData, sanitize, uid, DAYS, type PhoneData, type Msg, type Thread, type AppKind } from "./store";
 import { defaultData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
@@ -802,6 +802,14 @@ function Songs({ d }: { d: PhoneData }) {
             <F label="커버 색 (0~360)">
               <N value={s.hue} onChange={(v) => put({ hue: v })} />
             </F>
+            <div className="col-span-full flex items-center gap-3">
+              {s.cover ? <img src={s.cover} alt="" className="w-[48px] h-[48px] rounded-[8px] object-cover" /> : <span className="w-[48px] h-[48px] rounded-[8px]" style={{ background: `hsl(${s.hue} 35% 35%)` }} />}
+              <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
+                앨범 사진 올리기
+                <input type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) put({ cover: await shrinkImage(f, 500) }); e.target.value = ""; }} />
+              </label>
+              {s.cover && <Btn kind="danger" onClick={() => put({ cover: undefined })}>앨범 사진 지우기</Btn>}
+            </div>
           </div>
         )}
       />
@@ -903,12 +911,12 @@ function BankEd({ d }: { d: PhoneData }) {
 }
 
 function JsonEd({ d }: { d: PhoneData }) {
-  const keys = ["ig", "safari", "cashwalk", "health", "voiceMemos", "screenTime", "vault", "alarms", "places", "weather"] as const;
+  const keys = ["jobs", "ig", "safari", "cashwalk", "health", "voiceMemos", "screenTime", "vault", "alarms", "places", "weather"] as const;
   const [k, setK] = useState<(typeof keys)[number]>("ig");
   const [text, setText] = useState(() => JSON.stringify(d[k], null, 2));
   const [err, setErr] = useState("");
   useEffect(() => setText(JSON.stringify(d[k], null, 2)), [k]); // eslint-disable-line
-  const names: Record<string, string> = { ig: "인스타그램 (피드·스토리·프로필)", safari: "사파리 (탭·검색기록·즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨", cashwalk: "캐시워크 (걸음·캐시·친구·교환)", health: "건강 (운동 링·심박수·수면)", voiceMemos: "음성 메모", screenTime: "스크린 타임", vault: "계산기 금고 (숫자·메모)" };
+  const names: Record<string, string> = { ig: "인스타그램 (피드·스토리·프로필)", safari: "사파리 (탭·검색기록·즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨", cashwalk: "캐시워크 (걸음·캐시·친구·교환)", health: "건강 (운동 링·심박수·수면)", voiceMemos: "음성 메모", jobs: "업무 앱 (의뢰)", screenTime: "스크린 타임", vault: "계산기 금고 (숫자·메모)" };
   return (
     <Card
       title="고급 편집 (JSON)"
@@ -1090,7 +1098,7 @@ function Episodes({ d, download }: { d: PhoneData; download: (name: string, obj:
               <div className="text-[14px] font-semibold">{e.name}</div>
               <div className="text-[12px] text-black/45">{new Date(e.at).toLocaleString("ko-KR")}</div>
             </div>
-            <Btn onClick={() => confirm(`'${e.name}' 상태로 폰을 바꿀까요? (지금 내용은 사라집니다. 먼저 저장해 두세요)`) && setData({ ...defaultData(), ...e.data })}>불러오기</Btn>
+            <Btn onClick={() => confirm(`'${e.name}' 상태로 폰을 바꿀까요? (지금 내용은 사라집니다. 먼저 저장해 두세요)`) && setData(sanitize(e.data) ?? defaultData())}>불러오기</Btn>
             <Btn kind="primary" onClick={() => download("phone-data.json", { ...e.data, _rev: Date.now() })}>
               <Download size={15} /> 이 회차로 공개 파일 받기
             </Btn>
@@ -1139,10 +1147,10 @@ function Backup({ d }: { d: PhoneData }) {
               const f = e.target.files?.[0];
               if (!f) return;
               try {
-                const j = JSON.parse(await f.text());
-                const { _rev, ...rest } = j;
-                void _rev;
-                setData({ ...defaultData(), ...rest });
+                if (f.size > 20_000_000) throw new Error("too big");
+                const clean = sanitize(JSON.parse(await f.text()));
+                if (!clean) throw new Error("bad shape");
+                setData(clean);
                 setMsg("불러왔습니다.");
               } catch {
                 setMsg("올바른 JSON 파일이 아닙니다.");

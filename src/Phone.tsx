@@ -344,7 +344,9 @@ function Passcode({ code, hint, name, onOk, onCancel, decoy, onDecoy }: { code: 
 
 /* ───────── 홈 화면 ───────── */
 type HomeItem = string;
-const GRID: HomeItem[] = ["kakao", "insta", "photos", "calendar", "notes", "contacts", "bank", "maps", "clock", "weather", "calculator", "camera", "settings", "cashwalk", "health", "voicememos"];
+const GRID: HomeItem[] = ["kakao", "insta", "photos", "calendar", "notes", "bank", "maps", "weather", "camera", "settings", "cashwalk", "health", "jobs", "folder:유틸리티"];
+/** 홈 화면 폴더 (실제 아이폰처럼 작은 아이콘 묶음) */
+const FOLDERS: Record<string, string[]> = { 유틸리티: ["contacts", "clock", "calculator", "voicememos"] };
 const DOCK: HomeItem[] = ["phone", "messages", "safari", "music"];
 
 function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
@@ -355,10 +357,27 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
     if (id === "kakao") return t("kakao");
     if (id === "insta") return t("insta");
     if (id === "phone") return d.calls.filter((c) => c.kind === "missed").reduce((a, c) => a + (c.count || 1), 0);
+    if (id === "jobs") return d.jobs.filter((j) => j.status === "new").length;
     return 0;
   };
   const today = d.calendar.filter((e) => e.days.includes(now.getDay())).sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
+  const [folder, setFolder] = useState<string | null>(null);
   const Icon = ({ id, dock }: { id: string; dock?: boolean }) => {
+    if (id.startsWith("folder:")) {
+      const name = id.slice(7);
+      return (
+        <button onClick={() => setFolder(name)} className="flex flex-col items-center gap-[5px] active:opacity-70">
+          <div className="w-[62px] h-[62px] rounded-[14px] p-[7px] grid grid-cols-3 gap-[4px] content-start blur-bar" style={{ background: "rgba(255,255,255,0.22)" }}>
+            {FOLDERS[name].map((a) => (
+              <AppIcon key={a} id={a} size={13} />
+            ))}
+          </div>
+          <span className="text-[12px] text-white font-medium leading-none" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>
+            {name}
+          </span>
+        </button>
+      );
+    }
     const b = badge(id);
     return (
       <button onClick={() => open(id)} className="flex flex-col items-center gap-[5px] active:opacity-70 transition-opacity">
@@ -422,6 +441,27 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
             <Icon key={id} id={id} />
           ))}
         </div>
+      {/* 열린 폴더 */}
+      {folder && (
+        <div className="fixed inset-0 z-30 flex flex-col items-center justify-center fade" style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }} onClick={() => setFolder(null)}>
+          <div className="text-[30px] font-semibold text-white mb-[18px]">{folder}</div>
+          <div className="w-[300px] rounded-[38px] p-[22px] grid grid-cols-3 gap-y-[22px] justify-items-center blur-bar" style={{ background: "rgba(255,255,255,0.22)" }} onClick={(e) => e.stopPropagation()}>
+            {FOLDERS[folder].map((a) => (
+              <button
+                key={a}
+                onClick={() => {
+                  setFolder(null);
+                  open(a);
+                }}
+                className="flex flex-col items-center gap-[5px]"
+              >
+                <AppIcon id={a} size={62} />
+                <span className="text-[12px] text-white font-medium">{APPS[a]?.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
       {/* 검색 */}
       <div className="absolute bottom-[128px] left-0 right-0 flex justify-center">
