@@ -139,6 +139,27 @@ export const ICONS: Record<string, () => React.ReactElement> = {
     </S>
   ),
   calendar: Cal,
+  voicememos: () => (
+    <S bg={fill("#1C1C1E")}>
+      {[6, 14, 24, 34, 22, 40, 28, 16, 30, 18, 10].map((h, i) => (
+        <rect key={i} x={8 + i * 4.2} y={30 - h / 2} width="2.4" height={h} rx="1.2" fill="#FF3B30" />
+      ))}
+    </S>
+  ),
+  health: () => (
+    <S bg={fill("#fff")}>
+      <path d="M45 13.5c-3.6 0-6.2 2.1-7.2 4.4-1-2.3-3.6-4.4-7.2-4.4-4.4 0-7.6 3.4-7.6 7.7 0 6.6 9.3 12.1 14.8 16.2 5.5-4.1 14.8-9.6 14.8-16.2 0-4.3-3.2-7.7-7.6-7.7z" fill="#FF2D55" transform="translate(-7.8 6)" />
+    </S>
+  ),
+  cashwalk: () => (
+    <S bg={fill("#FFD200")}>
+      <circle cx="30" cy="31" r="17" fill="#1A1A1A" />
+      <text x="30" y="38.5" fontSize="21" textAnchor="middle" fill="#FFD200" fontWeight="900" fontFamily="Arial, sans-serif">
+        C
+      </text>
+      <path d="M41 13c2.5-1.5 5.5-.6 6.4 1.8.9 2.4-.6 4.6-3 5.4" stroke="#1A1A1A" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+    </S>
+  ),
   notes: () => (
     <S bg={fill("#fff")}>
       <rect width="60" height="17" fill="#FFD02F" />

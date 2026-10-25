@@ -157,11 +157,20 @@ function Basic({ d }: { d: PhoneData }) {
           <F label="잠금 암호 (비우면 암호 없음)">
             <T value={d.passcode} ph="예: 0417" onChange={(v) => s((x) => void (x.passcode = v.replace(/\D/g, "").slice(0, 6)))} />
           </F>
+          <F label="계산기 금고 숫자 (계산기에 치고 = 누르면 열림)">
+            <T value={d.vault?.code ?? ""} ph="예: 7777" onChange={(v) => s((x) => void (x.vault = { notes: x.vault?.notes ?? [], code: v.replace(/\D/g, "").slice(0, 9) }))} />
+          </F>
+          <F label="위장 암호 (치면 텅 빈 가짜 폰 · 비우면 끔)">
+            <T value={d.decoyCode ?? ""} ph="예: 1111" onChange={(v) => s((x) => void (x.decoyCode = v.replace(/\D/g, "").slice(0, 6)))} />
+          </F>
           <F label="암호 힌트 (암호 화면에 표시)">
             <T value={d.passcodeHint} onChange={(v) => s((x) => void (x.passcodeHint = v))} />
           </F>
           <F label="자동 잠금 (초 · 0이면 끔)">
             <N value={d.autoLockSec ?? 120} onChange={(v) => s((x) => void (x.autoLockSec = v))} />
+          </F>
+          <F label="키보드 위 자동완성 단어 (쉼표로 구분, 3개)">
+            <T value={(d.quickWords ?? []).join(", ")} ph="확인, 평소 거기, 착수금" onChange={(v) => s((x) => void (x.quickWords = v.split(",").map((w) => w.trim()).slice(0, 3)))} />
           </F>
           <F label="카카오톡 상태메시지">
             <T value={d.kakaoProfile.status} onChange={(v) => s((x) => void (x.kakaoProfile.status = v))} />
@@ -836,6 +845,10 @@ function PhotosEd({ d }: { d: PhoneData }) {
             <div className="p-2 space-y-1.5">
               <input value={p.caption} placeholder="설명" onChange={(e) => update((x) => void (x.photos.find((y) => y.id === p.id)!.caption = e.target.value))} />
               <input value={p.when} placeholder="날짜 표기" onChange={(e) => update((x) => void (x.photos.find((y) => y.id === p.id)!.when = e.target.value))} />
+              <label className="!flex items-center gap-1 !text-[12px] !text-black/70 !font-normal !m-0 cursor-pointer">
+                <input type="checkbox" className="!w-3.5 !h-3.5" checked={!!p.vault} onChange={(e) => update((x) => void (x.photos.find((y) => y.id === p.id)!.vault = e.target.checked))} />
+                계산기 금고에만 보이게
+              </label>
               <div className="flex justify-between items-center">
                 <code className="text-[11px] text-black/40 select-all">{p.id}</code>
                 <button onClick={() => update((x) => void (x.photos = x.photos.filter((y) => y.id !== p.id)))} className="text-[#FF3B30]">
@@ -890,12 +903,12 @@ function BankEd({ d }: { d: PhoneData }) {
 }
 
 function JsonEd({ d }: { d: PhoneData }) {
-  const keys = ["ig", "safari", "alarms", "places", "weather"] as const;
+  const keys = ["ig", "safari", "cashwalk", "health", "voiceMemos", "screenTime", "vault", "alarms", "places", "weather"] as const;
   const [k, setK] = useState<(typeof keys)[number]>("ig");
   const [text, setText] = useState(() => JSON.stringify(d[k], null, 2));
   const [err, setErr] = useState("");
   useEffect(() => setText(JSON.stringify(d[k], null, 2)), [k]); // eslint-disable-line
-  const names: Record<string, string> = { ig: "인스타그램 (피드·스토리·프로필)", safari: "사파리 (탭·검색기록·즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨" };
+  const names: Record<string, string> = { ig: "인스타그램 (피드·스토리·프로필)", safari: "사파리 (탭·검색기록·즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨", cashwalk: "캐시워크 (걸음·캐시·친구·교환)", health: "건강 (운동 링·심박수·수면)", voiceMemos: "음성 메모", screenTime: "스크린 타임", vault: "계산기 금고 (숫자·메모)" };
   return (
     <Card
       title="고급 편집 (JSON)"

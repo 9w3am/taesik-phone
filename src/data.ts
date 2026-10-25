@@ -10,7 +10,7 @@ import type { Msg, PhoneData } from "./store";
 */
 
 /** 기본 콘텐츠를 고치면 이 숫자를 올리세요 → 방문자 브라우저의 예전 저장본이 새 내용으로 바뀝니다 */
-export const DATA_VERSION = 11;
+export const DATA_VERSION = 18;
 
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
@@ -28,10 +28,13 @@ export function defaultData(): PhoneData {
     deviceName: "최태식의 iPhone",
     passcode: "0000",
     passcodeHint: "",
+    decoyCode: "1111",
+    vault: { code: "7777", notes: ["예비 번호\n070-****-0001\n010-****-5512\n010-****-9921", "늘 두던 데 — 현금\n두 번째 — 차 키"] },
     carrier: "SKT",
     battery: 23,
     weather: { city: "서울", temp: 9, cond: "흐림", hi: 13, lo: 6 },
     allowSend: true,
+    quickWords: ["확인", "평소 거기", "착수금"],
     autoLockSec: 120,
     events: {
       incomingCall: {
@@ -112,6 +115,7 @@ export function defaultData(): PhoneData {
         unread: 2,
         last: "어제",
         messages: [
+          day("10월 22일 수요일"),
           th("소개받고 연락드립니다."),
           th("말씀하신 대로 현금으로 준비해놨어요. 반은 먼저 드릴 수 있습니다."),
           me("이 번호로 다시 연락하지 마세요. 연락은 제가 합니다."),
@@ -127,6 +131,7 @@ export function defaultData(): PhoneData {
         unread: 0,
         last: "토요일",
         messages: [
+          day("10월 23일 목요일"),
           me("요즘 그쪽 근처에 붙는 차 있는지 봐줘"),
           th("검은 세단 한 대. 사흘째 같은 자리"),
           th("번호 돌려보니 명의 따로 있음. 렌트 아님"),
@@ -157,7 +162,7 @@ export function defaultData(): PhoneData {
         name: "세탁",
         unread: 0,
         last: "일요일",
-        messages: [me("들어간다"), th("수수료 평소대로. 사흘."), th("한 번에 크게 넣지 말고"), me("알아서 해"), th("ㅇㅋ")],
+        messages: [day("10월 19일 일요일"), me("들어간다"), th("수수료 평소대로. 사흘."), th("한 번에 크게 넣지 말고"), me("알아서 해"), th("ㅇㅋ")],
       },
       {
         id: "oh",
@@ -245,7 +250,7 @@ export function defaultData(): PhoneData {
         name: "x_x.0217",
         unread: 1,
         last: "어제",
-        messages: [th("혹시 최태식 씨 맞으세요?"), th("소개받은 사람인데 여기로 연락드려도 될까요")],
+        messages: [th("소개받은 사람인데 여기로 연락드려도 될까요"), th("답장 기다릴게요")],
       },
       {
         id: "ig_car",
@@ -267,6 +272,9 @@ export function defaultData(): PhoneData {
           day("2026년 10월 24일 토요일"),
           th("태식아"),
           th("국밥 한 그릇 하자"),
+          th("아니면 커피라도 한잔"),
+          me("물 마시겠습니다"),
+          th("넌 진짜 재미없다"),
           me("이번 주는 어렵습니다"),
           th("너 요즘 얼굴 보기 힘들다"),
           th("밤에 시간 되냐"),
@@ -279,6 +287,7 @@ export function defaultData(): PhoneData {
         unread: 0,
         last: "어제",
         messages: [
+          day("10월 20일 월요일"),
           me("차 하나 더. 사흘만"),
           th("렌트 말고 지인 명의로 하나 있습니다"),
           th("형님 차는 세차하고 빼놨습니다. 키는 늘 두던 데"),
@@ -295,6 +304,7 @@ export function defaultData(): PhoneData {
         unread: 0,
         last: "화요일",
         messages: [
+          day("10월 21일 화요일"),
           th("타이어 앞 두 짝 갈았어. 뒤도 곧 갈아야 돼"),
           th("근데 조수석 문짝 긁힌 건 뭐냐"),
           me("주차하다가요"),
@@ -310,7 +320,7 @@ export function defaultData(): PhoneData {
         name: "24시 국밥 사장님",
         unread: 0,
         last: "10. 20.",
-        messages: [th("총각 어제 두고 간 우산 카운터에 있어"), me("감사합니다 사장님"), th("요새 밥은 먹고 다녀? 얼굴이 반쪽이야"), me("먹고 다닙니다")],
+        messages: [day("10월 20일 월요일"), th("총각 어제 두고 간 우산 카운터에 있어"), me("감사합니다 사장님"), th("요새 밥은 먹고 다녀? 얼굴이 반쪽이야"), me("먹고 다닙니다")],
       },
       {
         id: "k_pay",
@@ -318,7 +328,7 @@ export function defaultData(): PhoneData {
         name: "카카오페이",
         unread: 1,
         last: "오늘",
-        messages: [pay("them", 150000, "송금 완료 · 김*기"), pay("them", 250000, "송금 완료 · 정비"), pay("them", 38500, "결제 완료 · OO철물")],
+        messages: [pay("them", 150000, "송금 완료 · 김*기"), pay("them", 250000, "송금 완료 · 정비"), pay("them", 38500, "결제 완료 · OO철물"), pay("them", 89000, "결제 완료 · 닭가슴살 정기배송")],
       },
       {
         id: "k_self",
@@ -404,6 +414,7 @@ export function defaultData(): PhoneData {
       { id: id(), folder: "메모", title: "", when: "10. 11.", body: "챙길 거\n\n[x] 장갑 (니트릴 / 가죽)\n[x] 손전등\n[ ] 여분 유심\n[x] 방수포\n[ ] 블박 메모리 교체\n[x] 구급 — 거즈, 지혈대, 봉합 테이프\n[ ] 셔츠 한 치수 큰 거" },
       { id: id(), folder: "메모", title: "", when: "어제", body: "0927 — 대상\n\n평일 밤 11시쯤 귀가\n편의점 들렀다 감 (같은 곳)\n차 없음. 택시 자주\n주말엔 거의 안 나옴\n\n→ 확인되면 W한테 보고" },
       { id: id(), folder: "메모", title: "", when: "10. 15.", body: "수금\n\nㄱ — 완\nㅂ — 잔금 남음. 다음 주\nㅅ — 연락 두절. 다시 확인\n\n세탁 수수료 빼고 계산" },
+      { id: id(), folder: "메모", title: "", when: "8. 30.", body: "생존 수칙\n\n1. \n2. \n3. " },
       { id: id(), folder: "메모", title: "", when: "9. 28.", body: "번호 바꿀 때 알릴 사람\n박 실장, 쥐, 김기사, 오 원장\n끝" },
       { id: id(), folder: "메모", title: "", lockCode: "0000", when: "9. 03.", body: "비상시\n\n현금 — 늘 두던 데\n차 키 — 김기사한테 하나 더\n오 원장 뒷문\n\n번호 버리고 일주일 잠수" },
       // ── '의뢰' 폴더: 일 들어오는 경로와 의뢰서 (전부 에디터에서 수정 가능) ──
@@ -458,6 +469,8 @@ export function defaultData(): PhoneData {
         { id: id(), when: "오늘", name: "OO철물", amount: -38500, memo: "체크카드" },
         { id: id(), when: "오늘", name: "24시 OO국밥", amount: -9000, memo: "체크카드" },
         { id: id(), when: "오늘", name: "OO셀프주유소", amount: -82000, memo: "체크카드" },
+        { id: id(), when: "어제", name: "쿠팡", amount: -89000, memo: "닭가슴살 정기배송 (4주)" },
+        { id: id(), when: "어제", name: "쿠팡", amount: -9900, memo: "생수 2L × 12" },
         { id: id(), when: "어제", name: "김*기", amount: -150000, memo: "카카오페이 송금" },
         { id: id(), when: "어제", name: "ATM 현금입금", amount: 900000, memo: "편의점" },
         { id: id(), when: "10. 22.", name: "(주)한**상사", amount: 3000000, memo: "1103 착수금" },
@@ -471,6 +484,7 @@ export function defaultData(): PhoneData {
         { id: id(), when: "10. 13.", name: "주차장 정기권", amount: -120000, memo: "체크카드" },
         { id: id(), when: "10. 10.", name: "월세", amount: -650000, memo: "자동이체" },
         { id: id(), when: "10. 08.", name: "약국", amount: -14200, memo: "체크카드" },
+        { id: id(), when: "10. 07.", name: "OO보충제몰", amount: -64000, memo: "단백질 보충제 2kg" },
         { id: id(), when: "10. 05.", name: "박*수", amount: 1500000, memo: "ㅂ 1차" },
       ],
     },
@@ -498,7 +512,7 @@ export function defaultData(): PhoneData {
 
     /* ───────── 인스타그램 ───────── */
     ig: {
-      me: { handle: "t.s_choi", name: "", bio: "", posts: 0, followers: 12, following: 31, private: true },
+      me: { handle: "_k9.v0q2", name: "", bio: "", posts: 0, followers: 12, following: 31, private: true },
       users: [
         { handle: "seoul_incident", name: "서울 사건사고", bio: "제보 DM", posts: 3120, followers: 98000, following: 2 },
         { handle: "night.drive.seoul", name: "야간 드라이브", bio: "밤에만 찍습니다", posts: 412, followers: 18200, following: 80 },
@@ -648,5 +662,65 @@ export function defaultData(): PhoneData {
     kakaoProfile: { status: "" },
     sounds: { muted: false, ringtone: "preset:ring-marimba3", notify: "preset:noti-clear" },
     triggers: [],
+    // 스크린 타임: 사용 시간이 새벽에 몰려 있음 (시간대별 분, 0시~23시)
+    screenTime: {
+      total: "5시간 41분",
+      hours: [42, 55, 38, 50, 22, 6, 4, 10, 8, 6, 5, 9, 12, 8, 6, 7, 9, 10, 12, 14, 18, 25, 33, 40],
+      apps: [
+        ["메시지", "2시간 11분"],
+        ["캐시워크", "48분"],
+        ["카카오톡", "41분"],
+        ["전화", "37분"],
+        ["건강", "22분"],
+      ],
+      pickups: 143,
+      firstPickup: "오전 4:52",
+    },
+    // 음성 메모: 운전 중에 남긴 짧은 메모 (내용은 에디터에서 수정)
+    voiceMemos: [
+      { id: id(), title: "새로운 녹음 4", when: "어제", lines: ["정비 형님.", "뒤 타이어 화요일 두 시.", "현금 챙길 것."] },
+      { id: id(), title: "새로운 녹음 3", when: "10. 22.", lines: ["번호 바꿀 때 알릴 사람.", "박 실장, 쥐, 김기사, 오 원장.", "끝."] },
+      { id: id(), title: "새로운 녹음 2", when: "10. 18.", lines: ["보충제 다 떨어짐.", "닭가슴살 정기배송 한 달 연장."] },
+      { id: id(), title: "새로운 녹음", when: "10. 09.", lines: ["(제작자가 쓰는 칸)"] },
+    ],
+    // 건강 앱: 운동 링은 매일 꽉 참. 심박수는 새벽에 한 번 튐 (무슨 일인지는 안 알려 줌)
+    health: {
+      move: 1240,
+      moveGoal: 900,
+      exercise: 94,
+      stand: 12,
+      km: 17.2,
+      sleep: "5시간 12분",
+      heart: [58, 54, 52, 55, 142, 96, 61, 64, 72, 88, 76, 70, 68, 74, 81, 69],
+      peakAt: "오전 3:12",
+    },
+    // 캐시워크 (개그용) — 은행엔 수백만 원, 여기선 캐시 한 푼씩
+    cashwalk: {
+      steps: 23481,
+      cash: 4812,
+      todayWon: 23,
+      streak: 365,
+      bubbles: 4,
+      badges: ["카페인 0일차 — 3,650일째", "금연 · 금주 — 영원히", "새벽 러닝 30일 연속", "하루 2만 보 100일"],
+      friends: [
+        { name: "김기사", steps: 2140 },
+        { name: "정비 형님", steps: 4302 },
+        { name: "오 원장", steps: 1288 },
+        { name: "박 실장", steps: 612 },
+      ],
+      quiz: { q: "오늘의 퀴즈: 다음 중 단백질 함량이 가장 높은 것은?", options: ["닭가슴살", "아메리카노", "콜라"], answer: 0 },
+      shop: [
+        { name: "닭가슴살 1팩", price: 1900 },
+        { name: "생수 2L", price: 900 },
+        { name: "편의점 삶은 달걀 2구", price: 1500 },
+        { name: "아메리카노 교환권", price: 4100, note: "안 마심" },
+      ],
+      history: [
+        { name: "닭가슴살 1팩", when: "어제" },
+        { name: "생수 2L", when: "10. 21." },
+        { name: "닭가슴살 1팩", when: "10. 18." },
+        { name: "삶은 달걀 2구", when: "10. 15." },
+      ],
+    },
   };
 }

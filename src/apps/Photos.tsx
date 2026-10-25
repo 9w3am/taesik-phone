@@ -74,8 +74,8 @@ export default function Photos() {
   const [tab, setTab] = useState("lib");
   const [view, setView] = useState<{ ids: string[]; i: number } | null>(null);
   const [album, setAlbum] = useState<string | null>(null);
-  const all = d.photos.filter((p) => !p.deleted).map((p) => p.id);
-  const favs = d.photos.filter((p) => p.fav && !p.deleted).map((p) => p.id);
+  const all = d.photos.filter((p) => !p.deleted && !p.vault).map((p) => p.id);
+  const favs = d.photos.filter((p) => p.fav && !p.deleted && !p.vault).map((p) => p.id);
   const trash = d.photos.filter((p) => p.deleted).map((p) => p.id);
   const [trashOpen, setTrashOpen] = useState(false);
   const grid = (ids: string[]) => (

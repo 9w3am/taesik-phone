@@ -45,7 +45,7 @@ export type Note = { id: string; folder: string; title: string; body: string; pi
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
 export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number };
-export type Photo = { id: string; kind?: string; asset?: string; src?: string; deleted?: boolean; caption: string; when: string; album?: string; fav?: boolean };
+export type Photo = { id: string; kind?: string; asset?: string; src?: string; deleted?: boolean; vault?: boolean; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
 export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string; style?: "box" | "classic" };
 export type IgUser = { handle: string; name: string; bio: string; posts: number; followers: number; following: number; private?: boolean; avatar?: string };
@@ -73,10 +73,13 @@ export type PhoneData = {
   deviceName: string;
   passcode: string;
   passcodeHint: string;
+  decoyCode?: string; // 위장 암호: 치면 텅 빈 가짜 폰이 열림
+  vault?: { code: string; notes: string[] }; // 계산기 금고: 숫자 치고 = 누르면 열림
   carrier: string;
   battery: number;
   weather: { city: string; temp: number; cond: string; hi: number; lo: number };
   allowSend: boolean;
+  quickWords?: string[]; // 키보드 위 자동완성 단어
   phoneSeen?: boolean; // 전화 앱을 열어 봤는지 (부재중 알림 지우기)
   autoLockSec?: number; // 자동 잠금 (초, 0이면 끔) // 초안 외에 직접 타자 전송 허용
   events: {
@@ -101,6 +104,25 @@ export type PhoneData = {
   kakaoProfile: { status: string };
   /** 숨은 장치: 키패드에 번호를 누르면 전화 (out: 걸면 받음 / in: 끊기면 잠시 뒤 걸려옴) */
   triggers?: { id: string; code: string; name: string; mode: "out" | "in"; lines: string[] }[];
+  /** 스크린 타임 */
+  screenTime: { total: string; hours: number[]; apps: [string, string][]; pickups: number; firstPickup: string };
+  /** 음성 메모 (재생하면 글자로) */
+  voiceMemos: { id: string; title: string; when: string; lines: string[] }[];
+  /** 건강 앱 */
+  health: { move: number; moveGoal: number; exercise: number; stand: number; km: number; sleep: string; heart: number[]; peakAt: string };
+  /** 캐시워크 (개그용) */
+  cashwalk: {
+    steps: number;
+    cash: number;
+    todayWon: number;
+    streak: number;
+    bubbles: number;
+    badges: string[];
+    friends: { name: string; steps: number }[];
+    quiz: { q: string; options: string[]; answer: number };
+    shop: { name: string; price: number; note?: string }[];
+    history: { name: string; when: string }[];
+  };
   /** 벨소리·알림음 (에디터에서 올린 소리 파일, data URL) */
   sounds?: { ringtone?: string; notify?: string; muted?: boolean };
 };

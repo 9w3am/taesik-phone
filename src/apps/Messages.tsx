@@ -32,6 +32,23 @@ export function useComposer(t: Thread) {
   return { text, setText, editable, canSend, send: (replyTo?: string) => canSend && (sendMsg(t.id, text, replyTo), setText("")) };
 }
 
+/** 키보드 위 자동완성 단어 (iOS 예측 입력 막대) — 누르면 입력창에 붙음 */
+export function QuickBar({ onPick }: { onPick: (w: string) => void }) {
+  const d = useData();
+  const words = (d.quickWords ?? []).filter(Boolean).slice(0, 3);
+  if (!words.length) return null;
+  return (
+    <div className="flex bg-[#D1D3D9] text-[16px] text-black" onPointerDown={(e) => e.preventDefault()}>
+      {words.map((w, i) => (
+        <button key={w + i} onClick={() => onPick(w)} className={`flex-1 h-[42px] truncate px-1 ${i ? "border-l border-black/10" : ""}`}>
+          {w}
+        </button>
+      ))}
+    </div>
+  );
+}
+export const addWord = (prev: string, w: string) => (prev && !/\s$/.test(prev) ? prev + " " : prev) + w + " ";
+
 export function useAutoBottom(dep: unknown) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -122,6 +139,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
     return () => timers.forEach(clearTimeout);
   }, [t.id]); // eslint-disable-line
   const [menu, setMenu] = useState<string | null>(null);
+  const [focus, setFocus] = useState(false);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const mm = t.messages.find((x) => x.id === menu);
@@ -240,6 +258,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
       )}
       {copied && <div className="absolute left-1/2 -translate-x-1/2 top-[45%] z-50 px-[16px] py-[10px] rounded-[12px] bg-black/75 text-white text-[14px] fade">복사됨</div>}
       {/* 입력창 */}
+      {focus && c.editable && <QuickBar onPick={(w) => c.setText(addWord(c.text, w))} />}
       <div className="flex items-end gap-[8px] px-[10px] pt-[6px] bg-white" style={{ paddingBottom: "calc(var(--kbsab) + 4px)" }}>
         <span className="w-[34px] h-[34px] rounded-full bg-[#E9E9EB] flex items-center justify-center shrink-0 text-[#7c7c80]">
           <Plus size={22} strokeWidth={2.2} />
@@ -258,6 +277,8 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
               }
             }}
             placeholder="iMessage"
+            onFocus={() => setFocus(true)}
+            onBlur={() => setFocus(false)}
             className="flex-1 resize-none outline-none bg-transparent text-[17px] leading-[22px] py-[2px] max-h-[88px] placeholder:text-[#c4c4c6]"
           />
           {c.canSend ? (

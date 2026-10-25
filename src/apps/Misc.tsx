@@ -270,6 +270,8 @@ export function Weather() {
 /* ───────── 계산기 ───────── */
 export function Calculator() {
   useStatusBar(false);
+  const dd = useData();
+  const [vault, setVault] = useState(false);
   const [disp, setDisp] = useState("0");
   const [acc, setAcc] = useState<number | null>(null);
   const [op, setOp] = useState<string | null>(null);
@@ -292,6 +294,12 @@ export function Calculator() {
     } else if (k === "±") setDisp(show(-parseFloat(disp)));
     else if (k === "%") setDisp(show(parseFloat(disp) / 100));
     else if (k === "=") {
+      // 금고 숫자를 치고 = 누르면 숨긴 보관함이 열림
+      if (!op && dd.vault?.code && disp === dd.vault.code) {
+        setVault(true);
+        setDisp("0");
+        return;
+      }
       if (op && acc !== null) setDisp(show(calc(acc, parseFloat(disp), op)));
       setAcc(null);
       setOp(null);
@@ -315,6 +323,7 @@ export function Calculator() {
   const fmt = disp.includes(".") || disp === "오류" ? disp : Number(disp).toLocaleString("en-US");
   return (
     <div className="absolute inset-0 bg-black text-white flex flex-col justify-end px-[16px]" style={{ paddingBottom: 46 }}>
+      {vault && <Vault onClose={() => setVault(false)} />}
       <div className="text-right font-light tabular pr-[8px] mb-[12px] truncate" style={{ fontSize: fmt.length > 7 ? 64 : 88, lineHeight: 1.1 }}>
         {fmt}
       </div>
@@ -334,6 +343,51 @@ export function Calculator() {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* 계산기 금고: 숨긴 사진 · 메모 */
+function Vault({ onClose }: { onClose: () => void }) {
+  const d = useData();
+  const [tab, setTab] = useState<"photo" | "note">("photo");
+  const pics = d.photos.filter((p) => p.vault);
+  return (
+    <div className="absolute inset-0 z-20 bg-[#111] text-white flex flex-col fade">
+      <div className="flex items-center justify-between px-[16px]" style={{ paddingTop: "calc(var(--sat) + 8px)" }}>
+        <span className="text-[22px] font-bold">보관함</span>
+        <button onClick={onClose} className="text-[16px] text-[#FF9F0A]">
+          닫기
+        </button>
+      </div>
+      <div className="flex gap-[8px] px-[16px] pt-[14px]">
+        {(["photo", "note"] as const).map((k) => (
+          <button key={k} onClick={() => setTab(k)} className="px-[14px] h-[32px] rounded-full text-[14px] font-semibold" style={{ background: tab === k ? "#FF9F0A" : "#2c2c2e", color: tab === k ? "#000" : "#fff" }}>
+            {k === "photo" ? `사진 ${pics.length}` : `메모 ${d.vault?.notes.length ?? 0}`}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 scroll px-[16px] pt-[16px] pb-[40px]">
+        {tab === "photo" ? (
+          pics.length ? (
+            <div className="grid grid-cols-3 gap-[2px]">
+              {pics.map((p) => (
+                <Img key={p.id} src={photoSrc(p.id, d.photos)} className="w-full aspect-square" />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-white/40 pt-[120px]">비어 있음</div>
+          )
+        ) : (
+          <div className="flex flex-col gap-[10px]">
+            {(d.vault?.notes ?? []).map((n, i) => (
+              <div key={i} className="rounded-[12px] bg-[#1c1c1e] p-[14px] text-[15px] leading-[22px] whitespace-pre-wrap">
+                {n}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -505,7 +559,7 @@ export function Settings() {
   const d = useData();
   const [ref, scrolled] = useScrolled<HTMLDivElement>();
   const [air, setAir] = useState(false);
-  const [page, setPage] = useState<null | "general" | "about">(null);
+  const [page, setPage] = useState<null | "general" | "about" | "focus" | "screen">(null);
   const Ico = ({ bg, children }: { bg: string; children: React.ReactNode }) => (
     <span className="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center text-white shrink-0" style={{ background: bg }}>
       {children}
@@ -557,7 +611,7 @@ export function Settings() {
         {groups.map((g, gi) => (
           <div key={gi} className="mx-4 mt-[24px] rounded-[12px] bg-white overflow-hidden">
             {g.map((it, i) => (
-              <div key={it.label} onClick={() => it.label === "일반" && setPage("general")} className="flex items-center pl-[14px] gap-[14px] cursor-pointer active:bg-black/[0.03]">
+              <div key={it.label} onClick={() => (it.label === "일반" ? setPage("general") : it.label === "집중 모드" ? setPage("focus") : it.label === "스크린 타임" ? setPage("screen") : undefined)} className="flex items-center pl-[14px] gap-[14px] cursor-pointer active:bg-black/[0.03]">
                 {it.icon}
                 <div className={`flex-1 flex items-center min-h-[46px] pr-[14px] ${i < g.length - 1 ? "hair-b" : ""}`}>
                   <span className="flex-1 text-[17px]">{it.label}</span>
@@ -582,7 +636,7 @@ export function Settings() {
 }
 
 /* 설정 > 일반 / 정보 — 유심 두 개, 최근 유심 변경 흔적 */
-function SettingsSub({ page, setPage }: { page: "general" | "about"; setPage: (p: null | "general" | "about") => void }) {
+function SettingsSub({ page, setPage }: { page: "general" | "about" | "focus" | "screen"; setPage: (p: null | "general" | "about" | "focus" | "screen") => void }) {
   const d = useData();
   const Group = ({ rows, title, foot }: { rows: [string, string?, boolean?][]; title?: string; foot?: string }) => (
     <div className="mt-[24px]">
@@ -603,9 +657,48 @@ function SettingsSub({ page, setPage }: { page: "general" | "about"; setPage: (p
   );
   return (
     <div className="absolute inset-0 bg-[#F2F2F7] z-20 push">
-      <NavBar title={page === "general" ? "일반" : "정보"} back={page === "general" ? "설정" : "일반"} onBack={() => setPage(page === "about" ? "general" : null)} scrolled />
+      <NavBar title={page === "general" ? "일반" : page === "focus" ? "방해금지 모드" : page === "screen" ? "스크린 타임" : "정보"} back={page === "about" ? "일반" : "설정"} onBack={() => setPage(page === "about" ? "general" : null)} scrolled />
       <div className="absolute inset-0 scroll" style={{ paddingTop: "calc(var(--sat) + 44px)", paddingBottom: 60 }}>
-        {page === "general" ? (
+        {page === "screen" ? (
+          <>
+            <div className="mx-4 mt-[10px] rounded-[12px] bg-white px-[16px] py-[14px]">
+              <div className="text-[13px] text-black/45">일일 평균</div>
+              <div className="text-[28px] font-bold">{d.screenTime.total}</div>
+              <div className="flex items-end gap-[3px] h-[90px] mt-[12px]">
+                {d.screenTime.hours.map((v, i) => (
+                  <span key={i} className="flex-1 rounded-t-[2px]" style={{ height: `${(v / 60) * 100}%`, background: i < 5 ? "#5856D6" : "#B7B6EC" }} />
+                ))}
+              </div>
+              <div className="flex justify-between text-[11px] text-black/40 mt-[4px]">
+                <span>0시</span>
+                <span>6시</span>
+                <span>12시</span>
+                <span>18시</span>
+              </div>
+            </div>
+            <Group title="가장 많이 사용함" rows={d.screenTime.apps.map(([a, t]) => [a, t] as [string, string])} />
+            <Group title="픽업" rows={[["하루 평균", `${d.screenTime.pickups}회`], ["첫 번째 픽업", d.screenTime.firstPickup]]} />
+          </>
+        ) : page === "focus" ? (
+          <>
+            <div className="flex flex-col items-center pt-[10px]">
+              <span className="w-[56px] h-[56px] rounded-full bg-[#5856D6] flex items-center justify-center">
+                <MoonStar size={28} fill="#fff" strokeWidth={0} color="#fff" />
+              </span>
+              <div className="text-[13px] text-black/50 mt-[10px]">켜짐 · 매일</div>
+            </div>
+            <Group
+              title="알림 허용"
+              rows={[
+                ["사람", "번호변경_이유노", true],
+                ["앱", "없음", true],
+              ]}
+              foot="방해금지 모드가 켜져 있어도 이 사람의 전화와 메시지는 울립니다."
+            />
+            <Group rows={[["반복 전화 허용", "끔"], ["다른 사람의 전화", "꺼짐"]]} />
+            <Group title="일정" rows={[["매일", "켜짐", true]]} />
+          </>
+        ) : page === "general" ? (
           <>
             <Group rows={[["정보", undefined, true], ["소프트웨어 업데이트", undefined, true]]} />
             <Group rows={[["AirDrop", undefined, true], ["AirPlay 및 연속성", undefined, true]]} />

@@ -226,7 +226,7 @@ function FaceIdGlyph({ size = 56 }: { size?: number }) {
   );
 }
 
-function Passcode({ code, hint, name, onOk, onCancel }: { code: string; hint: string; name: string; onOk: () => void; onCancel: () => void }) {
+function Passcode({ code, hint, name, onOk, onCancel, decoy, onDecoy }: { code: string; hint: string; name: string; onOk: () => void; onCancel: () => void; decoy?: string; onDecoy?: () => void }) {
   const [v, setV] = useState("");
   const [bad, setBad] = useState(false);
   const [face, setFace] = useState<"scan" | "fail" | null>("scan"); // 들어오면 Face ID 먼저 시도 → 실패
@@ -252,6 +252,8 @@ function Passcode({ code, hint, name, onOk, onCancel }: { code: string; hint: st
       if (nv === code) {
         sessionStorage.removeItem("pc-fails");
         setTimeout(onOk, 120);
+      } else if (decoy && nv === decoy && onDecoy) {
+        setTimeout(onDecoy, 120);
       } else {
         const f = fails + 1;
         setFails(f);
@@ -342,7 +344,7 @@ function Passcode({ code, hint, name, onOk, onCancel }: { code: string; hint: st
 
 /* ───────── 홈 화면 ───────── */
 type HomeItem = string;
-const GRID: HomeItem[] = ["kakao", "insta", "photos", "calendar", "notes", "contacts", "bank", "maps", "clock", "weather", "calculator", "camera", "settings"];
+const GRID: HomeItem[] = ["kakao", "insta", "photos", "calendar", "notes", "contacts", "bank", "maps", "clock", "weather", "calculator", "camera", "settings", "cashwalk", "health", "voicememos"];
 const DOCK: HomeItem[] = ["phone", "messages", "safari", "music"];
 
 function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
@@ -509,6 +511,60 @@ function Incoming({ name, sub, onAccept, onDecline }: { name: string; sub: strin
   );
 }
 
+/* 위장 암호로 열리는 가짜 폰: 기본 앱만 있고 전부 텅 비어 있음 */
+function DecoyPhone({ onLock }: { onLock: () => void }) {
+  const [app, setApp] = useState<string | null>(null);
+  const icons = ["calendar", "photos", "camera", "clock", "weather", "calculator", "settings", "notes"];
+  const dock = ["phone", "messages", "safari", "music"];
+  const empty: Record<string, [string, string]> = {
+    phone: ["최근 기록", "최근 통화 없음"],
+    messages: ["메시지", "메시지 없음"],
+    safari: ["", "즐겨찾기 없음"],
+    music: ["보관함", "음악 없음"],
+    photos: ["보관함", "사진 없음"],
+    notes: ["메모", "메모 없음"],
+    calendar: ["", "일정 없음"],
+    camera: ["", ""],
+    clock: ["알람", "알람 없음"],
+    weather: ["", "서울 · 흐림"],
+    calculator: ["", "0"],
+    settings: ["설정", ""],
+  };
+  return (
+    <div className="absolute inset-0 fade">
+      <Wallpaper />
+      <div className="relative pt-[70px] px-[22px] grid grid-cols-4 gap-y-[26px] justify-items-center">
+        {icons.map((id) => (
+          <button key={id} onClick={() => setApp(id)} className="flex flex-col items-center gap-[5px]">
+            <AppIcon id={id} size={62} />
+            <span className="text-[12px] text-white font-medium">{APPS[id]?.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="absolute bottom-[12px] left-[12px] right-[12px] h-[96px] rounded-[34px] flex items-center justify-around px-[8px] blur-bar" style={{ background: "rgba(255,255,255,0.2)" }}>
+        {dock.map((id) => (
+          <button key={id} onClick={() => setApp(id)}>
+            <AppIcon id={id} size={62} />
+          </button>
+        ))}
+      </div>
+      {app && (
+        <div className="absolute inset-0 z-10 app-open flex flex-col" style={{ background: ["camera", "clock", "weather", "calculator"].includes(app) ? "#000" : "#fff" }}>
+          <div className="px-4 text-[34px] font-bold" style={{ paddingTop: "calc(var(--sat) + 44px)", color: ["camera", "clock", "weather", "calculator"].includes(app) ? "#fff" : "#000" }}>
+            {empty[app]?.[0]}
+          </div>
+          <div className="flex-1 flex items-center justify-center text-[17px]" style={{ color: ["camera", "clock", "weather", "calculator"].includes(app) ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.4)" }}>
+            {empty[app]?.[1]}
+          </div>
+        </div>
+      )}
+      <button aria-label="홈으로" onClick={() => (app ? setApp(null) : onLock())} className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[85] w-[180px] h-[30px] flex items-end justify-center pb-[8px]">
+        <span className="block w-[134px] h-[5px] rounded-full" style={{ background: app && !["camera", "clock", "weather", "calculator"].includes(app) ? "#000" : "#fff" }} />
+      </button>
+    </div>
+  );
+}
+
 /* 앱 전환기 카드 */
 function SwitchCard({ id, onOpen, onKill, children }: { id: string; onOpen: () => void; onKill: () => void; children: React.ReactNode }) {
   const [dy, setDy] = useState(0);
@@ -553,7 +609,7 @@ type Banner = { app: string; title: string; text: string; target?: string } | nu
 /** embedded: 에디터 옆 실시간 미리보기용 (잠금 건너뜀, 체류 이벤트 끔) */
 export default function Phone({ embedded = false, previewScale = 0.78 }: { embedded?: boolean; previewScale?: number } = {}) {
   const d = useData();
-  const [phase, setPhase] = useState<"lock" | "code" | "home">(embedded ? "home" : "lock");
+  const [phase, setPhase] = useState<"lock" | "code" | "home" | "decoy">(embedded ? "home" : "lock");
   const [app, setApp] = useState<string | null>(null);
   const [appArg, setAppArg] = useState<unknown>(null);
   const [appKey, setAppKey] = useState(0);
@@ -777,11 +833,17 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
             }}
           />
         )}
+        {phase === "decoy" && <DecoyPhone onLock={() => setPhase("lock")} />}
         {phase === "code" && (
           <Passcode
             code={d.passcode}
             hint={d.passcodeHint}
             name={d.deviceName}
+            decoy={d.decoyCode}
+            onDecoy={() => {
+              pendingOpen.current = null;
+              setPhase("decoy");
+            }}
             onOk={() => {
               setPhase("home");
               const p = pendingOpen.current;

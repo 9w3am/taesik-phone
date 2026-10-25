@@ -4,7 +4,7 @@ import { Megaphone, ChevronDown, ChevronRight, Info, Search, MessageCirclePlus, 
 import { useData, won, type Thread, type Msg } from "../store";
 import { photoSrc } from "../photos";
 import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
-import { markRead, preview, useAutoBottom, useComposer } from "./Messages";
+import { markRead, preview, useAutoBottom, useComposer, QuickBar, addWord } from "./Messages";
 
 const BADGE = "#FA5338";
 const EXPLORE = [
@@ -47,6 +47,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
   const lastIdx = t.messages.length - 1;
   // 내가 보낸 마지막 말풍선 옆 노란 1 → 몇 초 뒤 상대가 읽으면 사라짐
   const [readGone, setReadGone] = useState(false);
+  const [focus, setFocus] = useState(false);
   useEffect(() => {
     setReadGone(false);
     const tm = setTimeout(() => setReadGone(true), 4000);
@@ -139,6 +140,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           );
         })}
       </div>
+      {focus && c.editable && <QuickBar onPick={(w) => c.setText(addWord(c.text, w))} />}
       <div className="bg-white flex items-end gap-[6px] px-[8px] pt-[7px]" style={{ paddingBottom: "calc(var(--kbsab) + 2px)" }}>
         <span className="w-[34px] h-[34px] flex items-center justify-center text-[#555] shrink-0">
           <Plus size={26} strokeWidth={1.6} />
@@ -156,6 +158,8 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
               }
             }}
             placeholder="메시지 입력"
+            onFocus={() => setFocus(true)}
+            onBlur={() => setFocus(false)}
             className="flex-1 resize-none outline-none bg-transparent text-[15px] leading-[20px] py-[8px] max-h-[80px] placeholder:text-[#aaa]"
           />
           <Smile size={23} strokeWidth={1.6} className="text-[#555] shrink-0" />

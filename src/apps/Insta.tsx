@@ -1,6 +1,6 @@
 /* Instagram (2025 하단 탭: 홈 · 릴스 · DM · 검색 · 프로필) */
 import { useEffect, useRef, useState } from "react";
-import { Home as HomeI, Clapperboard, Send, Search, Heart, MessageCircle, Bookmark, MoreHorizontal, Plus, ChevronDown, ChevronLeft, Lock, Camera, SquarePen, Phone, Video, Music2, Grid3x3, UserSquare2, Menu, X } from "lucide-react";
+import { Home as HomeI, Clapperboard, Send, Search, Heart, MessageCircle, Bookmark, MoreHorizontal, Plus, ChevronDown, ChevronLeft, Lock, Camera, SquarePen, Phone, Video, Music2, Grid3x3, UserSquare2, Menu, X, Mic, Image as ImageIcon, Sticker } from "lucide-react";
 import { useData, update, uid, won, type Post, type Thread } from "../store";
 import { photoSrc } from "../photos";
 import { usePhoneCtx, Img } from "../ui";
@@ -361,6 +361,7 @@ function Reels() {
 function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
   const c = useComposer(t);
   const ref = useAutoBottom(t.messages.length);
+  const lastMine = t.messages.map((m) => m.from).lastIndexOf("me");
   return (
     <div className="fixed inset-0 bg-white flex flex-col push z-30">
       <div className="hair-b" style={{ paddingTop: "var(--sat)" }}>
@@ -371,7 +372,7 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
           <IgAvatar handle={t.name} size={30} />
           <div className="flex-1 min-w-0">
             <div className="text-[15px] font-semibold truncate leading-[18px]">{t.name}</div>
-            <div className="text-[12px] text-black/50 leading-[15px]">{t.name}</div>
+            <div className="text-[12px] text-black/50 leading-[15px]">활동: {t.last || "최근"}</div>
           </div>
           <Phone size={23} strokeWidth={1.7} />
           <Video size={26} strokeWidth={1.7} className="mr-[6px]" />
@@ -385,6 +386,12 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
           <span className="mt-[12px] text-[13px] font-semibold bg-[#EFEFEF] rounded-[8px] px-[14px] py-[6px]">프로필 보기</span>
         </div>
         {t.messages.map((m, i) => {
+          if (m.kind === "date")
+            return (
+              <div key={m.id} className="text-center text-[12px] text-black/45 font-semibold mt-[18px] mb-[6px]">
+                {m.text}
+              </div>
+            );
           if (m.from === "system")
             return (
               <div key={m.id} className="text-center text-[12px] text-black/45 mt-[14px] mb-[2px] px-[30px] truncate">
@@ -404,9 +411,11 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
               >
                 {m.text}
               </div>
+              {mine && i === lastMine && <span className="sr-only">읽음</span>}
             </div>
           );
         })}
+        {lastMine >= 0 && lastMine === t.messages.length - 1 && <div className="text-right text-[12px] text-black/45 mt-[4px] mr-[4px]">읽음</div>}
       </div>
       <div className="px-[10px] pt-[6px]" style={{ paddingBottom: "calc(var(--kbsab) + 4px)" }}>
         <div className="h-[46px] rounded-full bg-[#EFEFEF] flex items-center pl-[5px] pr-[14px] gap-[10px]">
@@ -421,11 +430,21 @@ function DMChat({ t, onBack }: { t: Thread; onBack: () => void }) {
             placeholder="메시지 보내기..."
             className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-black/45 min-w-0"
           />
-          {c.canSend && (
-            <button onClick={() => c.send()} aria-label="보내기" className="w-[34px] h-[34px] -mr-[8px] rounded-full bg-[#3797F0] flex items-center justify-center shrink-0">
-              <Send size={17} color="#fff" strokeWidth={2.2} className="-ml-[1px] mt-[1px]" />
-            </button>
+          {!c.text && (
+            <div className="flex items-center gap-[14px] text-black shrink-0">
+              <Mic size={22} strokeWidth={1.7} />
+              <ImageIcon size={22} strokeWidth={1.7} />
+              <Sticker size={22} strokeWidth={1.7} />
+            </div>
           )}
+          <button
+            onClick={() => c.send()}
+            aria-label="보내기"
+            className="w-[34px] h-[34px] -mr-[8px] rounded-full flex items-center justify-center shrink-0 transition-colors"
+            style={{ background: c.canSend ? "#3797F0" : "rgba(55,151,240,0.35)" }}
+          >
+            <Send size={17} color="#fff" strokeWidth={2.2} className="-ml-[1px] mt-[1px]" />
+          </button>
         </div>
       </div>
     </div>
@@ -540,7 +559,7 @@ function Profile() {
       <div className="flex items-center px-[16px] pt-[10px] gap-[24px]">
         <IgAvatar handle={me.handle} size={86} me />
         <div className="flex-1">
-          <div className="text-[14px] font-semibold mb-[6px]">{me.name || d.owner}</div>
+          {me.name && <div className="text-[14px] font-semibold mb-[6px]">{me.name}</div>}
           <div className="flex justify-between pr-[8px]">
             {[
               [me.posts, "게시물"],

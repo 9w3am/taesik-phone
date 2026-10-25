@@ -8,6 +8,9 @@ import Safari from "./Safari";
 import Music from "./Music";
 import Photos from "./Photos";
 import Bank from "./Bank";
+import CashWalk from "./CashWalk";
+import Health from "./Health";
+import VoiceMemos from "./VoiceMemos";
 import { Calendar, Clock, Weather, Calculator, Maps, CameraApp, Settings } from "./Misc";
 
 /** light: 밝은 배경 앱 (상태바 검정 글자) */
@@ -23,6 +26,9 @@ export const APPS: Record<string, { label: string; C: ComponentType; light: bool
   notes: { label: "메모", C: Notes, light: true },
   contacts: { label: "연락처", C: ContactsApp, light: true },
   bank: { label: "뱅킹", C: Bank, light: true },
+  cashwalk: { label: "캐시워크", C: CashWalk, light: true },
+  health: { label: "건강", C: Health, light: true },
+  voicememos: { label: "음성 메모", C: VoiceMemos, light: true },
   maps: { label: "지도", C: Maps, light: true },
   clock: { label: "시계", C: Clock, light: false },
   weather: { label: "날씨", C: Weather, light: false },
