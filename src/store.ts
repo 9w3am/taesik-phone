@@ -44,6 +44,16 @@ export type Contact = { id: string; name: string; phone: string; label: string; 
 export type Note = { id: string; folder: string; title: string; body: string; pinned?: boolean; lockCode?: string; when: string };
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
+/* ───── 흔히 쓰는 앱들 (메일 · 미리 알림 · 지갑 · 유튜브 · 넷플릭스 · X · 쿠팡 · 배민 · 카카오 T) ───── */
+export type Mail = { id: string; from: string; addr: string; subject: string; body: string; when: string; unread: boolean; box: "inbox" | "sent" | "junk" };
+export type Reminder = { id: string; text: string; note: string; due: string; done: boolean; list: string };
+export type WalletCard = { id: string; name: string; sub: string; number: string; color: string };
+export type YtVideo = { id: string; title: string; channel: string; views: string; when: string; duration: string; hue: number; photo: string; progress: number };
+export type NfTitle = { id: string; title: string; ep: string; progress: number; hue: number; photo: string };
+export type XPost = { id: string; name: string; handle: string; text: string; when: string; replies: number; reposts: number; likes: number; photo: string };
+export type ShopOrder = { id: string; name: string; option: string; price: string; when: string; status: string; photo: string };
+export type FoodOrder = { id: string; store: string; menu: string; price: string; when: string; status: string; photo: string };
+export type Ride = { id: string; kind: string; from: string; to: string; when: string; price: string };
 /** 직접 만든 앱의 글 하나 (목록 한 줄 · 피드 글 · 사진 한 장) */
 export type CustomItem = { id: string; title: string; sub: string; body: string; photo: string; when: string };
 /** 편집 화면에서 직접 만드는 앱 (템플릿용) */
@@ -81,6 +91,8 @@ export type Page =
   | { type: "sns"; query: string; posts: { name: string; handle: string; text: string; when: string; replies: number; reposts: number; likes: number }[] }
   | { type: "job"; site: string; company: string; title: string; pay: string; conditions: string[]; body: string }
   | { type: "news"; press: string; title: string; body: string; reporter: string }
+  | { type: "blog"; category: string; title: string; author: string; when: string; body: string; photo: string; likes: number; comments: Comment[] }
+  | { type: "qna"; question: string; detail: string; asker: string; when: string; views: number; answers: { who: string; text: string }[] }
   | { type: "blank" };
 export type SafariTab = { id: string; title: string; url: string; page: Page };
 export type Job = { id: string; code: string; title: string; kind: string; via: string; due: string; pay: string; memo: string; status: "new" | "doing" | "done" | "declined"; step: number };
@@ -120,6 +132,17 @@ export type PhoneData = {
   home: HomeLayout;
   /** 직접 만든 앱들 */
   customApps: CustomApp[];
+  mail: Mail[];
+  reminders: Reminder[];
+  wallet: WalletCard[];
+  youtube: { feed: YtVideo[]; history: YtVideo[]; searches: string[] };
+  netflix: { profile: string; watching: NfTitle[]; myList: NfTitle[] };
+  x: { name: string; handle: string; feed: XPost[] };
+  coupang: ShopOrder[];
+  baemin: FoodOrder[];
+  kakaot: Ride[];
+  /** 홈 화면 배치 버전 (새 앱 폴더가 생겼을 때 예전 저장본에도 넣어 주려고) */
+  homeVer?: number;
   photos: Photo[];
   ig: { me: IgUser; users: IgUser[]; feed: Post[]; stories: string[]; storyItems: Story[]; notes: { user: string; text: string }[]; seen?: string[] };
   safari: { tabs: SafariTab[]; history: string[]; favorites: { title: string; url: string }[] };
@@ -200,6 +223,15 @@ export function sanitize(o: unknown): PhoneData | null {
     dock: Array.isArray(h.dock) ? ids(h.dock).slice(0, 4) : baseHome.dock,
     folders: h.folders && typeof h.folders === "object" ? Object.fromEntries(Object.entries(h.folders as Record<string, unknown>).slice(0, 12).map(([k, v]) => [k.slice(0, 20), ids(v)])) : baseHome.folders,
   };
+  // 예전 저장본: 새로 생긴 "생활" · "엔터" 폴더를 홈 화면에 넣어 줌 (한 번만)
+  if (((x.homeVer as number) ?? 1) < 2) {
+    const hm = out.home as HomeLayout;
+    for (const [k, v] of Object.entries(baseHome.folders)) if (!hm.folders[k]) {
+      hm.folders[k] = v;
+      if (!hm.grid.includes("folder:" + k)) hm.grid.push("folder:" + k);
+    }
+  }
+  out.homeVer = 2;
   // 노래: 칸마다 모양 검사 (이상한 값이 들어 있으면 고쳐서 받음 — 앱이 멈추지 않게)
   const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);

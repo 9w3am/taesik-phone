@@ -145,6 +145,76 @@ export const ICONS: Record<string, () => React.ReactElement> = {
       <path d="M22 30.5l5.5 5.5L39 24" stroke="#fff" strokeWidth="3.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </S>
   ),
+  mail: () => (
+    <S bg={<>{lin("gml", "#1E9BFF", "#0868F6")}<rect width="60" height="60" fill="url(#gml)" /></>}>
+      <rect x="11" y="17" width="38" height="27" rx="4" fill="#fff" />
+      <path d="M12 19l18 14 18-14" fill="none" stroke="#1C7CF9" strokeWidth="2.6" strokeLinejoin="round" />
+    </S>
+  ),
+  reminders: () => (
+    <S bg={fill("#fff")}>
+      {[["#007AFF", 17], ["#FF3B30", 30], ["#FF9500", 43]].map(([c, y]) => (
+        <g key={y as number}>
+          <circle cx="16" cy={y as number} r="4.6" fill="none" stroke={c as string} strokeWidth="2.4" />
+          <circle cx="16" cy={y as number} r="2.2" fill={c as string} />
+          <rect x="25" y={(y as number) - 1.2} width="22" height="2.4" rx="1.2" fill="#D1D1D6" />
+        </g>
+      ))}
+    </S>
+  ),
+  wallet: () => (
+    <S bg={fill("#000")}>
+      <rect x="10" y="14" width="40" height="30" rx="5" fill="#1E90FF" />
+      <rect x="10" y="19" width="40" height="30" rx="5" fill="#FF9F0A" />
+      <rect x="10" y="24" width="40" height="30" rx="5" fill="#34C759" />
+      <path d="M10 32h14c2 0 3 4 6 4s4-4 6-4h14v17a5 5 0 0 1-5 5H15a5 5 0 0 1-5-5z" fill="#D1D1D6" />
+    </S>
+  ),
+  youtube: () => (
+    <S bg={fill("#fff")}>
+      <rect x="9" y="16" width="42" height="29" rx="9" fill="#FF0000" />
+      <path d="M25.5 23.5v14l12-7z" fill="#fff" />
+    </S>
+  ),
+  netflix: () => (
+    <S bg={fill("#000")}>
+      <path d="M20 12h7l6 20V12h7v36c-2.4-.2-4.8-.3-7-.4l-6-19v19c-2.4.1-4.7.3-7 .6z" fill="#E50914" />
+    </S>
+  ),
+  x: () => (
+    <S bg={fill("#000")}>
+      <path d="M38.6 15h4.6l-10 11.5L45 45h-9.3l-7.3-9.5L20 45h-4.6l10.7-12.3L15 15h9.5l6.6 8.7zm-1.6 27.2h2.5L23.1 17.6h-2.7z" fill="#fff" />
+    </S>
+  ),
+  coupang: () => (
+    <S bg={fill("#fff")}>
+      <text x="30" y="36" fontSize="11.5" textAnchor="middle" fontWeight="800" fontFamily="Arial, sans-serif" letterSpacing="-0.3">
+        <tspan fill="#9B4A1E">c</tspan>
+        <tspan fill="#E2312C">o</tspan>
+        <tspan fill="#F4A51C">u</tspan>
+        <tspan fill="#76B82A">p</tspan>
+        <tspan fill="#4DA9E0">a</tspan>
+        <tspan fill="#E2312C">n</tspan>
+        <tspan fill="#76B82A">g</tspan>
+      </text>
+    </S>
+  ),
+  baemin: () => (
+    <S bg={fill("#2AC1BC")}>
+      <text x="30" y="27" fontSize="11" textAnchor="middle" fontWeight="900" fill="#fff" fontFamily="'Pretendard Variable',sans-serif">
+        배달의
+      </text>
+      <text x="30" y="41" fontSize="11" textAnchor="middle" fontWeight="900" fill="#fff" fontFamily="'Pretendard Variable',sans-serif">
+        민족
+      </text>
+    </S>
+  ),
+  kakaot: () => (
+    <S bg={fill("#FFE600")}>
+      <rect x="15" y="15" width="30" height="30" rx="9" fill="#1E1E1E" />
+      <path d="M23 24h14v4h-5v10h-4V28h-5z" fill="#FFE600" />
+    </S>
+  ),
   voicememos: () => (
     <S bg={fill("#1C1C1E")}>
       {[6, 14, 24, 34, 22, 40, 28, 16, 30, 18, 10].map((h, i) => (

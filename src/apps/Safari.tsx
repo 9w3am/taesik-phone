@@ -225,6 +225,91 @@ function NewsPage({ p }: { p: Extract<Page, { type: "news" }> }) {
   );
 }
 
+/* 네이버 블로그 글 (모바일) */
+function BlogPage({ p }: { p: Extract<Page, { type: "blog" }> }) {
+  const d = useData();
+  const src = photoSrc(p.photo, d.photos);
+  return (
+    <div className="bg-white min-h-full pb-8">
+      <div className="h-[50px] flex items-center gap-[8px] px-[14px] hair-b">
+        <NaverLogo size={22} />
+        <span className="text-[16px] font-bold">blog</span>
+        <span className="flex-1" />
+        <Search size={21} />
+        <Menu size={22} />
+      </div>
+      <div className="px-[18px] pt-[16px]">
+        <div className="text-[13px] font-semibold" style={{ color: NAVER }}>
+          {p.category}
+        </div>
+        <div className="text-[22px] font-bold leading-[30px] mt-[6px] tracking-[-0.02em]">{p.title}</div>
+        <div className="flex items-center gap-[10px] mt-[14px] pb-[14px] hair-b">
+          <span className="w-[36px] h-[36px] rounded-full bg-[#E7F8EE] text-[#03A94D] font-bold flex items-center justify-center">{p.author.slice(0, 1)}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-semibold truncate">{p.author}</div>
+            <div className="text-[12px] text-black/45">{p.when}</div>
+          </div>
+          <span className="h-[30px] px-[12px] rounded-full border border-black/15 text-[13px] flex items-center">+ 이웃추가</span>
+        </div>
+        {src && <Img src={src} className="w-full rounded-[4px] mt-[18px]" style={{ aspectRatio: "4/3" }} />}
+        <div className="text-[16px] leading-[28px] whitespace-pre-wrap pt-[18px]">{p.body}</div>
+        <div className="flex items-center gap-[18px] mt-[26px] pt-[14px] border-t border-black/10 text-[14px] text-black/60">
+          <span className="flex items-center gap-[5px]">
+            <Heart size={18} /> 공감 {p.likes}
+          </span>
+          <span className="flex items-center gap-[5px]">
+            <MessageSquare size={18} /> 댓글 {p.comments.length}
+          </span>
+        </div>
+        {p.comments.map((c, i) => (
+          <div key={i} className="py-[12px] hair-b">
+            <div className="text-[14px] font-semibold">{c.who}</div>
+            <div className="text-[15px] mt-[2px]">{c.text}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* 네이버 지식iN 질문 · 답변 */
+function QnaPage({ p }: { p: Extract<Page, { type: "qna" }> }) {
+  return (
+    <div className="bg-[#F5F6F8] min-h-full pb-8">
+      <div className="h-[50px] flex items-center gap-[8px] px-[14px] bg-white hair-b">
+        <NaverLogo size={22} />
+        <span className="text-[16px] font-bold">지식iN</span>
+        <span className="flex-1" />
+        <Search size={21} />
+      </div>
+      <div className="bg-white px-[18px] pt-[16px] pb-[18px]">
+        <div className="flex items-start gap-[8px]">
+          <span className="text-[24px] font-black leading-[28px]" style={{ color: NAVER }}>
+            Q
+          </span>
+          <div className="text-[19px] font-bold leading-[27px]">{p.question}</div>
+        </div>
+        {p.detail && <div className="text-[15px] leading-[24px] text-black/75 mt-[10px] whitespace-pre-wrap">{p.detail}</div>}
+        <div className="text-[12px] text-black/40 mt-[12px]">
+          {p.asker} · {p.when} · 조회수 {p.views}
+        </div>
+      </div>
+      {p.answers.map((a, i) => (
+        <div key={i} className="bg-white mt-[8px] px-[18px] py-[16px]">
+          <div className="flex items-center gap-[8px] mb-[8px]">
+            <span className="text-[24px] font-black" style={{ color: "#F5A623" }}>
+              A
+            </span>
+            <span className="text-[14px] font-semibold">{a.who}</span>
+            {i === 0 && <span className="text-[11px] px-[6px] py-[2px] rounded-[3px] font-bold text-white" style={{ background: NAVER }}>질문자 채택</span>}
+          </div>
+          <div className="text-[15px] leading-[25px] whitespace-pre-wrap">{a.text}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const FAV: Record<string, string> = { Google: "#4285F4", YouTube: "#FF0000", 나무위키: "#00A495", 당근: "#FF6F0F", 번개장터: "#D80C18", 쿠팡: "#E8781C", X: "#000" };
 
 function StartPage({ onGo }: { onGo: (q: string) => void }) {
@@ -263,6 +348,8 @@ function PageView({ page, onGo }: { page: Page; onGo: (q: string) => void }) {
   if (page.type === "market") return <MarketPage p={page} />;
   if (page.type === "job") return <JobPage p={page} />;
   if (page.type === "news") return <NewsPage p={page} />;
+  if (page.type === "blog") return <BlogPage p={page} />;
+  if (page.type === "qna") return <QnaPage p={page} />;
   return <StartPage onGo={onGo} />;
 }
 

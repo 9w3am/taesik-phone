@@ -97,12 +97,15 @@ function Lyrics({ lines, t, onSeek, loading }: { lines: LyricLine[]; t: number; 
   const synced = lines.some((l) => l.t !== null);
   let cur = -1;
   if (synced) lines.forEach((l, i) => l.t !== null && l.t <= t + LYRIC_LEAD && (cur = i));
+  // 스크롤은 0.6초 먼저: 다음 줄이 밝아질 때 이미 제자리에 와 있게 (밝아진 뒤에 움직이면 늦어 보임)
+  let pre = -1;
+  if (synced) lines.forEach((l, i) => l.t !== null && l.t <= t + LYRIC_LEAD + 0.6 && (pre = i));
   useEffect(() => {
     const el = box.current;
     if (!el || Date.now() - touched.current < 2500) return;
-    const row = el.querySelector<HTMLElement>(`[data-i="${Math.max(0, cur)}"]`);
+    const row = el.querySelector<HTMLElement>(`[data-i="${Math.max(0, pre)}"]`);
     if (row) el.scrollTo({ top: Math.max(0, row.offsetTop - el.clientHeight * 0.2), behavior: "smooth" });
-  }, [cur]);
+  }, [pre]);
   const hold = () => (touched.current = Date.now());
   if (!lines.length) return <div className="flex-1 min-h-0 flex items-center justify-center text-[20px] font-bold text-white/50">{loading ? "가사 찾는 중…" : "가사 없음"}</div>;
   return (

@@ -428,6 +428,7 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
     if (id === "insta") return t("insta");
     if (id === "phone") return d.calls.filter((c) => c.kind === "missed").reduce((a, c) => a + (c.count || 1), 0);
     if (id === "jobs") return d.jobs.filter((j) => j.status === "new").length;
+    if (id === "mail") return d.mail.filter((m) => m.box === "inbox" && m.unread).length;
     return 0;
   };
   const today = d.calendar.filter((e) => e.days.includes(now.getDay())).sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));

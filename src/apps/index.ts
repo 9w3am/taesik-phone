@@ -15,6 +15,7 @@ import CashWalk from "./CashWalk";
 import Health from "./Health";
 import VoiceMemos from "./VoiceMemos";
 import Jobs from "./Jobs";
+import { MailApp, RemindersApp, WalletApp, YoutubeApp, NetflixApp, XApp, CoupangApp, BaeminApp, KakaoTApp } from "./More";
 import { Calendar, Clock, Weather, Calculator, Maps, CameraApp, Settings } from "./Misc";
 
 /** light: 밝은 배경 앱 (상태바 검정 글자) */
@@ -40,6 +41,15 @@ export const APPS: Record<string, { label: string; C: ComponentType; light: bool
   calculator: { label: "계산기", C: Calculator, light: false },
   camera: { label: "카메라", C: CameraApp, light: false },
   settings: { label: "설정", C: Settings, light: true },
+  mail: { label: "메일", C: MailApp, light: true },
+  reminders: { label: "미리 알림", C: RemindersApp, light: true },
+  wallet: { label: "지갑", C: WalletApp, light: true },
+  youtube: { label: "YouTube", C: YoutubeApp, light: true },
+  netflix: { label: "Netflix", C: NetflixApp, light: false },
+  x: { label: "X", C: XApp, light: true },
+  coupang: { label: "쿠팡", C: CoupangApp, light: true },
+  baemin: { label: "배달의민족", C: BaeminApp, light: true },
+  kakaot: { label: "카카오 T", C: KakaoTApp, light: true },
 };
 
 /* 직접 만든 앱 등록: 편집 화면에서 만든 앱을 "c:아이디"로 앱 목록 · 아이콘 목록에 넣음 */

@@ -892,6 +892,8 @@ function Cal({ d }: { d: PhoneData }) {
   );
 }
 
+/** 싱크 찍을 때 사람 반응 시간(초) */
+const REACTION = 0.2;
 /** 가사 싱크 맞추기: 이 창 안에서 노래가 나옴 → 파란 줄을 부르기 시작할 때 '지금!'(스페이스바) → 그 순간 재생 시간이 찍힘.
  *  다 찍으면 바로 들어 보며 확인. 줄을 누르면 그 부분부터 다시 찍기. */
 function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string) => void; onClose: () => void }) {
@@ -975,7 +977,8 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
   const stamp = () => {
     if (!playing) return play();
     if (cursor >= lines.length) return;
-    const t = Math.round(getT() * 100) / 100;
+    // 사람은 노래를 듣고 나서 누르니까 평균 반응 시간만큼 당겨서 저장
+    const t = Math.max(0, Math.round((getT() - REACTION) * 100) / 100);
     setTimes((old) => {
       const n = old.slice(0, cursor);
       n[cursor] = t;
@@ -1052,6 +1055,13 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
             {playing ? "❚❚ 일시정지" : "▶ 재생"}
           </Btn>
           <Btn onClick={() => seek(getT() - 5)}>5초 뒤로</Btn>
+          {times.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-[12px] text-black/55">
+              전체
+              <Btn onClick={() => setTimes((o) => o.map((x) => Math.max(0, Math.round((x - 0.1) * 100) / 100)))}>0.1초 빨리</Btn>
+              <Btn onClick={() => setTimes((o) => o.map((x) => Math.round((x + 0.1) * 100) / 100))}>0.1초 늦게</Btn>
+            </span>
+          )}
           <span className="flex-1 text-right text-[20px] font-bold tabular">{fmtTime(now)}</span>
         </div>
         <div ref={listRef} className="flex-1 overflow-auto rounded-[12px] bg-black/[0.03] p-2 mt-3 min-h-[150px]">
@@ -1735,9 +1745,21 @@ const KEY_KO: Record<string, string> = {
   favorites: "즐겨찾기", page: "페이지", engine: "검색 엔진", results: "검색 결과", area: "지역", seller: "판매자", meta: "부가 정보", specs: "사양", dealer: "판매처",
   discount: "할인", rating: "별점", reviews: "리뷰 수", delivery: "배송", x: "가로 위치", y: "세로 위치", todayWon: "오늘 번 돈", streak: "연속 출석", bubbles: "받기 버블",
   badges: "배지", quiz: "퀴즈", options: "보기", answer: "정답", shop: "교환 상품", moveGoal: "움직이기 목표", km: "거리(km)", lines: "줄", hours: "시간",
+  from: "보낸 사람", subject: "제목", unread: "안 읽음", box: "편지함", done: "완료", due: "마감", channel: "채널", progress: "본 정도 (0~1)", hue: "색 (0~360)",
+  ep: "회차", watching: "시청 중인 콘텐츠", myList: "내가 찜한 리스트", profile: "프로필 이름", handle: "아이디", feed: "피드", replies: "답글", reposts: "재게시", likes: "좋아요",
+  option: "옵션", status: "상태", store: "가게", menu: "메뉴", number: "카드 번호 표시", searches: "검색 기록", color: "색",
+  category: "카테고리", question: "질문", detail: "자세한 내용", asker: "질문한 사람", answers: "답변",
   apps: "앱", total: "합계", pickups: "화면 켠 횟수", firstPickup: "처음 켠 시각", peakAt: "가장 많이 쓴 시각", author: "작성자", source: "출처", views: "조회수",
 };
 const keyName = (k: string) => KEY_KO[k] ?? k;
+/** 고르는 칸 (영어 값 대신 한국어로 고르기) */
+const KEY_OPTS: Record<string, [string, string][]> = {
+  box: [
+    ["inbox", "받은 편지함"],
+    ["sent", "보낸 편지함"],
+    ["junk", "정크"],
+  ],
+};
 /** 새 항목: 마지막 항목 모양을 따라 빈 값으로 */
 const blankLike = (v: unknown): unknown => {
   if (typeof v === "string") return "";
@@ -1747,14 +1769,72 @@ const blankLike = (v: unknown): unknown => {
   if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k === "id" ? uid() : blankLike(x)]));
   return "";
 };
-function AutoField({ value, onChange, label, depth = 0 }: { value: unknown; onChange: (v: unknown) => void; label?: string; depth?: number }) {
+function AutoField({ value, onChange, label, depth = 0, k }: { value: unknown; onChange: (v: unknown) => void; label?: string; depth?: number; k?: string }) {
   // 긴 목록은 접어 두기 (눌러서 펼침)
   const [open, setOpen] = useState(depth < 1 || !Array.isArray(value) || value.length <= 5);
+  const photos = useData().photos;
   if (typeof value === "boolean") return <C label={label ?? ""} value={value} onChange={onChange} />;
+  // 사진 칸: 올리기 · 사진 앱에서 고르기 · 빼기 (주소를 직접 쓸 필요 없음)
+  if ((k === "photo" || k === "avatar") && (typeof value === "string" || value === undefined)) {
+    const src = photoSrc(value ?? "", photos);
+    return (
+      <F label={label ?? "사진"} className="col-span-full">
+        <div className="flex flex-wrap items-center gap-2">
+          {src ? <img src={src} alt="" className="w-[44px] h-[44px] rounded-[8px] object-cover" /> : <span className="w-[44px] h-[44px] rounded-[8px] bg-black/[0.05] flex items-center justify-center text-[11px] text-black/35">없음</span>}
+          <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
+            사진 올리기
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) onChange(await shrinkImage(f, 900));
+              }}
+            />
+          </label>
+          {photos.length > 0 && (
+            <select className="!w-auto" value={photos.some((p) => p.id === value) ? value : ""} onChange={(e) => onChange(e.target.value)}>
+              <option value="">사진 앱에서 고르기…</option>
+              {photos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.caption || p.when || p.id}
+                </option>
+              ))}
+            </select>
+          )}
+          {value && (
+            <Btn kind="danger" onClick={() => onChange("")}>
+              사진 빼기
+            </Btn>
+          )}
+        </div>
+      </F>
+    );
+  }
   if (typeof value === "number")
     return (
       <F label={label ?? ""}>
         <N value={value} onChange={onChange} />
+      </F>
+    );
+  if (typeof value === "string" && k && KEY_OPTS[k])
+    return (
+      <F label={label ?? ""}>
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          {KEY_OPTS[k].map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </F>
+    );
+  if (k === "color" && typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value))
+    return (
+      <F label={label ?? ""}>
+        <input type="color" className="!h-[34px] !p-1" value={value} onChange={(e) => onChange(e.target.value)} />
       </F>
     );
   if (value === null || value === undefined || typeof value === "string") {
@@ -1815,7 +1895,7 @@ function AutoField({ value, onChange, label, depth = 0 }: { value: unknown; onCh
   // 객체: 칸 여러 개
   const obj = value as Record<string, unknown>;
   const fields = Object.entries(obj).filter(([k]) => k !== "id");
-  const inner = fields.map(([k, v]) => <AutoField key={k} label={keyName(k)} value={v} onChange={(nv) => onChange({ ...obj, [k]: nv })} depth={depth + 1} />);
+  const inner = fields.map(([key, v]) => <AutoField key={key} k={key} label={keyName(key)} value={v} onChange={(nv) => onChange({ ...obj, [key]: nv })} depth={depth + 1} />);
   if (depth === 0 || !label) return <>{inner}</>;
   return (
     <div className="col-span-full rounded-[12px] bg-black/[0.025] p-3">
@@ -1841,6 +1921,8 @@ const PAGE_TPL: Record<Exclude<PageType, "blank">, { name: string; url: string; 
   video: { name: "동영상 (유튜브)", url: "m.youtube.com", title: "영상 제목 - YouTube", page: { type: "video", title: "영상 제목", channel: "채널 이름", subs: "구독자 1.2만명", views: "조회수 3.4만회", when: "2일 전", duration: "12:34", desc: "영상 설명", comments: [{ who: "@댓글러", text: "댓글" }] } },
   sns: { name: "SNS 검색 (X 등)", url: "x.com", title: "검색어 - X 검색", page: { type: "sns", query: "검색어", posts: [{ name: "이름", handle: "@id", text: "글 내용", when: "1시간", replies: 2, reposts: 5, likes: 30 }] } },
   job: { name: "구인 공고", url: "alba.co.kr", title: "공고 제목 - 알바", page: { type: "job", site: "알바 사이트", company: "회사 이름", title: "공고 제목", pay: "시급 12,000원", conditions: ["주 3일", "야간"], body: "공고 내용" } },
+  blog: { name: "네이버 블로그 글", url: "m.blog.naver.com", title: "글 제목 : 네이버 블로그", page: { type: "blog", category: "일상", title: "글 제목", author: "블로그 이름", when: "2026. 10. 24. 21:10", body: "본문을 여기에 쓰세요.", photo: "", likes: 12, comments: [{ who: "이웃", text: "댓글" }] } },
+  qna: { name: "지식iN 질문", url: "m.kin.naver.com", title: "질문 제목 : 지식iN", page: { type: "qna", question: "질문 제목", detail: "질문 내용", asker: "비공개", when: "2026.10.24.", views: 85, answers: [{ who: "답변자", text: "답변 내용" }] } },
   news: { name: "뉴스 기사", url: "n.news.naver.com", title: "기사 제목 : 네이버 뉴스", page: { type: "news", press: "OO일보", title: "기사 제목", body: "기사 본문", reporter: "홍길동 기자" } },
 };
 function SafariEd({ d }: { d: PhoneData }) {
@@ -1917,7 +1999,7 @@ function SafariEd({ d }: { d: PhoneData }) {
 
 function JsonEd({ d }: { d: PhoneData }) {
   // 폰에서 숨긴 앱(인스타 · 업무)은 목록에서 뺌 — 데이터는 그대로 보관
-  const keys = ["safari", "weather", "alarms", "places", "cashwalk", "health", "voiceMemos", "screenTime", "vault"] as const;
+  const keys = ["safari", "mail", "reminders", "wallet", "youtube", "netflix", "x", "coupang", "baemin", "kakaot", "weather", "alarms", "places", "cashwalk", "health", "voiceMemos", "screenTime", "vault"] as const;
   const [k, setK] = useState<(typeof keys)[number]>("safari");
   const [mode, setMode] = useState<"easy" | "json">("easy");
   const [text, setText] = useState(() => JSON.stringify(d[k], null, 2));
@@ -1926,7 +2008,7 @@ function JsonEd({ d }: { d: PhoneData }) {
     setText(JSON.stringify(d[k], null, 2));
     setErr("");
   }, [k, mode]); // eslint-disable-line
-  const names: Record<string, string> = { safari: "사파리 (탭 · 검색 기록 · 즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨", cashwalk: "캐시워크", health: "건강", voiceMemos: "음성 메모", screenTime: "스크린 타임", vault: "계산기 금고 (숫자 · 메모)" };
+  const names: Record<string, string> = { mail: "메일", reminders: "미리 알림", wallet: "지갑 (카드)", youtube: "YouTube", netflix: "Netflix", x: "X (아이디는 랜덤으로)", coupang: "쿠팡 주문목록", baemin: "배달의민족 주문내역", kakaot: "카카오 T 이용기록", safari: "사파리 (탭 · 검색 기록 · 즐겨찾기)", alarms: "시계 알람", places: "지도 즐겨찾기", weather: "날씨", cashwalk: "캐시워크", health: "건강", voiceMemos: "음성 메모", screenTime: "스크린 타임", vault: "계산기 금고 (숫자 · 메모)" };
   const val = (d as unknown as Record<string, unknown>)[k];
   return (
     <Card

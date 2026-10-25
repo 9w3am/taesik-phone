@@ -513,12 +513,81 @@ export function defaultData(): PhoneData {
     /* ───────── 음악 (곡 정보만, 링크 아웃) ───────── */
     // 홈 화면 배치: 편집 화면 "홈 화면 · 앱"에서 바꿈 (여기 없는 앱은 숨김)
     home: {
-      grid: ["kakao", "photos", "calendar", "notes", "bank", "maps", "weather", "camera", "settings", "cashwalk", "health", "folder:유틸리티"],
+      grid: ["kakao", "photos", "calendar", "notes", "bank", "maps", "weather", "camera", "settings", "cashwalk", "health", "folder:유틸리티", "folder:생활", "folder:엔터"],
       dock: ["phone", "messages", "safari", "music"],
-      folders: { 유틸리티: ["contacts", "clock", "calculator", "voicememos"] },
+      folders: { 유틸리티: ["contacts", "clock", "calculator", "voicememos"], 생활: ["mail", "reminders", "wallet", "coupang", "baemin", "kakaot"], 엔터: ["youtube", "netflix", "x"] },
     },
     // 직접 만든 앱 (편집 화면에서 추가)
     customApps: [],
+    // ───── 흔히 쓰는 앱들 (전부 편집 화면 '사파리 · 그 밖의 앱'에서 고침) ─────
+    mail: [
+      { id: id(), from: "Apple", addr: "no_reply@email.apple.com", subject: "Apple 계정에 새로운 기기에서 로그인함", body: "새로운 iPhone에서 Apple 계정에 로그인했습니다.\n\n본인이 로그인한 것이 아니라면 즉시 암호를 변경하세요.\n\nApple", when: "오전 4:52", unread: true, box: "inbox" },
+      { id: id(), from: "쿠팡", addr: "noreply@coupang.com", subject: "[쿠팡] 주문하신 상품이 배송 완료되었습니다", body: "고객님, 주문하신 상품이 배송 완료되었습니다.\n\n상품: 검정 가죽 장갑 외 1건\n배송지: 문 앞\n\n쿠팡을 이용해 주셔서 감사합니다.", when: "어제", unread: false, box: "inbox" },
+      { id: id(), from: "OO피트니스", addr: "info@fitness.example", subject: "회원권 만료 30일 전 안내", body: "회원님의 회원권이 30일 뒤 만료됩니다.\n재등록 시 1개월 추가 혜택이 있습니다.", when: "10. 22.", unread: false, box: "inbox" },
+      { id: id(), from: "OO모바일", addr: "bill@mobile.example", subject: "10월 이용요금 안내", body: "10월 이용요금: 33,000원\n납부일: 10월 25일\n\n(선불 회선)", when: "10. 20.", unread: false, box: "inbox" },
+      { id: id(), from: "대출상담센터", addr: "ad@spam.example", subject: "(광고) 무직자 당일 한도 조회", body: "(광고) 수신을 원하지 않으시면 수신거부.", when: "10. 19.", unread: true, box: "junk" },
+    ],
+    reminders: [
+      { id: id(), text: "하체 · 데드리프트", note: "5세트", due: "오늘", done: false, list: "운동" },
+      { id: id(), text: "단백질 120g", note: "", due: "오늘", done: false, list: "운동" },
+      { id: id(), text: "물 3L", note: "", due: "오늘", done: true, list: "운동" },
+      { id: id(), text: "번호 교체", note: "공기계 개통", due: "내일", done: false, list: "할 일" },
+      { id: id(), text: "차 정기 점검", note: "", due: "10. 30.", done: false, list: "할 일" },
+      { id: id(), text: "장갑 주문", note: "", due: "", done: true, list: "할 일" },
+    ],
+    wallet: [
+      { id: id(), name: "체크카드", sub: "입출금 통장 연결", number: "•••• 4821", color: "#1C1C1E" },
+      { id: id(), name: "교통카드", sub: "잔액 12,400원", number: "후불 교통", color: "#2E7D32" },
+      { id: id(), name: "OO피트니스 회원권", sub: "24시간 · 남은 기간 30일", number: "회원번호 0417", color: "#B71C1C" },
+    ],
+    youtube: {
+      feed: [
+        { id: id(), title: "무분할 하체 루틴 40분 같이 해요", channel: "OO 피트니스", views: "조회수 32만회", when: "3일 전", duration: "41:08", hue: 10, photo: "", progress: 0 },
+        { id: id(), title: "중고차 살 때 이것만 보세요 (사고 이력 확인법)", channel: "정비소 일상", views: "조회수 118만회", when: "1개월 전", duration: "14:22", hue: 210, photo: "", progress: 0 },
+        { id: id(), title: "새벽 6시 러닝 브이로그", channel: "러닝하는 사람", views: "조회수 4.1만회", when: "1주 전", duration: "9:51", hue: 150, photo: "", progress: 0 },
+      ],
+      history: [
+        { id: id(), title: "데드리프트 허리 안 다치는 자세", channel: "OO 피트니스", views: "조회수 210만회", when: "2년 전", duration: "11:40", hue: 25, photo: "", progress: 1 },
+        { id: id(), title: "닭가슴살 질리지 않게 먹는 법", channel: "벌크업 식단", views: "조회수 56만회", when: "8개월 전", duration: "8:03", hue: 40, photo: "", progress: 0.6 },
+        { id: id(), title: "오늘 밤 비 소식 · 날씨", channel: "뉴스 OO", views: "조회수 1.2만회", when: "5시간 전", duration: "2:10", hue: 200, photo: "", progress: 1 },
+      ],
+      searches: ["하체 루틴", "중고차 사고 이력", "공기계 개통"],
+    },
+    netflix: {
+      profile: "T",
+      watching: [
+        { id: id(), title: "피지컬: 100", ep: "시즌 2: 5화", progress: 0.4, hue: 0, photo: "" },
+        { id: id(), title: "수리남", ep: "4화", progress: 0.75, hue: 30, photo: "" },
+      ],
+      myList: [
+        { id: id(), title: "오징어 게임", ep: "", progress: 0, hue: 330, photo: "" },
+        { id: id(), title: "D.P.", ep: "", progress: 0, hue: 120, photo: "" },
+      ],
+    },
+    // X: 아이디는 랜덤 (신상 안 드러나게)
+    x: {
+      name: "ㅇ",
+      handle: "_q83n_x",
+      feed: [
+        { id: id(), name: "새벽러너", handle: "@run_0507k", text: "새벽 5시에 헬스장 가면 진짜 아무도 없음. 기구 전세 냄", when: "2시간", replies: 3, reposts: 1, likes: 48, photo: "" },
+        { id: id(), name: "오늘의 날씨", handle: "@wx_bot_kr", text: "오늘 밤부터 비. 내일 아침까지 이어질 예정.", when: "5시간", replies: 0, reposts: 12, likes: 31, photo: "" },
+        { id: id(), name: "중고차 팁", handle: "@car_tip_93", text: "침수차 거르는 법: 안전벨트 끝까지 당겨서 진흙 자국 확인", when: "1일", replies: 22, reposts: 340, likes: 1204, photo: "" },
+      ],
+    },
+    coupang: [
+      { id: id(), name: "검정 가죽 장갑 (손목 밴드형)", option: "L / 블랙 · 1개", price: "18,900원", when: "2026. 10. 23", status: "배송완료", photo: "" },
+      { id: id(), name: "생수 2L × 12병", option: "1개", price: "8,640원", when: "2026. 10. 23", status: "배송완료", photo: "" },
+      { id: id(), name: "분리유청 단백질 2kg 초코", option: "1개", price: "54,900원", when: "2026. 10. 15", status: "배송완료", photo: "" },
+    ],
+    baemin: [
+      { id: id(), store: "OO포케 본점", menu: "연어 포케 (밥 반, 소스 따로) 외 1개", price: "18,900원", when: "10. 24 (금)", status: "배달완료", photo: "" },
+      { id: id(), store: "닭가슴살 도시락 전문점", menu: "훈제 닭가슴살 도시락 × 3", price: "23,700원", when: "10. 21 (화)", status: "배달완료", photo: "" },
+    ],
+    kakaot: [
+      { id: id(), kind: "택시 · 일반호출", from: "OO역", to: "OO동 주차장", when: "10. 24 (금) 오전 3:12", price: "14,300원" },
+      { id: id(), kind: "택시 · 일반호출", from: "OO동", to: "OO항 여객터미널", when: "10. 18 (토) 오전 5:40", price: "31,800원" },
+    ],
+    homeVer: 2,
     songs: [
       { id: id(), title: "Nights", artist: "Frank Ocean", album: "Blonde", url: "", hue: 18 },
       { id: id(), title: "Redbone", artist: "Childish Gambino", album: "\"Awaken, My Love!\"", url: "", hue: 340 },
@@ -795,5 +864,14 @@ export function blankData(): PhoneData {
   d.triggers = [];
   d.jobs = [];
   d.voiceMemos = [];
+  d.mail = [];
+  d.reminders = [];
+  d.wallet = [];
+  d.youtube = { feed: [], history: [], searches: [] };
+  d.netflix = { profile: "", watching: [], myList: [] };
+  d.x = { name: "", handle: "", feed: [] };
+  d.coupang = [];
+  d.baemin = [];
+  d.kakaot = [];
   return d;
 }
