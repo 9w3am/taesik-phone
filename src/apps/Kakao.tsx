@@ -4,7 +4,7 @@ import { Megaphone, ChevronDown, ChevronRight, Info, Search, MessageCirclePlus, 
 import { useData, won, type Thread, type Msg } from "../store";
 import { photoSrc } from "../photos";
 import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
-import { markRead, preview, useAutoBottom, useComposer, QuickBar, addWord } from "./Messages";
+import { markRead, preview, useAutoBottom, useComposer, useFresh } from "./Messages";
 
 const BADGE = "#FA5338";
 const EXPLORE = [
@@ -44,6 +44,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
   const d = useData();
   const c = useComposer(t);
   const ref = useAutoBottom(t.messages.length);
+  const fresh = useFresh(t.messages);
   const lastIdx = t.messages.length - 1;
   // 내가 보낸 마지막 말풍선 옆 노란 1 → 몇 초 뒤 상대가 읽으면 사라짐
   const [readGone, setReadGone] = useState(false);
@@ -124,13 +125,13 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
             );
           if (mine)
             return (
-              <div key={m.id} className="flex justify-end items-end gap-[5px] pr-[4px]" style={{ marginTop: first ? 10 : 4 }}>
+              <div key={m.id} className={`flex justify-end items-end gap-[5px] pr-[4px] ${fresh(m.id) ? "bubble-in" : ""}`} style={{ marginTop: first ? 10 : 4, transformOrigin: "100% 100%" }}>
                 {i === lastIdx && !readGone && t.name !== "나와의 채팅" && <span className="text-[11px] font-bold text-[#FEE500] mb-[2px]" style={{ textShadow: "0 0 1px rgba(0,0,0,0.15)" }}>1</span>}
                 <div className="max-w-[72%]">{body}</div>
               </div>
             );
           return (
-            <div key={m.id} className="flex gap-[8px] pl-[2px]" style={{ marginTop: first ? 12 : 4 }}>
+            <div key={m.id} className={`flex gap-[8px] pl-[2px] ${fresh(m.id) ? "bubble-in" : ""}`} style={{ marginTop: first ? 12 : 4, transformOrigin: "0 100%" }}>
               <div className="w-[40px] shrink-0">{first && <KakaoAvatar size={40} seed={m.who || t.name} />}</div>
               <div className="max-w-[70%] min-w-0">
                 {first && <div className="text-[12px] text-black/70 mb-[5px] ml-[2px]">{m.who || t.name}</div>}
@@ -140,7 +141,6 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           );
         })}
       </div>
-      {focus && c.editable && <QuickBar onPick={(w) => c.setText(addWord(c.text, w))} />}
       <div className="bg-white flex items-end gap-[6px] px-[8px] pt-[7px]" style={{ paddingBottom: "calc(var(--kbsab) + 2px)" }}>
         <span className="w-[34px] h-[34px] flex items-center justify-center text-[#555] shrink-0">
           <Plus size={26} strokeWidth={1.6} />

@@ -1,5 +1,5 @@
 /* iOS 사진 — 보관함 그리드 · 앨범 · 확대 보기 */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, Heart, Info, Trash2, Lock, Share, Image as ImageIcon, Images, Search, Sparkles, ChevronRight } from "lucide-react";
 import { useData, update } from "../store";
 import { photoSrc } from "../photos";
@@ -12,19 +12,71 @@ function Viewer({ start, ids, onClose }: { start: number; ids: string[]; onClose
   const [chrome, setChrome] = useState(true);
   const p = d.photos.find((x) => x.id === ids[i]);
   const dark = !chrome;
+  // 손가락으로 넘기기 (옆으로) · 아래로 내려 닫기
+  const [dx, setDx] = useState(0);
+  const [dy, setDy] = useState(0);
+  const g = useRef<{ x: number; y: number; axis: "" | "x" | "y"; k: number } | null>(null);
+  const down = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    g.current = { x: e.clientX, y: e.clientY, axis: "", k: r.width ? 393 / r.width : 1 };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* 이미 끝난 터치 */
+    }
+  };
+  const move = (e: React.PointerEvent) => {
+    const st = g.current;
+    if (!st) return;
+    const mx = (e.clientX - st.x) * st.k;
+    const my = (e.clientY - st.y) * st.k;
+    if (!st.axis && Math.hypot(mx, my) > 8) st.axis = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+    if (st.axis === "x") setDx((i === 0 && mx > 0) || (i === ids.length - 1 && mx < 0) ? mx / 3 : mx);
+    if (st.axis === "y") setDy(Math.max(0, my));
+  };
+  const up = () => {
+    const st = g.current;
+    g.current = null;
+    if (!st) return;
+    if (!st.axis) setChrome((c) => !c);
+    if (st.axis === "x") {
+      if (dx < -60 && i < ids.length - 1) setI(i + 1);
+      else if (dx > 60 && i > 0) setI(i - 1);
+    }
+    if (st.axis === "y" && dy > 110) return onClose();
+    setDx(0);
+    setDy(0);
+  };
+  const dragging = !!g.current?.axis;
   useEffect(() => {
     setStatusDark(!dark);
     return () => setStatusDark(true);
   }, [dark, setStatusDark]);
   if (!p) return null;
   return (
-    <div className="absolute inset-0 z-30 fade" style={{ background: dark ? "#000" : "#fff" }}>
-      <div className="absolute inset-0 flex items-center justify-center" onClick={() => setChrome(!chrome)}>
-        <Img src={photoSrc(p.id, d.photos)} className="w-full max-h-full" style={{ objectFit: "contain", aspectRatio: "3/4" }} />
+    <div className="absolute inset-0 z-30 photo-in">
+      <div className="absolute inset-0" style={{ background: dark ? "#000" : "#fff", opacity: 1 - Math.min(0.85, dy / 320), transition: dragging ? "none" : "opacity .3s" }} />
+      <div className="absolute inset-0 overflow-hidden touch-none" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+        <div className="flex h-full" style={{ transform: `translateX(calc(${-i * 100}% + ${dx}px))`, transition: dragging ? "none" : "transform .34s cubic-bezier(.25,.9,.3,1)" }}>
+          {ids.map((id, k) => (
+            <div key={id} className="w-full h-full shrink-0 flex items-center justify-center" style={{ paddingLeft: 6, paddingRight: 6 }}>
+              {Math.abs(k - i) <= 1 && (
+                <Img
+                  src={photoSrc(id, d.photos)}
+                  className="w-full max-h-full"
+                  style={{
+                    objectFit: "contain",
+                    aspectRatio: "3/4",
+                    transform: k === i && dy ? `translateY(${dy}px) scale(${1 - Math.min(0.35, dy / 900)})` : "none",
+                    transition: dragging ? "none" : "transform .3s cubic-bezier(.25,.9,.3,1)",
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-      <button className="absolute left-0 top-[120px] bottom-[120px] w-[30%]" onClick={() => setI(Math.max(0, i - 1))} aria-label="이전" />
-      <button className="absolute right-0 top-[120px] bottom-[120px] w-[30%]" onClick={() => setI(Math.min(ids.length - 1, i + 1))} aria-label="다음" />
-      {chrome && (
+      {chrome && dy < 20 && (
         <>
           <div className="absolute top-0 left-0 right-0 blur-bar flex items-center px-2" style={{ paddingTop: "var(--sat)", background: "rgba(255,255,255,0.88)" }}>
             <button data-back onClick={onClose} className="h-[44px] flex items-center text-[#007AFF]">

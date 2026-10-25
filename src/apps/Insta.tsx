@@ -131,7 +131,7 @@ function StoryViewer({ start, onClose }: { start: number; onClose: () => void })
         onPointerDown={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           press.current = { x: e.clientX, y: e.clientY, at: Date.now(), w: r.width, left: r.left };
-          e.currentTarget.setPointerCapture(e.pointerId);
+          try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 이미 끝난 터치 */ }
           holdTimer.current = window.setTimeout(() => setHold(true), 180);
         }}
         onPointerMove={(e) => {

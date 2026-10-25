@@ -80,7 +80,7 @@ function Island({ playing, calling }: { playing: Song | null; calling: boolean }
     <div className="absolute top-[11px] left-1/2 -translate-x-1/2 z-[70] bg-black rounded-full flex items-center justify-between px-[7px] transition-all duration-500" style={{ width: wide ? 200 : 125, height: 37 }}>
       {wide && playing && !calling && (
         <>
-          <div className="w-[22px] h-[22px] rounded-[6px]" style={{ background: `linear-gradient(135deg,hsl(${playing.hue} 60% 55%),hsl(${playing.hue + 40} 50% 25%))` }} />
+          {playing.cover?.startsWith("data:image/") ? <img src={playing.cover} alt="" className="w-[22px] h-[22px] rounded-[6px] object-cover" /> : <div className="w-[22px] h-[22px] rounded-[6px]" style={{ background: `linear-gradient(135deg,hsl(${playing.hue} 60% 55%),hsl(${playing.hue + 40} 50% 25%))` }} />}
           <div className="flex items-end gap-[2px] h-[14px] mr-2">
             {[0, 1, 2, 3].map((i) => (
               <span key={i} className="w-[3px] h-full rounded-full origin-bottom" style={{ background: `hsl(${playing.hue} 70% 65%)`, animation: `eq ${0.7 + i * 0.15}s ease-in-out ${i * 0.1}s infinite` }} />
@@ -344,7 +344,7 @@ function Passcode({ code, hint, name, onOk, onCancel, decoy, onDecoy }: { code: 
 
 /* ───────── 홈 화면 ───────── */
 type HomeItem = string;
-const GRID: HomeItem[] = ["kakao", "insta", "photos", "calendar", "notes", "bank", "maps", "weather", "camera", "settings", "cashwalk", "health", "jobs", "folder:유틸리티"];
+const GRID: HomeItem[] = ["kakao", "photos", "calendar", "notes", "bank", "maps", "weather", "camera", "settings", "cashwalk", "health", "folder:유틸리티"];
 /** 홈 화면 폴더 (실제 아이폰처럼 작은 아이콘 묶음) */
 const FOLDERS: Record<string, string[]> = { 유틸리티: ["contacts", "clock", "calculator", "voicememos"] };
 const DOCK: HomeItem[] = ["phone", "messages", "safari", "music"];
@@ -657,6 +657,7 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   const [call, setCall] = useState<CallState>(null);
   const [banner, setBanner] = useState<Banner>(null);
   const [alert, setAlert] = useState<null | "battery">(null);
+  const [watch, setWatch] = useState(false);
   const [lowPower, setLowPower] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [playing, setPlaying] = useState<Song | null>(null);
@@ -665,6 +666,11 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   const [bright, setBright] = useState(1);
   const [torch, setTorch] = useState(false);
   const appRoot = useRef<HTMLDivElement>(null);
+  const screenRef = useRef<HTMLDivElement>(null);
+  const lastTap = useRef({ x: 0, y: 0, at: 0 });
+  const [fly, setFly] = useState({ tx: 0, ty: 0 }); // 앱이 튀어나온 아이콘 위치 (화면 가운데 기준)
+  const [closing, setClosing] = useState(false);
+  const closeT = useRef(0);
   const top = useRef<{ x: number; y: number; w: number; moved: boolean; t?: number } | null>(null);
   const edge = useRef<{ x: number; y: number } | null>(null);
   const [mobile, setMobile] = useState(false);
@@ -789,6 +795,11 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   const [switcher, setSwitcher] = useState(false);
   const bar = useRef<{ y: number } | null>(null);
   const open = useCallback((id: string, arg?: unknown) => {
+    // 방금 누른 아이콘 자리에서 앱이 커지며 열림 (실제 아이폰처럼)
+    const t = lastTap.current;
+    setFly(Date.now() - t.at < 600 ? { tx: t.x - 196.5, ty: t.y - 426 } : { tx: 0, ty: 0 });
+    clearTimeout(closeT.current);
+    setClosing(false);
     setAppArg(arg ?? null);
     setApp(id);
     setAppKey((k) => k + 1);
@@ -797,8 +808,14 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
     setSwitcher(false);
   }, []);
   const home = useCallback(() => {
-    setApp(null);
+    // 앱이 아이콘 자리로 작아지며 닫힘
     setStatusDark(false);
+    setClosing(true);
+    clearTimeout(closeT.current);
+    closeT.current = window.setTimeout(() => {
+      setApp(null);
+      setClosing(false);
+    }, 320);
   }, []);
   const toast = useCallback((t: string) => {
     setToastMsg(t);
@@ -832,6 +849,20 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
           setCall((c) => c ?? { name: ev.incomingCall.name, lines: ev.incomingCall.lines, mode: "in", ringing: true });
         }, ev.incomingCall.afterSec * 1000),
       );
+    // '누가 폰을 보고 있다': 한 번만, 알림 없이 — Face ID가 얼굴을 못 알아보고 잠김
+    if (ev.watcher?.enabled && !fired.current.has("watch"))
+      ts.push(
+        window.setTimeout(() => {
+          fired.current.add("watch");
+          setWatch(true);
+          setTimeout(() => {
+            setWatch(false);
+            setApp(null);
+            setCall(null);
+            setPhase("lock");
+          }, 2300);
+        }, ev.watcher.afterSec * 1000),
+      );
     if (ev.lowBattery.enabled && !fired.current.has("bat"))
       ts.push(
         window.setTimeout(() => {
@@ -852,7 +883,17 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   const indicatorDark = phase === "home" && !!app && statusDark && !call;
 
   const screen = (
-    <div className="screen" style={{ ["--kb" as string]: `${kb}px` } as React.CSSProperties}>
+    <div
+      ref={screenRef}
+      className="screen"
+      style={{ ["--kb" as string]: `${kb}px` } as React.CSSProperties}
+      onPointerDownCapture={(e) => {
+        const r = screenRef.current?.getBoundingClientRect();
+        if (!r || !r.width) return;
+        const k = 393 / r.width;
+        lastTap.current = { x: (e.clientX - r.left) * k, y: (e.clientY - r.top) * k, at: Date.now() };
+      }}
+    >
       <Ctx.Provider value={ctx}>
         {phase === "lock" && (
           <LockScreen
@@ -895,9 +936,19 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
         )}
         {phase === "home" && (
           <>
-            <Home d={d} open={open} />
+            {/* 앱이 열려 있으면 홈 화면은 살짝 뒤로 물러나 있다가, 닫히면 다시 다가옴 */}
+            <div className="absolute inset-0 home-in">
+              <div className="absolute inset-0" style={{ transform: AppComp && !closing ? "scale(0.9)" : "scale(1)", opacity: AppComp && !closing ? 0.6 : 1, transition: "transform .42s cubic-bezier(.2,.9,.25,1), opacity .42s" }}>
+                <Home d={d} open={open} />
+              </div>
+            </div>
             {AppComp && (
-              <div ref={appRoot} key={appKey} className="absolute inset-0 z-10 app-open overflow-hidden" style={{ background: APPS[app!]?.light ? "#fff" : "#000" }}>
+              <div
+                ref={appRoot}
+                key={appKey}
+                className={`absolute inset-0 z-10 overflow-hidden ${closing ? "app-close pointer-events-none" : "app-open"}`}
+                style={{ background: APPS[app!]?.light ? "#fff" : "#000", ["--tx" as string]: `${fly.tx}px`, ["--ty" as string]: `${fly.ty}px` } as React.CSSProperties}
+              >
                 <AppComp />
               </div>
             )}
@@ -1002,7 +1053,7 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
               const r = e.currentTarget.getBoundingClientRect();
               const x = (e.clientX - r.left) / r.width;
               top.current = { x, y: e.clientY, w: r.width, moved: false, t: x < 0.38 ? window.setTimeout(goEditor, 1600) : undefined };
-              e.currentTarget.setPointerCapture(e.pointerId);
+              try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 이미 끝난 터치 */ }
             }}
             onPointerMove={(e) => {
               const g = top.current;
@@ -1031,7 +1082,7 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
             className="absolute left-0 top-[46px] bottom-[30px] w-[12px] z-[66] touch-none"
             onPointerDown={(e) => {
               edge.current = { x: e.clientX, y: e.clientY };
-              e.currentTarget.setPointerCapture(e.pointerId);
+              try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 이미 끝난 터치 */ }
             }}
             onPointerUp={(e) => {
               const g = edge.current;
@@ -1052,6 +1103,16 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
               else home();
             }}
           />
+        )}
+
+        {/* Face ID가 얼굴을 못 알아봄 → 잠김 */}
+        {watch && (
+          <div className="absolute inset-0 z-[96] flex flex-col items-center justify-center fade" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
+            <div className="shake">
+              <FaceIdGlyph size={64} />
+            </div>
+            <div className="text-white text-[16px] mt-[16px] font-medium">얼굴을 인식할 수 없음</div>
+          </div>
         )}
 
         {/* 자동 잠금 */}
@@ -1106,14 +1167,36 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
             aria-label="홈으로 · 위로 밀면 앱 전환기"
             onPointerDown={(e) => {
               bar.current = { y: e.clientY };
-              e.currentTarget.setPointerCapture(e.pointerId);
+              try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 이미 끝난 터치 */ }
+            }}
+            onPointerMove={(e) => {
+              const g = bar.current;
+              const el = appRoot.current;
+              if (!g || !el || !app || closing) return;
+              const r = screenRef.current?.getBoundingClientRect();
+              const dy = Math.max(0, (g.y - e.clientY) * (r?.width ? 393 / r.width : 1));
+              el.style.animation = "none";
+              el.style.transform = `translateY(${-dy * 0.45}px) scale(${Math.max(0.42, 1 - dy / 650)})`;
+              el.style.borderRadius = `${Math.min(46, dy / 2)}px`;
             }}
             onPointerUp={(e) => {
               const g = bar.current;
               bar.current = null;
-              if (!g || call) return;
-              if (g.y - e.clientY > 50 && recents.length) setSwitcher(true);
-              else if (app) home();
+              const el = appRoot.current;
+              const reset = () => el && Object.assign(el.style, { animation: "", transform: "", borderRadius: "" });
+              if (!g || call) return reset();
+              const r = screenRef.current?.getBoundingClientRect();
+              const dy = (g.y - e.clientY) * (r?.width ? 393 / r.width : 1);
+              if (app) {
+                if (dy > 230 && recents.length) {
+                  reset();
+                  setSwitcher(true);
+                } else {
+                  // 지금 작아진 모습에서 이어서 아이콘으로 쏙 들어감
+                  if (el) el.style.animation = "";
+                  home();
+                }
+              } else if (dy > 50 && recents.length) setSwitcher(true);
               else if (switcher) setSwitcher(false);
             }}
             className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[85] w-[180px] h-[30px] flex items-end justify-center pb-[8px] touch-none"
@@ -1138,7 +1221,10 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
     return (
       <div className="mobile">
         <div className="stage" style={{ transform: vvTop ? `translateY(${vvTop}px)` : undefined }}>
-          <div style={{ width: 393, height: 852, transform: `scale(${mScale})`, transformOrigin: "center center", flexShrink: 0 }}>{screen}</div>
+          {/* 줄어든 크기 그대로 자리를 잡아야 화면 가운데에 딱 맞음 (393보다 좁은 폰에서 옆·아래 잘림 방지) */}
+          <div style={{ width: 393 * mScale, height: 852 * mScale, position: "relative", flexShrink: 0 }}>
+            <div style={{ position: "absolute", left: 0, top: 0, width: 393, height: 852, transform: `scale(${mScale})`, transformOrigin: "top left" }}>{screen}</div>
+          </div>
         </div>
       </div>
     );

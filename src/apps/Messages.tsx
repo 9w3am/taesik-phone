@@ -49,6 +49,13 @@ export function QuickBar({ onPick }: { onPick: (w: string) => void }) {
 }
 export const addWord = (prev: string, w: string) => (prev && !/\s$/.test(prev) ? prev + " " : prev) + w + " ";
 
+/** 방에 들어온 뒤 새로 생긴 말풍선인지 (새 말풍선만 톡 올라오는 애니메이션) */
+export function useFresh(list: { id: string }[]) {
+  const seen = useRef<Set<string> | null>(null);
+  if (!seen.current) seen.current = new Set(list.map((m) => m.id));
+  return (id: string) => !seen.current!.has(id);
+}
+
 export function useAutoBottom(dep: unknown) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -118,26 +125,8 @@ function Bubble({ m, tail, sms, onHold }: { m: Msg; tail: boolean; sms?: boolean
 function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => void; unreadOthers: number }) {
   const c = useComposer(t);
   const scrollRef = useAutoBottom(t.messages.length);
+  const fresh = useFresh(t.messages);
   const lastMine = [...t.messages].map((m, i) => [m, i] as const).filter(([m]) => m.from === "me").pop()?.[1];
-  // 다 읽으면 몇 초 뒤 상대가 하나씩 전송 취소 (아이메시지 '전송 취소' 고증)
-  useEffect(() => {
-    if (!t.unsendAfterRead) return;
-    const ids = t.messages.filter((m) => m.from === "them").map((m) => m.id);
-    if (!ids.length) return;
-    const timers = ids.map((mid, k) =>
-      window.setTimeout(() => {
-        update((x) => {
-          const th = x.threads.find((y) => y.id === t.id);
-          const m = th?.messages.find((y) => y.id === mid);
-          if (m) {
-            m.from = "system";
-            m.text = `${t.name}님이 메시지 전송을 취소했습니다.`;
-          }
-        });
-      }, 7000 + k * 700),
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [t.id]); // eslint-disable-line
   const [menu, setMenu] = useState<string | null>(null);
   const [focus, setFocus] = useState(false);
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -189,7 +178,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
           const tail = !next || next.from !== m.from;
           const gap = prev && prev.from === m.from ? 2 : 10;
           return (
-            <div key={m.id} style={{ marginTop: gap }}>
+            <div key={m.id} className={fresh(m.id) ? "bubble-in" : ""} style={{ marginTop: gap, transformOrigin: m.from === "me" ? "100% 100%" : "0 100%" }}>
               <Bubble m={m} tail={tail} sms={t.sms} onHold={setMenu} />
               {i === lastMine && <div className="text-right text-[11px] text-[#8e8e93] font-medium mt-[3px] mr-1">읽음</div>}
             </div>
@@ -258,7 +247,6 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
       )}
       {copied && <div className="absolute left-1/2 -translate-x-1/2 top-[45%] z-50 px-[16px] py-[10px] rounded-[12px] bg-black/75 text-white text-[14px] fade">복사됨</div>}
       {/* 입력창 */}
-      {focus && c.editable && <QuickBar onPick={(w) => c.setText(addWord(c.text, w))} />}
       <div className="flex items-end gap-[8px] px-[10px] pt-[6px] bg-white" style={{ paddingBottom: "calc(var(--kbsab) + 4px)" }}>
         <span className="w-[34px] h-[34px] rounded-full bg-[#E9E9EB] flex items-center justify-center shrink-0 text-[#7c7c80]">
           <Plus size={22} strokeWidth={2.2} />

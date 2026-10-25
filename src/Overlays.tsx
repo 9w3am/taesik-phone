@@ -29,7 +29,7 @@ function Slider({ value, onChange, icon }: { value: number; onChange: (v: number
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => {
         const el = e.currentTarget;
-        el.setPointerCapture(e.pointerId);
+        try { el.setPointerCapture(e.pointerId); } catch { /* 이미 끝난 터치 */ }
         const set = (y: number) => {
           const r = el.getBoundingClientRect();
           onChange(Math.max(0.05, Math.min(1, 1 - (y - r.top) / r.height)));
@@ -164,7 +164,7 @@ export function ControlCenter({
 
 export function NotifCenter({ d, close, open }: { d: PhoneData; close: () => void; open: (id: string, arg?: unknown) => void }) {
   const now = useNow();
-  const unread = d.threads.filter((t) => t.unread > 0);
+  const unread = d.threads.filter((t) => t.unread > 0 && t.app !== "insta"); // 인스타는 지금 폰에서 숨김
   return (
     <div className="absolute inset-0 z-[92] sheet scroll" style={{ animationDuration: "0.32s" }} onClick={close}>
       <Wallpaper blur={24} dim={0.25} />

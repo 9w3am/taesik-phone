@@ -1,9 +1,11 @@
 /* 제작자용 편집 화면 (/editor 또는 #/editor) */
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
-import { useData, update, setData, resetData, sanitize, uid, DAYS, type PhoneData, type Msg, type Thread, type AppKind } from "./store";
+import { useData, update, setData, resetData, sanitize, uid, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song } from "./store";
 import { defaultData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
+import { fromLink, searchSong, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
+import { ytUrl } from "./apps/Music";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
 import Phone from "./Phone";
 import { RINGTONES, NOTIFY_SOUNDS, toggleSound, stopSound, onSoundChange } from "./sounds";
@@ -169,9 +171,6 @@ function Basic({ d }: { d: PhoneData }) {
           <F label="자동 잠금 (초 · 0이면 끔)">
             <N value={d.autoLockSec ?? 120} onChange={(v) => s((x) => void (x.autoLockSec = v))} />
           </F>
-          <F label="키보드 위 자동완성 단어 (쉼표로 구분, 3개)">
-            <T value={(d.quickWords ?? []).join(", ")} ph="확인, 평소 거기, 착수금" onChange={(v) => s((x) => void (x.quickWords = v.split(",").map((w) => w.trim()).slice(0, 3)))} />
-          </F>
           <F label="카카오톡 상태메시지">
             <T value={d.kakaoProfile.status} onChange={(v) => s((x) => void (x.kakaoProfile.status = v))} />
           </F>
@@ -314,6 +313,15 @@ function Events({ d }: { d: PhoneData }) {
           </F>
           <F label="내용">
             <T value={e.banner.text} onChange={(v) => update((x) => void (x.events.banner.text = v))} />
+          </F>
+        </div>
+      </Card>
+      <Card title="'누가 폰을 보고 있다' 연출 (한 번만)">
+        <p className="text-[13px] text-black/50 mb-3">오래 들여다보면 딱 한 번, Face ID가 "얼굴을 인식할 수 없음"을 띄우고 잠금화면으로 돌아갑니다. 알림은 안 뜹니다.</p>
+        <div className="grid grid-cols-3 gap-4 items-end">
+          <C label="사용" value={!!e.watcher?.enabled} onChange={(v) => update((x) => void (x.events.watcher = { afterSec: x.events.watcher?.afterSec ?? 300, enabled: v }))} />
+          <F label="몇 초 뒤">
+            <N value={e.watcher?.afterSec ?? 300} onChange={(v) => update((x) => void (x.events.watcher = { enabled: x.events.watcher?.enabled ?? true, afterSec: v }))} />
           </F>
         </div>
       </Card>
@@ -624,7 +632,6 @@ function Threads({ d }: { d: PhoneData }) {
             </div>
             <div className="flex flex-wrap gap-5 mb-4">
               {app === "messages" && <C label="고정" value={!!t.pinned} onChange={(v) => put({ pinned: v })} />}
-              {app === "messages" && <C label="다 읽으면 상대가 전송 취소" value={!!t.unsendAfterRead} onChange={(v) => put({ unsendAfterRead: v })} />}
               {app === "kakao" && <C label="알림 끔" value={!!t.muted} onChange={(v) => put({ muted: v })} />}
             </div>
             <MsgEditor t={t} />
@@ -777,41 +784,182 @@ function Cal({ d }: { d: PhoneData }) {
   );
 }
 
+/** 가사 싱크 맞추기: 노래를 틀면서 줄이 시작될 때마다 버튼(또는 스페이스바)을 누르면 시간이 찍힘 */
+function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string) => void; onClose: () => void }) {
+  const lines = parseLyrics(song.lyrics).map((l) => l.text);
+  const [times, setTimes] = useState<number[]>([]);
+  const [start, setStart] = useState<number | null>(null);
+  const [now, setNow] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (start === null) return;
+    const i = setInterval(() => setNow((performance.now() - start) / 1000), 50);
+    return () => clearInterval(i);
+  }, [start]);
+  const stamp = () => {
+    if (start === null) return setStart(performance.now());
+    setTimes((t) => (t.length < lines.length ? [...t, (performance.now() - start) / 1000] : t));
+  };
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        stamp();
+      }
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  });
+  useEffect(() => {
+    listRef.current?.querySelector("[data-cur]")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [times.length]);
+  const done = times.length >= lines.length;
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-[18px] w-full max-w-[520px] max-h-[90vh] flex flex-col p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="text-[18px] font-bold">가사 싱크 맞추기</div>
+        <ol className="text-[13px] text-black/55 mt-2 leading-[20px] list-decimal pl-5">
+          <li>
+            다른 창에서 노래를 틀 준비를 하세요.{" "}
+            <a href={ytUrl(song)} target="_blank" rel="noopener noreferrer" className="text-[#007AFF]">
+              노래 열기
+            </a>
+          </li>
+          <li>
+            노래 재생과 동시에 <b>시작</b>을 누르세요.
+          </li>
+          <li>
+            파란 줄을 부르기 시작할 때마다 <b>지금!</b>을 누르세요. (컴퓨터는 스페이스바)
+          </li>
+        </ol>
+        <div className="text-[28px] font-bold tabular text-center my-3">{fmtTime(now)}</div>
+        <div ref={listRef} className="flex-1 overflow-auto rounded-[12px] bg-black/[0.03] p-3 min-h-[160px]">
+          {lines.map((l, i) => (
+            <div key={i} {...(i === times.length ? { "data-cur": "" } : {})} className={`flex gap-3 py-[5px] text-[15px] ${i === times.length ? "text-[#007AFF] font-bold" : i < times.length ? "text-black" : "text-black/35"}`}>
+              <span className="tabular w-[64px] shrink-0 text-black/40 text-[13px] pt-[1px]">{times[i] !== undefined ? fmtTime(times[i]) : ""}</span>
+              <span>{l || "♪"}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Btn kind="primary" onClick={stamp} disabled={done}>
+            {start === null ? "시작" : "지금!"}
+          </Btn>
+          <Btn onClick={() => setTimes((t) => t.slice(0, -1))} disabled={!times.length}>
+            한 줄 되돌리기
+          </Btn>
+          <Btn
+            onClick={() => {
+              setTimes([]);
+              setStart(null);
+              setNow(0);
+            }}
+          >
+            처음부터
+          </Btn>
+          <span className="flex-1" />
+          <Btn onClick={onClose}>취소</Btn>
+          <Btn kind="primary" disabled={!times.length} onClick={() => onDone(lines.map((l, i) => (times[i] !== undefined ? `[${fmtTime(times[i])}] ${l}` : l)).join("\n"))}>
+            저장
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SongEd({ s, put }: { s: Song; put: (v: Partial<Song>) => void }) {
+  const [busy, setBusy] = useState("");
+  const [sync, setSync] = useState(false);
+  const fill = async (kind: "link" | "search") => {
+    setBusy(kind);
+    try {
+      const m = kind === "link" ? await fromLink(s.url) : await searchSong(s.title, s.artist);
+      const v: Partial<Song> = {};
+      // 제목으로 찾을 땐 이미 쓴 제목·가수는 그대로 (해외 스토어 결과가 영어 제목일 수 있음)
+      const keep = kind === "search";
+      if (m.title && !(keep && s.title)) v.title = m.title;
+      if (m.artist && !(keep && s.artist)) v.artist = m.artist;
+      if ((m.album || m.title) && !(keep && s.album)) v.album = m.album || m.title;
+      if (m.cover) v.cover = m.cover;
+      if (m.dur) v.dur = m.dur;
+      put(v);
+    } catch {
+      alert(kind === "link" ? "이 링크에서는 정보를 못 가져왔어요.\n유튜브 · 스포티파이 · 애플뮤직 곡 링크만 됩니다.\n(멜론 등은 '제목으로 표지 찾기'를 눌러 보세요)" : "못 찾았어요. 곡 제목과 가수 이름을 확인해 주세요.");
+    }
+    setBusy("");
+  };
+  const synced = parseLyrics(s.lyrics).some((l) => l.t !== null);
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <F label="링크 (유튜브 · 스포티파이 · 애플뮤직)" className="col-span-full">
+        <div className="flex gap-2">
+          <T value={s.url} ph="https://youtu.be/..." onChange={(v) => put({ url: v })} />
+          <Btn kind="primary" disabled={!s.url || !!busy} onClick={() => fill("link")}>
+            <span className="whitespace-nowrap">{busy === "link" ? "가져오는 중…" : "링크로 채우기"}</span>
+          </Btn>
+        </div>
+      </F>
+      <F label="곡">
+        <T value={s.title} onChange={(v) => put({ title: v })} />
+      </F>
+      <F label="아티스트">
+        <T value={s.artist} onChange={(v) => put({ artist: v })} />
+      </F>
+      <F label="앨범">
+        <T value={s.album} onChange={(v) => put({ album: v })} />
+      </F>
+      <F label="곡 길이 (예: 3:25)">
+        <input key={s.dur ?? 0} defaultValue={showDur(s.dur)} placeholder="자동" onBlur={(e) => put({ dur: parseDur(e.target.value) || undefined })} />
+      </F>
+      <F label="커버 색 (사진 없을 때)">
+        <N value={s.hue} onChange={(v) => put({ hue: v })} />
+      </F>
+      <div className="col-span-full flex flex-wrap items-center gap-3">
+        {s.cover ? <img src={s.cover} alt="" className="w-[48px] h-[48px] rounded-[8px] object-cover" /> : <span className="w-[48px] h-[48px] rounded-[8px]" style={{ background: `hsl(${s.hue} 35% 35%)` }} />}
+        <Btn disabled={!(s.title || s.artist) || !!busy} onClick={() => fill("search")}>
+          {busy === "search" ? "찾는 중…" : "제목으로 표지 찾기"}
+        </Btn>
+        <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
+          앨범 사진 올리기
+          <input type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) put({ cover: await shrinkImage(f, 500) }); e.target.value = ""; }} />
+        </label>
+        {s.cover && <Btn kind="danger" onClick={() => put({ cover: undefined })}>앨범 사진 지우기</Btn>}
+      </div>
+      <F label={`가사 ${synced ? "(싱크 맞춤 ✓)" : "(직접 붙여넣기)"}`} className="col-span-full">
+        <textarea rows={6} value={s.lyrics ?? ""} placeholder={"한 줄에 한 소절씩 붙여넣으세요.\n[00:12.50] 처럼 시간을 붙이면 노래에 맞춰 내려갑니다."} onChange={(e) => put({ lyrics: e.target.value })} />
+        <div className="flex flex-wrap gap-2 mt-2">
+          <Btn disabled={!s.lyrics?.trim()} onClick={() => setSync(true)}>
+            싱크 맞추기 (노래 들으며 누르기)
+          </Btn>
+          {synced && <Btn onClick={() => put({ lyrics: parseLyrics(s.lyrics).map((l) => l.text).join("\n") })}>싱크 지우기</Btn>}
+        </div>
+      </F>
+      {sync && (
+        <LyricSync
+          song={s}
+          onClose={() => setSync(false)}
+          onDone={(lrc) => {
+            put({ lyrics: lrc });
+            setSync(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 function Songs({ d }: { d: PhoneData }) {
   return (
     <Card title="음악">
-      <p className="text-[13px] text-black/50 mb-3">링크를 비우면 유튜브 검색 결과로 연결됩니다. 유튜브/스포티파이 곡 주소를 넣으면 그 곡으로 바로 갑니다.</p>
+      <p className="text-[13px] text-black/50 mb-3">
+        곡 링크를 넣고 <b>링크로 채우기</b>를 누르면 표지 · 제목 · 가수가 자동으로 들어갑니다. 가사는 직접 붙여넣고, <b>싱크 맞추기</b>로 노래에 맞춰 내려가게 할 수 있어요.
+      </p>
       <Rows
         items={d.songs}
         set={(v) => update((x) => void (x.songs = v))}
         make={() => ({ id: uid(), title: "", artist: "", album: "", url: "", hue: Math.floor(Math.random() * 360) })}
-        render={(s, put) => (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <F label="곡">
-              <T value={s.title} onChange={(v) => put({ title: v })} />
-            </F>
-            <F label="아티스트">
-              <T value={s.artist} onChange={(v) => put({ artist: v })} />
-            </F>
-            <F label="앨범">
-              <T value={s.album} onChange={(v) => put({ album: v })} />
-            </F>
-            <F label="링크 (선택)">
-              <T value={s.url} ph="https://youtu.be/..." onChange={(v) => put({ url: v })} />
-            </F>
-            <F label="커버 색 (0~360)">
-              <N value={s.hue} onChange={(v) => put({ hue: v })} />
-            </F>
-            <div className="col-span-full flex items-center gap-3">
-              {s.cover ? <img src={s.cover} alt="" className="w-[48px] h-[48px] rounded-[8px] object-cover" /> : <span className="w-[48px] h-[48px] rounded-[8px]" style={{ background: `hsl(${s.hue} 35% 35%)` }} />}
-              <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
-                앨범 사진 올리기
-                <input type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) put({ cover: await shrinkImage(f, 500) }); e.target.value = ""; }} />
-              </label>
-              {s.cover && <Btn kind="danger" onClick={() => put({ cover: undefined })}>앨범 사진 지우기</Btn>}
-            </div>
-          </div>
-        )}
+        render={(s, put) => <SongEd s={s} put={put} />}
       />
     </Card>
   );
@@ -1275,7 +1423,11 @@ const SECTION_APP: Record<string, string | undefined> = {
 };
 
 function PreviewPane({ onClose }: { onClose?: () => void }) {
-  const calc = () => Math.max(0.42, Math.min(0.8, (window.innerHeight - 140) / 892, (window.innerWidth * 0.44) / 433));
+  // 컴퓨터: 오른쪽 칸에 맞춤 / 휴대폰: 화면 폭에 맞춰 크게
+  const calc = () =>
+    window.innerWidth < 720
+      ? Math.min(0.9, (window.innerWidth - 56) / 433, (window.innerHeight - 170) / 892)
+      : Math.max(0.42, Math.min(0.8, (window.innerHeight - 140) / 892, (window.innerWidth * 0.44) / 433));
   const [s, setS] = useState(calc);
   useEffect(() => {
     const f = () => setS(calc());

@@ -10,7 +10,7 @@ import type { Msg, PhoneData } from "./store";
 */
 
 /** 기본 콘텐츠를 고치면 이 숫자를 올리세요 → 방문자 브라우저의 예전 저장본이 새 내용으로 바뀝니다 */
-export const DATA_VERSION = 20;
+export const DATA_VERSION = 23;
 
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
@@ -45,6 +45,7 @@ export function defaultData(): PhoneData {
       },
       banner: { enabled: false, afterSec: 30, app: "messages", title: "+82 10-****-4471", text: "아직 이 번호 쓰세요?" },
       lowBattery: { enabled: false, afterSec: 150 },
+      watcher: { enabled: true, afterSec: 300 },
     },
     lockNotifs: [
       { app: "messages", title: "W", text: "새 번호로 다시 연락함. 이 방은 오늘 닫는다.", when: "지금" },
@@ -82,7 +83,6 @@ export function defaultData(): PhoneData {
         unread: 1,
         pinned: true,
         last: "지금",
-        unsendAfterRead: true,
         messages: [
           day("10월 19일 일요일"),
           th("물건 정리 확인."),
@@ -287,7 +287,7 @@ export function defaultData(): PhoneData {
         app: "kakao",
         name: "박 실장",
         unread: 1,
-        last: "오후 9:12",
+        last: "어제",
         messages: [
           day("2026년 10월 24일 토요일"),
           th("태식아"),

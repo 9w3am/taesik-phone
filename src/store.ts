@@ -44,7 +44,7 @@ export type Contact = { id: string; name: string; phone: string; label: string; 
 export type Note = { id: string; folder: string; title: string; body: string; pinned?: boolean; lockCode?: string; when: string };
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
-export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number; cover?: string };
+export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number; cover?: string; /** 곡 길이(초) */ dur?: number; /** 가사. [00:12.34] 처럼 시간을 붙이면 노래에 맞춰 내려감 */ lyrics?: string };
 export type Photo = { id: string; kind?: string; asset?: string; src?: string; deleted?: boolean; vault?: boolean; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
 export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string; style?: "box" | "classic" };
@@ -87,6 +87,7 @@ export type PhoneData = {
     incomingCall: { enabled: boolean; afterSec: number; name: string; lines: string[] };
     banner: { enabled: boolean; afterSec: number; app: AppKind; title: string; text: string };
     lowBattery: { enabled: boolean; afterSec: number };
+    watcher?: { enabled: boolean; afterSec: number }; // 오래 보면 한 번: Face ID가 얼굴을 못 알아보고 잠김
   };
   lockNotifs: { app: AppKind | "phone" | "bank"; title: string; text: string; when: string }[];
   threads: Thread[];

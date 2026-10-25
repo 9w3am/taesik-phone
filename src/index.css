@@ -146,20 +146,79 @@ select {
 }
 
 /* ───── 애니메이션 ───── */
+/* 앱 열기: 누른 아이콘 자리(--tx, --ty)에서 커짐 / 닫기: 다시 그 자리로 작아짐 */
 @keyframes appOpen {
   from {
-    transform: scale(0.18);
+    transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.16);
     opacity: 0;
-    border-radius: 40px;
+    border-radius: 60px;
+  }
+  45% {
+    opacity: 1;
   }
   to {
-    transform: scale(1);
+    transform: none;
     opacity: 1;
     border-radius: 0;
   }
 }
 .app-open {
-  animation: appOpen 0.38s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  animation: appOpen 0.42s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+@keyframes appClose {
+  70% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.16);
+    opacity: 0;
+    border-radius: 60px;
+  }
+}
+.app-close {
+  animation: appClose 0.32s cubic-bezier(0.3, 0.6, 0.3, 1) both;
+}
+/* 잠금 풀리면 홈 화면 아이콘이 살짝 크게 있다가 제자리로 */
+@keyframes homeIn {
+  from {
+    transform: scale(1.12);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.home-in {
+  animation: homeIn 0.45s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+/* 새로 보낸·받은 말풍선이 아래에서 톡 올라옴 */
+@keyframes bubbleIn {
+  from {
+    transform: translateY(18px) scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.bubble-in {
+  animation: bubbleIn 0.32s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+/* 사진 열기: 살짝 작은 데서 커지며 */
+@keyframes photoIn {
+  from {
+    transform: scale(0.86);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.photo-in {
+  animation: photoIn 0.3s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 @keyframes slideIn {
   from {
