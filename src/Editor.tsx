@@ -6,6 +6,7 @@ import { defaultData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
 import Phone from "./Phone";
+import { RINGTONES, NOTIFY_SOUNDS, playOnce } from "./sounds";
 import { cloudEnabled, getSession, signIn, signOut, publish, SETUP_SQL, SB_URL } from "./cloud";
 
 /* ───────── 대화 스크립트 ↔ 메시지 ───────── */
@@ -159,15 +160,40 @@ function Basic({ d }: { d: PhoneData }) {
       </Card>
       <Card title="소리 (벨소리 · 알림음)">
         <p className="text-[13px] text-black/50 mb-3 leading-[20px]">
-          전화가 걸려올 때 반복 재생할 벨소리, 배너 알림이 뜰 때 한 번 재생할 알림음을 올리세요. (mp3/m4a/wav, 1MB 이하 권장 · 저장 공간 때문에)
+          ▶를 눌러 들어 보고 마음에 드는 걸 '선택'하세요. 벨소리는 전화가 걸려올 때 반복, 알림음은 배너 알림이 뜰 때 한 번 나옵니다.
           <br />
-          아이폰 정품 벨소리는 애플 저작권이라 넣지 않았습니다. 본인이 쓸 권리가 있는 소리나 무료 소리(CC0)만 쓰세요. 제어 센터의 종 모양 버튼이 무음 모드입니다.
+          기본 소리는 Mixkit 무료 효과음(무료 라이선스, 출처 표기 불필요)입니다. 아이폰 정품 벨소리는 애플 저작권이라 넣지 않았어요. 직접 파일을 올려도 됩니다. 제어 센터의 종 버튼이 무음 모드.
         </p>
+        {(["ringtone", "notify"] as const).map((k) => (
+          <div key={k + "-presets"} className="py-2 border-t border-black/5">
+            <div className="text-[14px] font-medium mb-2">{k === "ringtone" ? "벨소리 고르기" : "알림음 고르기"}</div>
+            <div className="flex flex-wrap gap-2">
+              {(k === "ringtone" ? RINGTONES : NOTIFY_SOUNDS).map(([id, label]) => {
+                const on = d.sounds?.[k] === `preset:${id}`;
+                return (
+                  <div key={id} className={`flex items-center rounded-[10px] border ${on ? "border-[#007AFF] bg-[#007AFF]/10" : "border-black/10 bg-white"}`}>
+                    <button onClick={() => playOnce(`preset:${id}`)} className="px-[10px] h-[34px] text-[14px]" title="들어보기">
+                      ▶ {label}
+                    </button>
+                    <button
+                      onClick={() => s((x) => void (x.sounds = { ...(x.sounds ?? {}), [k]: `preset:${id}` }))}
+                      className={`px-[10px] h-[34px] text-[13px] font-semibold border-l ${on ? "text-[#007AFF] border-[#007AFF]/30" : "text-black/50 border-black/10"}`}
+                    >
+                      {on ? "선택됨" : "선택"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
         {(["ringtone", "notify"] as const).map((k) => (
           <div key={k} className="flex flex-wrap items-center gap-2 py-2 border-t border-black/5">
             <span className="w-[80px] text-[14px] font-medium">{k === "ringtone" ? "벨소리" : "알림음"}</span>
-            <span className="text-[13px] text-black/50 flex-1 min-w-[120px]">{d.sounds?.[k] ? `등록됨 (${Math.round((d.sounds[k]!.length * 0.75) / 1024)}KB)` : "없음"}</span>
-            {d.sounds?.[k] && <Btn onClick={() => new Audio(d.sounds![k]!).play().catch(() => {})}>들어보기</Btn>}
+            <span className="text-[13px] text-black/50 flex-1 min-w-[120px]">
+              {d.sounds?.[k]?.startsWith("preset:") ? `기본 소리: ${[...RINGTONES, ...NOTIFY_SOUNDS].find(([id]) => `preset:${id}` === d.sounds?.[k])?.[1] ?? ""}` : d.sounds?.[k] ? `직접 올린 파일 (${Math.round((d.sounds[k]!.length * 0.75) / 1024)}KB)` : "없음"}
+            </span>
+            {d.sounds?.[k] && <Btn onClick={() => playOnce(d.sounds![k])}>들어보기</Btn>}
             <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
               파일 올리기
               <input
@@ -663,6 +689,9 @@ function Notes({ d }: { d: PhoneData }) {
         make={() => ({ id: uid(), folder: "메모", title: "", body: "새 메모\n", when: "방금" })}
         render={(n, put) => (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+            <F label="폴더 (예: 메모, 의뢰)">
+              <T value={n.folder} ph="메모" onChange={(v) => put({ folder: v || "메모" })} />
+            </F>
             <F label="시간 표기">
               <T value={n.when} onChange={(v) => put({ when: v })} />
             </F>
@@ -828,8 +857,8 @@ function BankEd({ d }: { d: PhoneData }) {
             <F label="금액 (출금은 -)">
               <N value={t.amount} onChange={(v) => put({ amount: v })} />
             </F>
-            <F label="메모">
-              <T value={t.memo} onChange={(v) => put({ memo: v })} />
+            <F label="송금 메모 (내역에 금액 아래 크게 보임)">
+              <T value={t.memo} ph="예: 화 풀고 전화 좀 받아줘" onChange={(v) => put({ memo: v })} />
             </F>
           </div>
         )}
@@ -1203,9 +1232,10 @@ const SECTION_APP: Record<string, string | undefined> = {
 };
 
 function PreviewPane({ onClose }: { onClose?: () => void }) {
-  const [s, setS] = useState(() => Math.min(0.8, (window.innerHeight - 150) / 892));
+  const calc = () => Math.max(0.42, Math.min(0.8, (window.innerHeight - 140) / 892, (window.innerWidth * 0.44) / 433));
+  const [s, setS] = useState(calc);
   useEffect(() => {
-    const f = () => setS(Math.min(0.8, (window.innerHeight - 150) / 892));
+    const f = () => setS(calc());
     window.addEventListener("resize", f);
     return () => window.removeEventListener("resize", f);
   }, []);
@@ -1230,7 +1260,8 @@ export default function Editor() {
   const d = useData();
   const [sec, setSec] = useState(() => sessionStorage.getItem("ed-sec") || "threads");
   const [showPrev, setShowPrev] = useState(false);
-  const [wide, setWide] = useState(() => window.innerWidth >= 1200);
+  const [wide, setWide] = useState(() => window.innerWidth >= 720);
+  const [roomy, setRoomy] = useState(() => window.innerWidth >= 1280);
   useEffect(() => {
     sessionStorage.setItem("ed-sec", sec);
     if (sec === "events") preview(undefined, undefined, "lock");
@@ -1240,7 +1271,7 @@ export default function Editor() {
   useEffect(() => {
     document.title = "편집 — 최태식의 iPhone";
     document.body.style.overflow = "auto";
-    const f = () => setWide(window.innerWidth >= 1200);
+    const f = () => (setWide(window.innerWidth >= 720), setRoomy(window.innerWidth >= 1280));
     window.addEventListener("resize", f);
     return () => {
       document.title = "최태식의 iPhone";
@@ -1270,8 +1301,8 @@ export default function Editor() {
           )}
         </div>
       </header>
-      <div className={`max-w-[1600px] mx-auto px-4 py-5 grid gap-5 ${wide ? "grid-cols-[190px_minmax(0,1fr)_auto]" : "md:grid-cols-[190px_minmax(0,1fr)]"}`}>
-        <nav className="md:sticky md:top-[76px] self-start flex md:flex-col gap-1 overflow-x-auto no-scrollbar">
+      <div className={`max-w-[1600px] mx-auto px-4 py-5 grid gap-5 ${wide ? (roomy ? "grid-cols-[190px_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]") : ""}`}>
+        <nav className={`self-start flex gap-1 overflow-x-auto no-scrollbar ${roomy ? "sticky top-[76px] flex-col" : "col-span-full -mb-2"}`}>
           {SECTIONS.map(([id, label]) => (
             <button key={id} onClick={() => setSec(id)} className={`text-left px-3 h-[36px] rounded-[9px] text-[14px] whitespace-nowrap ${sec === id ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06)] font-semibold" : "hover:bg-black/5 text-black/70"}`}>
               {label}

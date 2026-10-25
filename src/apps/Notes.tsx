@@ -210,18 +210,20 @@ function Row({ n, onClick, last }: { n: Note; onClick: () => void; last: boolean
 export default function Notes() {
   useStatusBar(true);
   const d = useData();
-  const [view, setView] = useState<"folders" | "list">("list");
+  const [view, setView] = useState<"folders" | "list">("folders");
+  const [folder, setFolder] = useState("메모");
+  const folders = Array.from(new Set(["메모", ...d.notes.map((n) => n.folder || "메모")]));
   const [openId, setOpenId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [ref, scrolled] = useScrolled<HTMLDivElement>();
-  const notes = d.notes.filter((n) => !q || (n.body + n.title).includes(q));
+  const notes = d.notes.filter((n) => (n.folder || "메모") === folder && (!q || (n.body + n.title).includes(q)));
   const pinned = notes.filter((n) => n.pinned);
   const rest = notes.filter((n) => !n.pinned);
   const cur = d.notes.find((n) => n.id === openId);
   const compose = () => {
     const id = uid();
     update((x) => {
-      x.notes.unshift({ id, folder: "메모", title: "", body: "", when: "방금" });
+      x.notes.unshift({ id, folder, title: "", body: "", when: "방금" });
     });
     setOpenId(id);
   };
@@ -247,13 +249,18 @@ export default function Notes() {
             <SearchField />
             <div className="px-[20px] pt-[14px] pb-[7px] text-[20px] font-bold">iCloud</div>
             <div className="mx-[16px] rounded-[12px] bg-white overflow-hidden">
-              {[
-                ["메모", d.notes.length],
-                ["최근 삭제된 항목", 3],
-              ].map(([l, c], i) => (
-                <button key={l} onClick={() => i === 0 && setView("list")} className="w-full flex items-center pl-[16px] text-left">
-                  {i === 0 ? <Folder size={24} color={TINT} strokeWidth={1.8} /> : <Trash2 size={23} color={TINT} strokeWidth={1.8} />}
-                  <div className={`flex-1 flex items-center ml-[12px] py-[12px] pr-[12px] ${i === 0 ? "hair-b" : ""}`}>
+              {[...folders.map((f) => [f, d.notes.filter((n) => (n.folder || "메모") === f).length] as const), ["최근 삭제된 항목", 0] as const].map(([l, c], i, arr) => (
+                <button
+                  key={l}
+                  onClick={() => {
+                    if (l === "최근 삭제된 항목") return;
+                    setFolder(l);
+                    setView("list");
+                  }}
+                  className="w-full flex items-center pl-[16px] text-left"
+                >
+                  {l !== "최근 삭제된 항목" ? <Folder size={24} color={TINT} strokeWidth={1.8} /> : <Trash2 size={23} color={TINT} strokeWidth={1.8} />}
+                  <div className={`flex-1 flex items-center ml-[12px] py-[12px] pr-[12px] ${i < arr.length - 1 ? "hair-b" : ""}`}>
                     <span className="flex-1 text-[17px]">{l}</span>
                     <span className="text-[17px] text-[#8e8e93] mr-[6px]">{c}</span>
                     <ChevronRight size={18} className="text-[#c4c4c6]" strokeWidth={2.4} />
@@ -271,16 +278,16 @@ export default function Notes() {
         </>
       ) : (
         <>
-          <NavBar title="메모" back="폴더" onBack={() => setView("folders")} scrolled={scrolled} tint={TINT} right={<MoreHorizontal size={24} strokeWidth={1.9} className="rounded-full border-[1.8px] p-[1px]" style={{ borderColor: TINT }} />} />
+          <NavBar title={folder} back="폴더" onBack={() => setView("folders")} scrolled={scrolled} tint={TINT} right={<MoreHorizontal size={24} strokeWidth={1.9} className="rounded-full border-[1.8px] p-[1px]" style={{ borderColor: TINT }} />} />
           <div ref={ref} className="absolute inset-0 scroll" style={{ paddingTop: "calc(var(--sat) + 44px)", paddingBottom: 100 }}>
-            <LargeTitle>메모</LargeTitle>
+            <LargeTitle>{folder}</LargeTitle>
             <SearchField value={q} onChange={setQ} />
             <Group title="고정됨" list={pinned} />
             <Group title="이전 30일" list={rest} />
           </div>
           <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-[20px] pt-[10px] blur-bar" style={{ paddingBottom: "var(--sab)", background: "rgba(242,242,247,0.9)" }}>
             <span className="w-[24px]" />
-            <span className="text-[11px] text-black/80">{d.notes.length}개의 메모</span>
+            <span className="text-[11px] text-black/80">{notes.length}개의 메모</span>
             <button onClick={compose} style={{ color: TINT }}>
               <SquarePen size={24} strokeWidth={1.8} />
             </button>

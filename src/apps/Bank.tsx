@@ -1,13 +1,14 @@
 /* 뱅킹 — 가상의 은행 앱 (토스 계열 UI 문법). 이름은 부분 마스킹 */
 import { useState } from "react";
-import { Bell, Menu, ChevronRight, ChevronLeft, Search, Settings2, Home, LayoutGrid, Gift, Coins, Wallet } from "lucide-react";
-import { useData, won } from "../store";
+import { Bell, Menu, ChevronRight, ChevronLeft, Search, Settings2, Home, LayoutGrid, Gift, Coins, Wallet, MoreHorizontal } from "lucide-react";
+import { useData, won, type PhoneData } from "../store";
 import { TabBar, useStatusBar } from "../ui";
 
 const BLUE = "#3182F6";
 
 function History({ onBack }: { onBack: () => void }) {
   const d = useData();
+  const [sel, setSel] = useState<(PhoneData["bank"]["txs"][number] & { after: number }) | null>(null);
   const b = d.bank;
   let bal = b.balance;
   const rows = b.txs.map((t) => {
@@ -51,28 +52,51 @@ function History({ onBack }: { onBack: () => void }) {
         </div>
         {groups.map(([when, list]) => (
           <div key={when}>
-            <div className="px-[24px] pt-[14px] pb-[6px] text-[13px] text-[#8B95A1]">{when}</div>
+            <div className="px-[24px] pt-[22px] pb-[4px] text-[15px] text-[#6B7684]">{when}</div>
             {list.map((t) => (
-              <div key={t.id} className="flex items-center gap-[14px] px-[24px] py-[11px]">
-                <span className="w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-bold shrink-0" style={{ background: t.amount > 0 ? "#E8F3FF" : "#F2F4F6", color: t.amount > 0 ? "#1B64DA" : "#6B7684" }}>
-                  {t.name.replace(/[^가-힣A-Za-z]/g, "")[0] ?? "·"}
+              <button key={t.id} onClick={() => setSel(t)} className="w-full flex items-center gap-[16px] px-[24px] py-[12px] text-left active:bg-black/[0.03]">
+                <span className="w-[46px] h-[46px] rounded-full flex items-center justify-center shrink-0" style={{ background: "#8B95A1" }}>
+                  <MoreHorizontal size={22} color="#fff" strokeWidth={2.6} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[16px] text-[#191F28] truncate">{t.name}</div>
-                  <div className="text-[13px] text-[#8B95A1]">{t.memo}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[16px] font-semibold tabular" style={{ color: t.amount > 0 ? "#1B64DA" : "#191F28" }}>
-                    {t.amount > 0 ? "" : "-"}
+                  <div className="text-[20px] font-bold tabular tracking-[-0.02em]" style={{ color: t.amount > 0 ? "#3182F6" : "#191F28" }}>
+                    {t.amount > 0 ? "+" : "-"}
                     {won(Math.abs(t.amount))}원
                   </div>
-                  <div className="text-[13px] text-[#8B95A1] tabular">{won(t.after)}원</div>
+                  <div className="text-[15px] text-[#4E5968] truncate mt-[1px]">{t.memo || t.name}</div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         ))}
       </div>
+      {sel && (
+        <div className="absolute inset-0 z-30 flex items-end fade" style={{ background: "rgba(0,0,0,0.35)" }} onClick={() => setSel(null)}>
+          <div className="w-full bg-white rounded-t-[22px] px-[24px] pt-[26px] sheet" style={{ paddingBottom: "calc(var(--sab) + 20px)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="text-[15px] text-[#6B7684]">{sel.name}</div>
+            <div className="text-[28px] font-bold tabular mt-[4px]" style={{ color: sel.amount > 0 ? "#3182F6" : "#191F28" }}>
+              {sel.amount > 0 ? "+" : "-"}
+              {won(Math.abs(sel.amount))}원
+            </div>
+            <div className="mt-[18px] space-y-[12px] text-[15px]">
+              {[
+                ["거래일", sel.when],
+                ["내 메모", sel.memo || "-"],
+                ["거래 후 잔액", `${won(sel.after)}원`],
+                ["거래 구분", sel.amount > 0 ? "입금" : "출금"],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between">
+                  <span className="text-[#8B95A1]">{k}</span>
+                  <span className="text-[#333D4B] text-right max-w-[60%]">{v}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setSel(null)} className="w-full h-[52px] rounded-[14px] mt-[22px] text-[16px] font-semibold text-white" style={{ background: "#3182F6" }}>
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

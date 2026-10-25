@@ -10,7 +10,7 @@ import type { Msg, PhoneData } from "./store";
 */
 
 /** 기본 콘텐츠를 고치면 이 숫자를 올리세요 → 방문자 브라우저의 예전 저장본이 새 내용으로 바뀝니다 */
-export const DATA_VERSION = 6;
+export const DATA_VERSION = 9;
 
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
@@ -24,8 +24,8 @@ export function defaultData(): PhoneData {
   n = 0;
   return {
     owner: "최태식",
-    deviceName: "iPhone",
-    passcode: "",
+    deviceName: "최태식의 iPhone",
+    passcode: "0000",
     passcodeHint: "",
     carrier: "SKT",
     battery: 23,
@@ -270,71 +270,6 @@ export function defaultData(): PhoneData {
         ],
       },
       {
-        id: "k_errand",
-        app: "kakao",
-        name: "급구 대행·심부름 (비번방)",
-        unread: 99,
-        members: 214,
-        muted: true,
-        last: "오후 9:40",
-        notice: "시세 후려치기 · 선입금 먹튀 · 신분 캐묻기 금지. 어기면 강퇴.",
-        messages: [
-          g("화물 K", "[구함] 오늘 야간 차량 대기 1명. 운전만. 일당 협의"),
-          g("익명의 프로도", "어디쪽이에요"),
-          g("화물 K", "갠톡"),
-          g("두부", "[구함] 짐 정리 2명 새벽 4시 / 입금 당일"),
-          g("ㅁㅁ", "새벽 4시 짐 정리는 짐 정리가 아니잖아요 ㅋㅋ"),
-          g("두부", "말 많으면 빼드림"),
-          g("방장", "@ㅁㅁ 경고 1회"),
-          g("영업용", "[구함] 받을 돈 대신 받아줄 분. 성과제"),
-          g("익명의 무지", "얼마짜린데요"),
-          g("영업용", "갠톡으로"),
-          { id: id(), from: "them", who: "익명의 네오", text: "", kind: "deleted" },
-          g("방장", "방금 지운 사람 경고"),
-          g("ㄱㄱ", "요즘 진짜 일 없네"),
-          g("화물 K", "마감"),
-        ],
-      },
-      {
-        id: "k_gear",
-        app: "kakao",
-        name: "장비 중고 직거래",
-        unread: 37,
-        members: 88,
-        muted: true,
-        last: "오후 7:03",
-        messages: [
-          g("장비충", "무전기 2대 세트 팝니다. 충전독 포함. 직거래만"),
-          g("곰", "얼마요"),
-          g("장비충", "갠톡"),
-          g("나그네", "방검 조끼 L 사이즈 구해요 얇은 걸로"),
-          g("흰둥이", "셔츠 안에 입는 거면 티 납니다 그냥 한 치수 크게 입으세요"),
-          g("나그네", "ㄳ"),
-          g("곰", "블박 2채널 신품급 있음. 메모리는 빼고 드림"),
-          g("장비충", "ㅋㅋ 메모리 왜 빼요"),
-          g("곰", "그건 묻지 마시고"),
-        ],
-      },
-      {
-        id: "k_acc",
-        app: "kakao",
-        name: "명의·통장 문의 (X)",
-        unread: 12,
-        members: 53,
-        muted: true,
-        last: "어제",
-        messages: [
-          sys("방장: 이 방에서 통장·명의 거래 얘기 하면 바로 강퇴함. 방 이름 보고 들어온 사람들 나가세요."),
-          { id: id(), from: "them", who: "익명의 콘", text: "", kind: "deleted" },
-          sys("방장님이 익명의 콘님을 내보냈습니다."),
-          g("익명의 라이언", "그럼 이 방은 뭐 하는 방이에요"),
-          g("방장", "잡담방"),
-          g("ㅇㅇ", "어제 이런 방 단속 들어갔다던데"),
-          g("익명의 라이언", "ㄷㄷ 나갑니다"),
-          sys("익명의 라이언님이 나갔습니다."),
-        ],
-      },
-      {
         id: "k_kim",
         app: "kakao",
         name: "김기사 (탁송)",
@@ -468,6 +403,36 @@ export function defaultData(): PhoneData {
       { id: id(), folder: "메모", title: "", when: "10. 15.", body: "수금\n\nㄱ — 완\nㅂ — 잔금 남음. 다음 주\nㅅ — 연락 두절. 다시 확인\n\n세탁 수수료 빼고 계산" },
       { id: id(), folder: "메모", title: "", when: "9. 28.", body: "번호 바꿀 때 알릴 사람\n박 실장, 쥐, 김기사, 오 원장\n끝" },
       { id: id(), folder: "메모", title: "", lockCode: "0000", when: "9. 03.", body: "비상시\n\n현금 — 늘 두던 데\n차 키 — 김기사한테 하나 더\n오 원장 뒷문\n\n번호 버리고 일주일 잠수" },
+      // ── '의뢰' 폴더: 일 들어오는 경로와 의뢰서 (전부 에디터에서 수정 가능) ──
+      {
+        id: id(),
+        folder: "의뢰",
+        title: "",
+        pinned: true,
+        when: "9. 01.",
+        body: "의뢰 받는 경로\n\n1. 박 실장 — 소개. 수수료 떼감. 얼굴 보고 받음\n2. W — 번호 매번 바뀜. 문자로 건만 옴. 자료는 평소 거기\n3. 그 외 — 소개 없는 번호는 안 받음\n\n순서\n[x] 접수 (코드: 날짜 4자리)\n[x] 착수금 반\n[x] 자료 받기\n[ ] 진행\n[ ] 보고\n[ ] 잔금\n[ ] 번호 정리",
+      },
+      {
+        id: id(),
+        folder: "의뢰",
+        title: "",
+        when: "어제",
+        body: "#0927\n\n경로: W\n내용: 소재 파악 (접촉 X)\n기한: 사흘\n보수: 평소의 두 배 · 착수금 반 입금 완료\n자료: 사진 두 장 (평소 거기)\n상태: 진행 중\n\n[x] 착수금 확인\n[x] 자료 회수\n[ ] 위치 확인\n[ ] W 보고",
+      },
+      {
+        id: id(),
+        folder: "의뢰",
+        title: "",
+        when: "10. 22.",
+        body: "#1103\n\n경로: 박 실장 소개\n내용: 차 옮기기 + 정리\n보수: 착수금 입금 완료 · 잔금 월말\n상태: 잔금 대기\n\n[x] 착수금\n[x] 진행\n[ ] 잔금",
+      },
+      {
+        id: id(),
+        folder: "의뢰",
+        title: "",
+        when: "10. 05.",
+        body: "#ㅂ (수금 대행)\n\n경로: 박 실장\n내용: 받을 돈 대신 받기\n조건: 받은 돈의 3할\n상태: 잔금 남음 · 금요일\n\n[x] 1차 수금\n[ ] 2차 수금",
+      },
     ],
 
     /* ───────── 캘린더 (요일 반복) ───────── */
@@ -492,10 +457,10 @@ export function defaultData(): PhoneData {
         { id: id(), when: "오늘", name: "OO셀프주유소", amount: -82000, memo: "체크카드" },
         { id: id(), when: "어제", name: "김*기", amount: -150000, memo: "카카오페이 송금" },
         { id: id(), when: "어제", name: "ATM 현금입금", amount: 900000, memo: "편의점" },
-        { id: id(), when: "10. 22.", name: "(주)한**상사", amount: 3000000, memo: "입금" },
+        { id: id(), when: "10. 22.", name: "(주)한**상사", amount: 3000000, memo: "1103 착수금" },
         { id: id(), when: "10. 22.", name: "ATM 현금입금", amount: 900000, memo: "편의점" },
         { id: id(), when: "10. 21.", name: "정*비", amount: -250000, memo: "카카오페이 송금" },
-        { id: id(), when: "10. 20.", name: "이*정", amount: 700000, memo: "입금" },
+        { id: id(), when: "10. 20.", name: "이*정", amount: 700000, memo: "0927 착수금" },
         { id: id(), when: "10. 18.", name: "ATM 출금", amount: -2000000, memo: "편의점" },
         { id: id(), when: "10. 17.", name: "SKT 통신요금", amount: -68500, memo: "자동이체" },
         { id: id(), when: "10. 15.", name: "차량 할부", amount: -412000, memo: "자동이체" },
@@ -503,7 +468,7 @@ export function defaultData(): PhoneData {
         { id: id(), when: "10. 13.", name: "주차장 정기권", amount: -120000, memo: "체크카드" },
         { id: id(), when: "10. 10.", name: "월세", amount: -650000, memo: "자동이체" },
         { id: id(), when: "10. 08.", name: "약국", amount: -14200, memo: "체크카드" },
-        { id: id(), when: "10. 05.", name: "박*수", amount: 1500000, memo: "입금" },
+        { id: id(), when: "10. 05.", name: "박*수", amount: 1500000, memo: "ㅂ 1차" },
       ],
     },
 
@@ -678,7 +643,7 @@ export function defaultData(): PhoneData {
       { id: id(), name: "정비", note: "", x: 0.48, y: 0.8 },
     ],
     kakaoProfile: { status: "" },
-    sounds: { muted: false },
+    sounds: { muted: false, ringtone: "preset:ring-marimba", notify: "preset:noti-pop" },
     triggers: [],
   };
 }

@@ -114,7 +114,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           if (mine)
             return (
               <div key={m.id} className="flex justify-end items-end gap-[5px] pr-[4px]" style={{ marginTop: first ? 10 : 4 }}>
-                {i === lastIdx && !readGone && <span className="text-[11px] font-bold text-[#FEE500] mb-[2px]" style={{ textShadow: "0 0 1px rgba(0,0,0,0.15)" }}>1</span>}
+                {i === lastIdx && !readGone && t.name !== "나와의 채팅" && <span className="text-[11px] font-bold text-[#FEE500] mb-[2px]" style={{ textShadow: "0 0 1px rgba(0,0,0,0.15)" }}>1</span>}
                 <div className="max-w-[72%]">{body}</div>
               </div>
             );
@@ -287,23 +287,18 @@ export default function Kakao() {
               ))}
             </div>
             {openSeg === "joined" &&
-              list
-                .filter((t) => t.members)
-                .map((t) => <ChatRow key={t.id} t={t} onClick={() => setOpenId(t.id)} />)}
+              (list.some((t) => t.members) ? (
+                list.filter((t) => t.members).map((t) => <ChatRow key={t.id} t={t} onClick={() => setOpenId(t.id)} />)
+              ) : (
+                <div className="flex flex-col items-center text-center pt-[140px] px-10">
+                  <div className="text-[16px] font-semibold">참여 중인 오픈채팅이 없어요</div>
+                  <div className="text-[13px] text-black/45 mt-[6px]">관심사가 같은 사람들과 대화해 보세요</div>
+                </div>
+              ))}
             {openSeg === "explore" && (
-              <>
-                <div className="px-[16px] pt-[4px] pb-[8px] text-[15px] font-bold">추천 오픈채팅</div>
-                {EXPLORE.map((r) => (
-                  <button key={r.name} onClick={() => setJoin(r.name)} className="w-full flex items-center gap-[12px] px-[16px] py-[8px] text-left active:bg-black/[0.04]">
-                    <KakaoAvatar size={48} group />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[15px] font-semibold truncate">{r.name}</div>
-                      <div className="text-[13px] text-black/45 truncate">{r.desc}</div>
-                      <div className="text-[12px] text-black/35 mt-[2px]">멤버 {r.members}명{r.lock ? " · 비밀번호" : ""}</div>
-                    </div>
-                  </button>
-                ))}
-              </>
+              <div className="flex flex-col items-center text-center pt-[140px] px-10">
+                <div className="text-[16px] font-semibold">검색어를 입력해 오픈채팅을 찾아보세요</div>
+              </div>
             )}
           </>
         )}

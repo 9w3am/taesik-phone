@@ -30,10 +30,11 @@ function Viewer({ start, ids, onClose }: { start: number; ids: string[]; onClose
             <button data-back onClick={onClose} className="h-[44px] flex items-center text-[#007AFF]">
               <ChevronLeft size={30} strokeWidth={2.3} />
             </button>
-            <div className="flex-1 text-center -ml-8">
-              <div className="text-[15px] font-semibold">{p.when}</div>
-              <div className="text-[11px] text-black/50">{p.caption || " "}</div>
+            <div className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none" style={{ bottom: 4 }}>
+              <div className="text-[15px] font-semibold leading-[19px]">{p.when}</div>
+              <div className="text-[11px] text-black/50 leading-[15px] h-[15px]">{p.caption}</div>
             </div>
+            <span className="flex-1" />
             <span className="text-[17px] text-[#007AFF] pr-2">편집</span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 blur-bar flex justify-between items-center px-[24px] pt-[12px] text-[#007AFF]" style={{ paddingBottom: "var(--sab)", background: "rgba(255,255,255,0.88)" }}>

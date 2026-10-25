@@ -1,7 +1,7 @@
 /* 전화 앱 + 연락처 */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Star, Clock, CircleUser, Grid3x3, Voicemail, Info, Phone as PhoneI, MessageCircle, Video, Mail, Plus, Delete, PhoneIncoming, PhoneOutgoing, Play, Pause } from "lucide-react";
-import { useData, type Contact, type PhoneData } from "../store";
+import { useData, update, type Contact, type PhoneData } from "../store";
 import { Avatar, LargeTitle, NavBar, SearchField, TabBar, useScrolled, usePhoneCtx, useStatusBar } from "../ui";
 
 /* ───── 초성 인덱스 ───── */
@@ -332,6 +332,9 @@ function VoicemailTab() {
 export default function PhoneApp() {
   useStatusBar(true);
   const d = useData();
+  useEffect(() => {
+    if (!d.phoneSeen) update((x) => void (x.phoneSeen = true)); // 부재중 알림 확인함
+  }, []); // eslint-disable-line
   const [tab, setTab] = useState("recents");
   const [detail, setDetail] = useState<Contact | null>(null);
   const missed = d.calls.filter((c) => c.kind === "missed").reduce((a, c) => a + (c.count || 1), 0);

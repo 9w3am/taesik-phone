@@ -77,6 +77,7 @@ export type PhoneData = {
   battery: number;
   weather: { city: string; temp: number; cond: string; hi: number; lo: number };
   allowSend: boolean;
+  phoneSeen?: boolean; // 전화 앱을 열어 봤는지 (부재중 알림 지우기)
   autoLockSec?: number; // 자동 잠금 (초, 0이면 끔) // 초안 외에 직접 타자 전송 허용
   events: {
     incomingCall: { enabled: boolean; afterSec: number; name: string; lines: string[] };

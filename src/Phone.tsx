@@ -5,6 +5,7 @@ import { AppIcon } from "./icons";
 import { Avatar, Ctx, hm, useNow, type PhoneCtx } from "./ui";
 import { APPS } from "./apps";
 import { CallScreen } from "./apps/Call";
+import { soundSrc } from "./sounds";
 import { ControlCenter, NotifCenter } from "./Overlays";
 import { Handset, HandsetDown } from "./phoneIcons";
 
@@ -98,7 +99,14 @@ function Island({ playing, calling }: { playing: Song | null; calling: boolean }
 }
 
 /* ───────── 잠금화면 ───────── */
-function LockScreen({ d, onUnlock, onCamera }: { d: PhoneData; onUnlock: () => void; onCamera: () => void }) {
+/** 잠금화면 알림이 아직 남아 있어야 하는지: 연결된 대화를 읽었으면 사라짐 */
+export function notifAlive(d: PhoneData, n: PhoneData["lockNotifs"][number]) {
+  if (n.app === "phone") return !d.phoneSeen;
+  const t = d.threads.find((x) => x.app === n.app && x.name === n.title);
+  return t ? t.unread > 0 : true;
+}
+
+function LockScreen({ d, onUnlock, onCamera, onOpen }: { d: PhoneData; onUnlock: () => void; onCamera: () => void; onOpen: (app: string, arg?: string) => void }) {
   const now = useNow();
   const [dy, setDy] = useState(0);
   const [torch, setTorch] = useState(false);
@@ -106,7 +114,7 @@ function LockScreen({ d, onUnlock, onCamera }: { d: PhoneData; onUnlock: () => v
   const date = `${now.getMonth() + 1}월 ${now.getDate()}일 ${DAYS[now.getDay()]}요일`;
   const [expanded, setExpanded] = useState<string | null>(null);
   const groups: [string, PhoneData["lockNotifs"]][] = [];
-  d.lockNotifs.forEach((n) => {
+  d.lockNotifs.filter((n) => notifAlive(d, n)).forEach((n) => {
     const g = groups.find((x) => x[0] === n.app);
     if (g) g[1].push(n);
     else groups.push([n.app, [n]]);
@@ -141,7 +149,16 @@ function LockScreen({ d, onUnlock, onCamera }: { d: PhoneData; onUnlock: () => v
           {groups.map(([app, list]) => {
             const open = list.length === 1 || expanded === app;
             const card = (n: (typeof list)[number], k: number) => (
-              <div key={k} className="rounded-[22px] px-[14px] py-[12px] flex gap-[10px] items-center blur-bar" style={{ background: "rgba(245,245,245,0.66)", color: "#000" }}>
+              <div
+                key={k}
+                onClick={(e) => {
+                  if (!open) return;
+                  e.stopPropagation();
+                  onOpen(n.app, d.threads.find((x) => x.app === n.app && x.name === n.title)?.id);
+                }}
+                className="rounded-[22px] px-[14px] py-[12px] flex gap-[10px] items-center blur-bar cursor-pointer"
+                style={{ background: "rgba(245,245,245,0.66)", color: "#000" }}
+              >
                 <AppIcon id={n.app} size={38} />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
@@ -209,7 +226,7 @@ function FaceIdGlyph({ size = 56 }: { size?: number }) {
   );
 }
 
-function Passcode({ code, hint, onOk, onCancel }: { code: string; hint: string; onOk: () => void; onCancel: () => void }) {
+function Passcode({ code, hint, name, onOk, onCancel }: { code: string; hint: string; name: string; onOk: () => void; onCancel: () => void }) {
   const [v, setV] = useState("");
   const [bad, setBad] = useState(false);
   const [face, setFace] = useState<"scan" | "fail" | null>("scan"); // 들어오면 Face ID 먼저 시도 → 실패
@@ -294,6 +311,7 @@ function Passcode({ code, hint, onOk, onCancel }: { code: string; hint: string; 
     <div className="absolute inset-0 text-white fade">
       <Wallpaper blur={30} dim={0.35} />
       <div className="relative flex flex-col items-center pt-[110px]">
+        {name && <div className="text-[15px] font-semibold text-white/75 mb-[4px]">{name}</div>}
         <div className="text-[20px] font-normal">{fails >= 3 ? `암호 입력 · ${fails}회 실패` : "암호 입력"}</div>
         <div className={`flex gap-[22px] mt-[18px] ${bad ? "shake" : ""}`}>
           {Array.from({ length: code.length }).map((_, i) => (
@@ -560,6 +578,7 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   const [vvTop, setVvTop] = useState(0);
   const fired = useRef<Set<string>>(new Set());
   const ring = useRef<HTMLAudioElement | null>(null);
+  const pendingOpen = useRef<{ app: string; arg?: string } | null>(null);
   // 자동 잠금: 안 만지면 어두워졌다가(8초) 화면 꺼짐 → 누르면 잠금화면
   const [idle, setIdle] = useState<null | "dim" | "off">(null);
   const lastTouch = useRef(Date.now());
@@ -590,7 +609,7 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
 
   // 벨소리: 전화가 울리는 동안 반복 재생
   useEffect(() => {
-    const src = d.sounds?.ringtone;
+    const src = soundSrc(d.sounds?.ringtone);
     if (call?.ringing && src && !d.sounds?.muted) {
       const a = new Audio(src);
       a.loop = true;
@@ -604,7 +623,7 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
   }, [call?.ringing, d.sounds?.ringtone, d.sounds?.muted]); // eslint-disable-line
   // 알림음: 배너가 뜰 때 한 번
   useEffect(() => {
-    const src = d.sounds?.notify;
+    const src = soundSrc(d.sounds?.notify);
     if (banner && src && !d.sounds?.muted) new Audio(src).play().catch(() => {});
   }, [banner]); // eslint-disable-line
 
@@ -743,13 +762,35 @@ export default function Phone({ embedded = false, previewScale = 0.78 }: { embed
           <LockScreen
             d={d}
             onUnlock={unlock}
+            onOpen={(a, arg) => {
+              if (d.passcode) {
+                pendingOpen.current = { app: a, arg };
+                setPhase("code");
+              } else {
+                setPhase("home");
+                open(a, arg);
+              }
+            }}
             onCamera={() => {
               setPhase("home");
               open("camera");
             }}
           />
         )}
-        {phase === "code" && <Passcode code={d.passcode} hint={d.passcodeHint} onOk={() => setPhase("home")} onCancel={() => setPhase("lock")} />}
+        {phase === "code" && (
+          <Passcode
+            code={d.passcode}
+            hint={d.passcodeHint}
+            name={d.deviceName}
+            onOk={() => {
+              setPhase("home");
+              const p = pendingOpen.current;
+              pendingOpen.current = null;
+              if (p) open(p.app, p.arg);
+            }}
+            onCancel={() => setPhase("lock")}
+          />
+        )}
         {phase === "home" && (
           <>
             <Home d={d} open={open} />
