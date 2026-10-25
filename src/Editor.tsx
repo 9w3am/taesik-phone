@@ -15,7 +15,7 @@ export function toScript(msgs: Msg[]) {
     .map((m) => {
       const body = m.kind === "deleted" ? "[삭제됨]" : m.kind === "pay" ? `[송금] ${m.amount ?? 0}${m.text ? " " + m.text : ""}` : m.kind === "photo" ? `[사진] ${m.photo ?? ""}` : m.text;
       const lines = body.split("\n");
-      const head = m.from === "system" ? `--- ${lines[0]}` : `${m.from === "me" ? "나" : m.who || "상대"}: ${lines[0]}`;
+      const head = m.kind === "date" ? `=== ${lines[0]}` : m.from === "system" ? `--- ${lines[0]}` : `${m.from === "me" ? "나" : m.who || "상대"}: ${lines[0]}`;
       return [head, ...lines.slice(1).map((l) => "  " + l)].join("\n");
     })
     .join("\n");
@@ -29,6 +29,10 @@ export function fromScript(s: string): Msg[] {
       continue;
     }
     const line = raw.trim();
+    if (line.startsWith("===")) {
+      out.push({ id: uid(), from: "system", kind: "date", text: line.replace(/^=+\s*/, "") });
+      continue;
+    }
     if (line.startsWith("---")) {
       out.push({ id: uid(), from: "system", text: line.replace(/^-+\s*/, "") });
       continue;
@@ -162,7 +166,7 @@ function Basic({ d }: { d: PhoneData }) {
         <p className="text-[13px] text-black/50 mb-3 leading-[20px]">
           ▶를 눌러 들어 보고 마음에 드는 걸 '선택'하세요. 벨소리는 전화가 걸려올 때 반복, 알림음은 배너 알림이 뜰 때 한 번 나옵니다.
           <br />
-          기본 소리는 Mixkit 무료 효과음(무료 라이선스, 출처 표기 불필요)입니다. 아이폰 정품 벨소리는 애플 저작권이라 넣지 않았어요. 직접 파일을 올려도 됩니다. 제어 센터의 종 버튼이 무음 모드.
+          기본 소리는 Mixkit · Pixabay 무료 효과음(무료 라이선스, 출처 표기 불필요)입니다. 아이폰 정품 벨소리는 애플 저작권이라 넣지 않았어요. 직접 파일을 올려도 됩니다. 제어 센터의 종 버튼이 무음 모드.
         </p>
         {(["ringtone", "notify"] as const).map((k) => (
           <div key={k + "-presets"} className="py-2 border-t border-black/5">
@@ -391,7 +395,7 @@ function ScriptBox({ t }: { t: Thread }) {
         }}
       />
       <div className="text-[12px] text-black/50 mt-2 leading-[19px] bg-black/[0.03] rounded-[10px] p-3">
-        <b>쓰는 법</b> · <code>나: 내용</code> 최태식이 보낸 말 · <code>상대: 내용</code> 상대가 보낸 말 · 단체방은 <code>이름: 내용</code> · <code>--- 안내문</code> 가운데 회색 안내 · 줄 앞에 공백 두 칸이면 윗 말풍선에 줄바꿈으로 이어짐
+        <b>쓰는 법</b> · <code>나: 내용</code> 최태식이 보낸 말 · <code>상대: 내용</code> 상대가 보낸 말 · 단체방은 <code>이름: 내용</code> · <code>--- 안내문</code> 가운데 회색 안내 · <code>=== 10월 22일 수요일</code> 날짜 줄(시간 없음) · 줄 앞에 공백 두 칸이면 윗 말풍선에 줄바꿈으로 이어짐
         <br />
         <code>나: [송금] 150000 메모</code> 송금 카드 · <code>상대: [삭제됨]</code> 삭제된 메시지 · <code>상대: [사진] 사진ID</code> 사진 (ID는 에디터 사진 탭에서 확인)
       </div>
@@ -407,7 +411,7 @@ function MsgEditor({ t }: { t: Thread }) {
       const th = x.threads.find((y) => y.id === t.id);
       if (th) th.messages = fn(th.messages);
     });
-  const who = (m: Msg) => (m.from === "system" ? "__sys" : m.from === "me" ? "__me" : m.who || "__them");
+  const who = (m: Msg) => (m.kind === "date" ? "__date" : m.from === "system" ? "__sys" : m.from === "me" ? "__me" : m.who || "__them");
   const names = Array.from(new Set(t.messages.filter((m) => m.who).map((m) => m.who!)));
   return (
     <div>
@@ -432,12 +436,14 @@ function MsgEditor({ t }: { t: Thread }) {
                     l.map((x) =>
                       x.id !== m.id
                         ? x
-                        : v === "__sys"
-                          ? { ...x, from: "system", who: undefined }
+                        : v === "__date"
+                          ? { ...x, from: "system", who: undefined, kind: "date" }
+                          : v === "__sys"
+                          ? { ...x, from: "system", who: undefined, kind: undefined }
                           : v === "__me"
-                            ? { ...x, from: "me", who: undefined }
+                            ? { ...x, from: "me", who: undefined, kind: x.kind === "date" ? undefined : x.kind }
                             : v === "__them"
-                              ? { ...x, from: "them", who: undefined }
+                              ? { ...x, from: "them", who: undefined, kind: x.kind === "date" ? undefined : x.kind }
                               : v === "__new"
                                 ? { ...x, from: "them", who: prompt("발신자 이름") || undefined }
                                 : { ...x, from: "them", who: v },
@@ -455,6 +461,7 @@ function MsgEditor({ t }: { t: Thread }) {
                 ))}
                 <option value="__new">+ 이름 추가</option>
                 <option value="__sys">가운데 안내</option>
+                <option value="__date">날짜 줄</option>
               </select>
               <textarea
                 rows={Math.min(4, Math.max(1, m.text.split("\n").length))}
@@ -488,6 +495,9 @@ function MsgEditor({ t }: { t: Thread }) {
             </Btn>
             <Btn onClick={() => setMsgs((l) => [...l, { id: uid(), from: "me", text: "" }])}>
               <Plus size={15} /> 내 말 추가
+            </Btn>
+            <Btn onClick={() => setMsgs((l) => [...l, { id: uid(), from: "system", kind: "date", text: "10월 25일 일요일" }])}>
+              <Plus size={15} /> 날짜 줄 추가
             </Btn>
           </div>
           <p className="text-[12px] text-black/45">송금은 <code>[송금] 150000 메모</code>, 사진은 <code>[사진] 사진ID</code>, 삭제된 메시지는 <code>[삭제됨]</code>이라고 쓰면 됩니다.</p>

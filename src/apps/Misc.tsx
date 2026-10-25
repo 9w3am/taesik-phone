@@ -505,6 +505,7 @@ export function Settings() {
   const d = useData();
   const [ref, scrolled] = useScrolled<HTMLDivElement>();
   const [air, setAir] = useState(false);
+  const [page, setPage] = useState<null | "general" | "about">(null);
   const Ico = ({ bg, children }: { bg: string; children: React.ReactNode }) => (
     <span className="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center text-white shrink-0" style={{ background: bg }}>
       {children}
@@ -556,7 +557,7 @@ export function Settings() {
         {groups.map((g, gi) => (
           <div key={gi} className="mx-4 mt-[24px] rounded-[12px] bg-white overflow-hidden">
             {g.map((it, i) => (
-              <div key={it.label} className="flex items-center pl-[14px] gap-[14px]">
+              <div key={it.label} onClick={() => it.label === "일반" && setPage("general")} className="flex items-center pl-[14px] gap-[14px] cursor-pointer active:bg-black/[0.03]">
                 {it.icon}
                 <div className={`flex-1 flex items-center min-h-[46px] pr-[14px] ${i < g.length - 1 ? "hair-b" : ""}`}>
                   <span className="flex-1 text-[17px]">{it.label}</span>
@@ -574,6 +575,61 @@ export function Settings() {
           </div>
         ))}
         <div className="text-center text-[13px] text-black/40 pt-[24px]">{d.deviceName} · iOS 18</div>
+      </div>
+      {page && <SettingsSub page={page} setPage={setPage} />}
+    </div>
+  );
+}
+
+/* 설정 > 일반 / 정보 — 유심 두 개, 최근 유심 변경 흔적 */
+function SettingsSub({ page, setPage }: { page: "general" | "about"; setPage: (p: null | "general" | "about") => void }) {
+  const d = useData();
+  const Group = ({ rows, title, foot }: { rows: [string, string?, boolean?][]; title?: string; foot?: string }) => (
+    <div className="mt-[24px]">
+      {title && <div className="px-[32px] pb-[6px] text-[13px] text-black/45 uppercase">{title}</div>}
+      <div className="mx-4 rounded-[12px] bg-white overflow-hidden">
+        {rows.map(([k, v, link], i) => (
+          <div key={k + i} onClick={() => k === "정보" && setPage("about")} className={`flex items-center pl-[16px] ${link ? "cursor-pointer active:bg-black/[0.03]" : ""}`}>
+            <div className={`flex-1 flex items-center min-h-[44px] pr-[14px] ${i < rows.length - 1 ? "hair-b" : ""}`}>
+              <span className="flex-1 text-[17px]">{k}</span>
+              {v && <span className="text-[17px] text-black/45 mr-[6px] text-right">{v}</span>}
+              {link && <ChevronRight size={18} className="text-[#c4c4c6]" strokeWidth={2.4} />}
+            </div>
+          </div>
+        ))}
+      </div>
+      {foot && <div className="px-[32px] pt-[6px] text-[13px] text-black/45 leading-[18px]">{foot}</div>}
+    </div>
+  );
+  return (
+    <div className="absolute inset-0 bg-[#F2F2F7] z-20 push">
+      <NavBar title={page === "general" ? "일반" : "정보"} back={page === "general" ? "설정" : "일반"} onBack={() => setPage(page === "about" ? "general" : null)} scrolled />
+      <div className="absolute inset-0 scroll" style={{ paddingTop: "calc(var(--sat) + 44px)", paddingBottom: 60 }}>
+        {page === "general" ? (
+          <>
+            <Group rows={[["정보", undefined, true], ["소프트웨어 업데이트", undefined, true]]} />
+            <Group rows={[["AirDrop", undefined, true], ["AirPlay 및 연속성", undefined, true]]} />
+            <Group rows={[["iPhone 저장 공간", undefined, true], ["백그라운드 앱 새로 고침", undefined, true]]} />
+            <Group rows={[["날짜 및 시간", undefined, true], ["키보드", undefined, true], ["언어 및 지역", undefined, true]]} />
+            <Group rows={[["VPN 및 기기 관리", "연결 안 됨", true]]} />
+            <Group rows={[["전송 또는 iPhone 재설정", undefined, true]]} />
+          </>
+        ) : (
+          <>
+            <Group rows={[["이름", d.deviceName, true], ["iOS 버전", "18.1", true], ["모델 이름", "iPhone 15 Pro"], ["모델 번호", "MTUV3KH/A"], ["일련 번호", "F2L*******Q7"]]} />
+            <Group rows={[["노래", String(d.songs.length)], ["사진", String(d.photos.filter((x) => !x.deleted).length)], ["응용 프로그램", "24"], ["용량", "256GB"], ["사용 가능", "171.4GB"]]} />
+            <Group
+              title="물리적 SIM"
+              rows={[["네트워크", d.carrier], ["통신사", `${d.carrier} 54.0`], ["번호", "010-****-****"], ["상태", "사용 중"]]}
+            />
+            <Group
+              title="eSIM"
+              rows={[["네트워크", "알뜰폰"], ["번호", "번호 없음"], ["상태", "꺼짐"], ["추가된 날짜", "10. 18."]]}
+              foot="최근 SIM 변경: 10. 18. · 이전 eSIM 2개가 삭제됨"
+            />
+            <Group rows={[["Wi-Fi 주소", "꺼짐"], ["Bluetooth", "꺼짐"], ["IMEI", "35 *** ******* 4"], ["IMEI2", "35 *** ******* 1"]]} />
+          </>
+        )}
       </div>
     </div>
   );

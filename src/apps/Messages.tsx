@@ -20,7 +20,7 @@ export function sendMsg(id: string, text: string, replyTo?: string) {
     t.draft = "";
   });
 }
-export const preview = (m?: Msg) => (!m ? "" : m.kind === "deleted" ? "삭제된 메시지입니다." : m.kind === "photo" ? "사진" : m.kind === "pay" ? `송금 ${m.amount?.toLocaleString()}원` : m.text.replace(/\n/g, " "));
+export const preview = (m?: Msg) => (!m || m.kind === "date" ? "" : m.kind === "deleted" ? "삭제된 메시지입니다." : m.kind === "photo" ? "사진" : m.kind === "pay" ? `송금 ${m.amount?.toLocaleString()}원` : m.text.replace(/\n/g, " "));
 
 /** 공용 입력창 훅: 초안(draft)이 있으면 그대로 표시 → 전송 버튼으로 보냄 */
 export function useComposer(t: Thread) {
@@ -154,6 +154,12 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
       <div ref={scrollRef} className="flex-1 scroll px-[16px] pt-[10px] pb-[10px]">
         <div className="text-center text-[11px] text-[#8e8e93] font-medium mb-[10px]">iMessage</div>
         {t.messages.map((m, i) => {
+          if (m.kind === "date")
+            return (
+              <div key={m.id} className="text-center text-[11px] text-[#8e8e93] font-semibold mt-[16px] mb-[6px]">
+                {m.text}
+              </div>
+            );
           if (m.from === "system")
             return (
               <div key={m.id} className="text-center text-[11px] text-[#8e8e93] my-[12px] px-6 leading-[15px]">

@@ -3,7 +3,7 @@ import { defaultData, DATA_VERSION } from "./data";
 
 /* ───────── 타입 ───────── */
 export type AppKind = "messages" | "kakao" | "insta";
-export type MsgKind = "text" | "pay" | "photo" | "deleted" | "call" | "link";
+export type MsgKind = "text" | "pay" | "photo" | "deleted" | "call" | "link" | "date";
 export type Msg = {
   id: string;
   from: "me" | "them" | "system";

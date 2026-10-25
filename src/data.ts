@@ -10,7 +10,7 @@ import type { Msg, PhoneData } from "./store";
 */
 
 /** 기본 콘텐츠를 고치면 이 숫자를 올리세요 → 방문자 브라우저의 예전 저장본이 새 내용으로 바뀝니다 */
-export const DATA_VERSION = 9;
+export const DATA_VERSION = 11;
 
 let n = 0;
 const id = () => `d${(n++).toString(36)}`;
@@ -18,6 +18,7 @@ const me = (text: string, x: Partial<Msg> = {}): Msg => ({ id: id(), from: "me",
 const th = (text: string, x: Partial<Msg> = {}): Msg => ({ id: id(), from: "them", text, ...x });
 const g = (who: string, text: string): Msg => ({ id: id(), from: "them", who, text });
 const sys = (text: string): Msg => ({ id: id(), from: "system", text });
+const day = (text: string): Msg => ({ id: id(), from: "system", kind: "date", text });
 const pay = (from: "me" | "them", amount: number, text = ""): Msg => ({ id: id(), from, text, kind: "pay", amount });
 
 export function defaultData(): PhoneData {
@@ -69,11 +70,11 @@ export function defaultData(): PhoneData {
         last: "지금",
         unsendAfterRead: true,
         messages: [
-          sys("지난 건"),
+          day("10월 19일 일요일"),
           th("물건 정리 확인."),
           th("잔금 들어감. 이번 건은 없던 일."),
           me("확인"),
-          sys("이번 건"),
+          day("어제"),
           th("건 하나."),
           th("위치만. 손은 안 댐. 사흘."),
           me("자료"),
@@ -94,6 +95,7 @@ export function defaultData(): PhoneData {
         unread: 0,
         last: "월요일",
         messages: [
+          day("10월 20일 월요일"),
           th("너 요즘 낮엔 아예 안 된다며"),
           me("이유노 쪽 붙어 있습니다. 밤만 됩니다"),
           th("그거 얼마 받는다고 그렇게 붙어 있냐"),
@@ -262,6 +264,7 @@ export function defaultData(): PhoneData {
         unread: 1,
         last: "오후 9:12",
         messages: [
+          day("2026년 10월 24일 토요일"),
           th("태식아"),
           th("국밥 한 그릇 하자"),
           me("이번 주는 어렵습니다"),
@@ -643,7 +646,7 @@ export function defaultData(): PhoneData {
       { id: id(), name: "정비", note: "", x: 0.48, y: 0.8 },
     ],
     kakaoProfile: { status: "" },
-    sounds: { muted: false, ringtone: "preset:ring-marimba", notify: "preset:noti-pop" },
+    sounds: { muted: false, ringtone: "preset:ring-marimba3", notify: "preset:noti-clear" },
     triggers: [],
   };
 }

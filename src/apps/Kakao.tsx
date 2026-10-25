@@ -1,6 +1,6 @@
 /* 카카오톡 */
 import { useEffect, useState } from "react";
-import { Megaphone, ChevronDown, Info, Search, MessageCirclePlus, Settings, UserPlus, ChevronLeft, Menu, Plus, Smile, Hash, BellOff, User, MessageCircle, ShoppingBag, MoreHorizontal, Music, Mail, CalendarDays, Wallet, FolderClosed, Gift, Ticket } from "lucide-react";
+import { Megaphone, ChevronDown, ChevronRight, Info, Search, MessageCirclePlus, Settings, UserPlus, ChevronLeft, Menu, Plus, Smile, Hash, BellOff, User, MessageCircle, ShoppingBag, MoreHorizontal, Music, Mail, CalendarDays, Wallet, FolderClosed, Gift, Ticket } from "lucide-react";
 import { useData, won, type Thread, type Msg } from "../store";
 import { photoSrc } from "../photos";
 import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
@@ -79,6 +79,16 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
       )}
       <div ref={ref} className="flex-1 scroll px-[10px] pt-[8px] pb-[12px]">
         {t.messages.map((m, i) => {
+          if (m.kind === "date")
+            return (
+              <div key={m.id} className="flex justify-center my-[12px]">
+                <span className="text-[12px] px-[12px] py-[5px] rounded-full text-white/95 flex items-center gap-[5px]" style={{ background: "rgba(0,0,0,0.15)" }}>
+                  <CalendarDays size={12} />
+                  {m.text}
+                  <ChevronRight size={11} />
+                </span>
+              </div>
+            );
           if (m.from === "system")
             return (
               <div key={m.id} className="flex justify-center my-[10px]">
