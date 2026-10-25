@@ -1,13 +1,15 @@
 /* 제작자용 편집 화면 (/editor 또는 #/editor) */
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
-import { useData, update, setData, resetData, sanitize, uid, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song } from "./store";
-import { defaultData } from "./data";
+import { useData, update, setData, resetData, sanitize, uid, undo, redo, canUndo, canRedo, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song, type CustomApp, type CustomItem, type Page } from "./store";
+import { defaultData, blankData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
-import { fromLink, searchSong, fetchLyrics, isSpCollection, songYtId, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
+import { fromLink, searchSong, fetchLyrics, isSpCollection, songYtId, LYRIC_LEAD, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
 import { soundYtId, loadYT, type YTPlayer } from "./music";
 import { generate, loadAiConf, saveAiConf, DEFAULT_MODEL, type AiTarget } from "./ai";
 import Phone from "./Phone";
+import { AppIcon } from "./icons";
+import { APPS, BUILTIN_APPS, syncCustomApps } from "./apps";
 import { RINGTONES, NOTIFY_SOUNDS, toggleSound, stopSound, onSoundChange } from "./sounds";
 import { cloudEnabled, getSession, signIn, signOut, publish, SETUP_SQL, SB_URL } from "./cloud";
 
@@ -119,6 +121,19 @@ function Rows<X>({ items, set, make, render, label = "추가" }: { items: X[]; s
   const many = items.length > 4;
   const [open, setOpen] = useState<Set<string>>(() => new Set(many ? [] : items.map(keyOf)));
   const lastAdded = useRef<string | null>(null);
+  // 다른 버튼(예: 사파리 "새 탭 만들기")으로 새로 생긴 항목도 바로 펼쳐서 보여 줌
+  const prevKeys = useRef<string[] | null>(null);
+  useEffect(() => {
+    const keys = items.map(keyOf);
+    const old = prevKeys.current;
+    prevKeys.current = keys;
+    if (!old) return;
+    const fresh = keys.filter((k) => !old.includes(k));
+    if (fresh.length === 1 && keys.length === old.length + 1) {
+      lastAdded.current = fresh[0];
+      setOpen((s) => new Set(s).add(fresh[0]));
+    }
+  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (k: string) => setOpen((s) => (s.has(k) ? (s.delete(k), new Set(s)) : new Set(s).add(k)));
   useEffect(() => {
     if (!lastAdded.current) return;
@@ -188,6 +203,36 @@ function Rows<X>({ items, set, make, render, label = "추가" }: { items: X[]; s
       >
         <Plus size={15} /> {label}
       </Btn>
+    </div>
+  );
+}
+
+/** 되돌리기 · 다시 하기 버튼 (+ Ctrl+Z / Ctrl+Shift+Z · Ctrl+Y) */
+function UndoBar() {
+  useData(); // 바뀔 때마다 버튼 상태 갱신
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, []);
+  return (
+    <div className="flex gap-1">
+      <button title="되돌리기 (Ctrl+Z)" disabled={!canUndo()} onClick={undo} className="h-[34px] px-2.5 rounded-[9px] text-[14px] bg-black/[0.05] hover:bg-black/[0.09] disabled:opacity-30">
+        ↶ <span className="hidden sm:inline">되돌리기</span>
+      </button>
+      <button title="다시 하기 (Ctrl+Shift+Z)" disabled={!canRedo()} onClick={redo} className="h-[34px] px-2.5 rounded-[9px] text-[14px] bg-black/[0.05] hover:bg-black/[0.09] disabled:opacity-30">
+        ↷ <span className="hidden sm:inline">다시 하기</span>
+      </button>
     </div>
   );
 }
@@ -864,7 +909,16 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
   const listRef = useRef<HTMLDivElement>(null);
   // 유튜브 링크가 없을 때: 그냥 시계 (다른 데서 노래를 틀고 같이 시작)
   const clock = useRef<{ base: number; at: number | null }>({ base: 0, at: null });
-  const getT = () => (yt.current ? yt.current.getCurrentTime() || 0 : clock.current.base + (clock.current.at !== null ? (performance.now() - clock.current.at) / 1000 : 0));
+  // 유튜브 시간은 띄엄띄엄 오니까 폰과 똑같이 사이를 채워서 읽음 (찍는 시간 = 폰에서 보이는 시간)
+  const sm = useRef({ raw: -1, at: 0 });
+  const getT = () => {
+    const y = yt.current;
+    if (!y) return clock.current.base + (clock.current.at !== null ? (performance.now() - clock.current.at) / 1000 : 0);
+    const raw = y.getCurrentTime() || 0;
+    const n = performance.now();
+    if (raw !== sm.current.raw || y.getPlayerState() !== 1) sm.current = { raw, at: n };
+    return y.getPlayerState() === 1 ? raw + Math.min(0.5, (n - sm.current.at) / 1000) : raw;
+  };
 
   useEffect(() => {
     if (!vid || !host.current) return;
@@ -960,7 +1014,7 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
   const done = cursor >= lines.length;
   // 확인용: 지금 시간에 해당하는 줄 (다 찍은 뒤 들어 보면 이 줄이 따라 움직임)
   let live = -1;
-  times.forEach((t, i) => t <= now + 0.1 && (live = i));
+  times.forEach((t, i) => t <= now + LYRIC_LEAD && (live = i));
   const focus = done ? live : cursor;
   useEffect(() => {
     listRef.current?.querySelector(`[data-row="${Math.max(0, focus)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -1221,6 +1275,346 @@ function SongEd({ s, put: putNow }: { s: Song; put: (v: Partial<Song>) => void }
   );
 }
 
+/* ───────── 홈 화면 · 앱: 앱 보이기 / 숨기기 / 순서 · 폴더 · 직접 앱 만들기 ───────── */
+const appLabel = (id: string) => (id.startsWith("folder:") ? `📁 ${id.slice(7)}` : APPS[id]?.label ?? id);
+function AppChip({ id, onLeft, onRight, onHide, extra }: { id: string; onLeft?: () => void; onRight?: () => void; onHide?: () => void; extra?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 bg-white border border-black/[0.08] rounded-[12px] pl-1.5 pr-1 h-[42px]">
+      {id.startsWith("folder:") ? <span className="w-[28px] h-[28px] rounded-[7px] bg-black/10 flex items-center justify-center text-[14px]">📁</span> : <AppIcon id={id} size={28} />}
+      <span className="text-[13px] font-medium max-w-[110px] truncate">{appLabel(id)}</span>
+      {onLeft && (
+        <button title="앞으로" onClick={onLeft} className="w-6 h-7 rounded hover:bg-black/5 text-black/45">
+          ‹
+        </button>
+      )}
+      {onRight && (
+        <button title="뒤로" onClick={onRight} className="w-6 h-7 rounded hover:bg-black/5 text-black/45">
+          ›
+        </button>
+      )}
+      {extra}
+      {onHide && (
+        <button title="숨기기" onClick={onHide} className="h-7 px-2 rounded-md text-[12px] text-[#FF3B30] hover:bg-[#FF3B30]/10">
+          숨기기
+        </button>
+      )}
+    </div>
+  );
+}
+const LAYOUTS: [CustomApp["layout"], string, string][] = [
+  ["list", "목록", "메모 · 기록 · 받은 편지함처럼: 한 줄씩 → 누르면 자세히"],
+  ["feed", "피드 (SNS)", "인스타 · 트위터처럼: 글 + 사진 + 좋아요"],
+  ["grid", "사진 모음", "갤러리 · 앨범처럼: 사진 바둑판 → 누르면 크게"],
+  ["page", "웹페이지", "기사 · 블로그 · 공지처럼: 위에서 아래로 읽는 글"],
+];
+function HomeEd({ d }: { d: PhoneData }) {
+  syncCustomApps(d.customApps); // 미리보기가 안 열려 있어도 이름 · 아이콘이 보이게
+  const h = d.home;
+  const placed = new Set([...h.grid, ...h.dock, ...Object.values(h.folders).flat()]);
+  const allApps = [...BUILTIN_APPS, ...d.customApps.map((a) => "c:" + a.id)];
+  const hidden = allApps.filter((a) => !placed.has(a));
+  const folderNames = Object.keys(h.folders);
+  const setHome = (fn: (x: PhoneData["home"]) => void) => update((x) => fn(x.home));
+  const move = (arr: string[], i: number, dir: number) => {
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  };
+  const removeEverywhere = (x: PhoneData["home"], id: string) => {
+    x.grid = x.grid.filter((a) => a !== id);
+    x.dock = x.dock.filter((a) => a !== id);
+    for (const k of Object.keys(x.folders)) x.folders[k] = x.folders[k].filter((a) => a !== id);
+  };
+  const newApp = (layout: CustomApp["layout"]) => {
+    const id = uid();
+    const sample: Record<CustomApp["layout"], { name: string; bg: string; text: string; item: Partial<CustomItem> }> = {
+      list: { name: "새 앱", bg: "#34C759", text: "", item: { title: "첫 번째 항목", sub: "한 줄 설명", when: "어제", body: "눌렀을 때 보이는 내용" } },
+      feed: { name: "새 SNS", bg: "#FF2D55", text: "", item: { title: "계정 이름", sub: "위치 · 설명", when: "2시간 전", body: "글 내용" } },
+      grid: { name: "새 앨범", bg: "#FF9500", text: "", item: { title: "사진 설명", when: "10월 24일", body: "" } },
+      page: { name: "새 사이트", bg: "#5856D6", text: "", item: { title: "글 제목", sub: "부제", when: "2026. 10. 25.", body: "본문을 여기에 쓰세요." } },
+    };
+    const s = sample[layout];
+    update((x) => {
+      x.customApps.push({ id, name: s.name, iconBg: s.bg, iconText: s.text, theme: "light", tint: "#007AFF", layout, header: "", items: [{ id: uid(), title: "", sub: "", body: "", photo: "", when: "", ...s.item }] });
+      x.home.grid.push("c:" + id);
+    });
+    setTimeout(() => preview("c:" + id), 50);
+  };
+  return (
+    <>
+      <Card title="홈 화면 배치">
+        <p className="text-[13px] text-black/50 mb-3">
+          앱 순서는 ‹ › 로 바꾸고, 안 쓸 앱은 <b>숨기기</b>. 숨긴 앱은 맨 아래에서 다시 꺼낼 수 있어요. 오른쪽 폰에 바로 보여요.
+        </p>
+        <div className="text-[13px] font-semibold text-black/60 mb-2">홈 화면 ({h.grid.length}개 · 4칸씩 줄바꿈)</div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {h.grid.map((id, i) => (
+            <AppChip
+              key={id}
+              id={id}
+              onLeft={() => setHome((x) => move(x.grid, i, -1))}
+              onRight={() => setHome((x) => move(x.grid, i, 1))}
+              onHide={() => setHome((x) => (id.startsWith("folder:") ? (x.grid = x.grid.filter((a) => a !== id)) : removeEverywhere(x, id)))}
+              extra={
+                !id.startsWith("folder:") && h.dock.length < 4 ? (
+                  <button title="아래 독으로" onClick={() => setHome((x) => (removeEverywhere(x, id), x.dock.push(id)))} className="h-7 px-1.5 rounded-md text-[12px] text-[#007AFF] hover:bg-[#007AFF]/10">
+                    독↓
+                  </button>
+                ) : null
+              }
+            />
+          ))}
+        </div>
+        <div className="text-[13px] font-semibold text-black/60 mb-2">아래 독 (최대 4개)</div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {h.dock.map((id, i) => (
+            <AppChip
+              key={id}
+              id={id}
+              onLeft={() => setHome((x) => move(x.dock, i, -1))}
+              onRight={() => setHome((x) => move(x.dock, i, 1))}
+              onHide={() => setHome((x) => removeEverywhere(x, id))}
+              extra={
+                <button title="홈 화면으로" onClick={() => setHome((x) => (removeEverywhere(x, id), x.grid.push(id)))} className="h-7 px-1.5 rounded-md text-[12px] text-[#007AFF] hover:bg-[#007AFF]/10">
+                  홈↑
+                </button>
+              }
+            />
+          ))}
+          {h.dock.length === 0 && <span className="text-[13px] text-black/35">비어 있음</span>}
+        </div>
+        {folderNames.map((f) => (
+          <div key={f} className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[13px] font-semibold text-black/60">📁 폴더</span>
+              <input
+                className="!w-[140px] !h-[30px]"
+                defaultValue={f}
+                onBlur={(e) => {
+                  const n = e.target.value.trim().slice(0, 20);
+                  if (!n || n === f || h.folders[n]) return;
+                  setHome((x) => {
+                    x.folders[n] = x.folders[f];
+                    delete x.folders[f];
+                    x.grid = x.grid.map((a) => (a === "folder:" + f ? "folder:" + n : a));
+                  });
+                }}
+              />
+              {!h.grid.includes("folder:" + f) && <Btn onClick={() => setHome((x) => void x.grid.push("folder:" + f))}>홈 화면에 놓기</Btn>}
+              <Btn kind="danger" onClick={() => confirm(`'${f}' 폴더를 없앨까요? (안의 앱은 숨김으로)`) && setHome((x) => (delete x.folders[f], (x.grid = x.grid.filter((a) => a !== "folder:" + f))))}>
+                폴더 없애기
+              </Btn>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {h.folders[f].map((id, i) => (
+                <AppChip key={id} id={id} onLeft={() => setHome((x) => move(x.folders[f], i, -1))} onRight={() => setHome((x) => move(x.folders[f], i, 1))} onHide={() => setHome((x) => removeEverywhere(x, id))} />
+              ))}
+              {h.folders[f].length === 0 && <span className="text-[13px] text-black/35">비어 있음 (빈 폴더는 폰에 안 보여요)</span>}
+            </div>
+          </div>
+        ))}
+        <div className="flex flex-wrap gap-2 mb-5">
+          <Btn
+            onClick={() => {
+              const n = prompt("폴더 이름", "새 폴더")?.trim().slice(0, 20);
+              if (n && !h.folders[n]) setHome((x) => ((x.folders[n] = []), x.grid.push("folder:" + n)));
+            }}
+          >
+            <Plus size={15} /> 폴더 추가
+          </Btn>
+          <Btn onClick={() => confirm("홈 화면 배치를 처음 모습으로 되돌릴까요? (직접 만든 앱은 숨김으로)") && update((x) => void (x.home = defaultData().home))}>
+            <RotateCcw size={14} /> 처음 배치로
+          </Btn>
+        </div>
+        <div className="text-[13px] font-semibold text-black/60 mb-2">숨긴 앱 ({hidden.length}개) — 눌러서 꺼내기</div>
+        <div className="flex flex-wrap gap-2">
+          {hidden.map((id) => (
+            <AppChip
+              key={id}
+              id={id}
+              extra={
+                <>
+                  <button onClick={() => setHome((x) => void x.grid.push(id))} className="h-7 px-1.5 rounded-md text-[12px] text-[#007AFF] hover:bg-[#007AFF]/10">
+                    홈에
+                  </button>
+                  {h.dock.length < 4 && (
+                    <button onClick={() => setHome((x) => void x.dock.push(id))} className="h-7 px-1.5 rounded-md text-[12px] text-[#007AFF] hover:bg-[#007AFF]/10">
+                      독에
+                    </button>
+                  )}
+                  {folderNames.map((f) => (
+                    <button key={f} onClick={() => setHome((x) => void x.folders[f].push(id))} className="h-7 px-1.5 rounded-md text-[12px] text-[#007AFF] hover:bg-[#007AFF]/10">
+                      {f}에
+                    </button>
+                  ))}
+                </>
+              }
+            />
+          ))}
+          {hidden.length === 0 && <span className="text-[13px] text-black/35">없음</span>}
+        </div>
+      </Card>
+
+      <Card title={`직접 만든 앱 (${d.customApps.length})`}>
+        <p className="text-[13px] text-black/50 mb-3">
+          모양을 골라 <b>앱 만들기</b> → 이름 · 아이콘 · 글을 넣으면 폰 홈 화면에 생겨요. 다른 캐릭터 폰 템플릿 만들 때도 그대로 쓰면 돼요.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-2 mb-4">
+          {LAYOUTS.map(([l, name, desc]) => (
+            <button key={l} onClick={() => newApp(l)} className="text-left rounded-[12px] border border-black/[0.08] bg-white hover:bg-black/[0.02] p-3">
+              <div className="text-[14px] font-semibold">
+                <Plus size={14} className="inline -mt-0.5" /> {name} 앱 만들기
+              </div>
+              <div className="text-[12px] text-black/50 mt-0.5">{desc}</div>
+            </button>
+          ))}
+        </div>
+        <div className="space-y-4">
+          {d.customApps.map((a) => {
+            const put = (v: Partial<CustomApp>) =>
+              update((x) => {
+                const y = x.customApps.find((z) => z.id === a.id);
+                if (y) Object.assign(y, v);
+              });
+            return (
+              <div key={a.id} className="rounded-[14px] border border-black/[0.08] bg-[#FAFAFC] p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <AppIcon id={"c:" + a.id} size={44} />
+                  <div className="font-semibold text-[16px] flex-1 truncate">{a.name}</div>
+                  <Btn onClick={() => preview("c:" + a.id)}>폰에서 열기</Btn>
+                  <Btn
+                    kind="danger"
+                    onClick={() =>
+                      confirm(`'${a.name}' 앱을 지울까요?`) &&
+                      update((x) => {
+                        x.customApps = x.customApps.filter((z) => z.id !== a.id);
+                        removeEverywhere(x.home, "c:" + a.id);
+                      })
+                    }
+                  >
+                    <Trash2 size={14} /> 앱 지우기
+                  </Btn>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <F label="앱 이름">
+                    <T value={a.name} onChange={(v) => put({ name: v.slice(0, 40) })} />
+                  </F>
+                  <F label="아이콘 글자 (1~2자 · 이모지 OK)">
+                    <T value={a.iconText} ph={a.name.slice(0, 1)} onChange={(v) => put({ iconText: v.slice(0, 4) })} />
+                  </F>
+                  <F label="아이콘 색">
+                    <input type="color" className="!h-[34px] !p-1" value={a.iconBg} onChange={(e) => put({ iconBg: e.target.value })} />
+                  </F>
+                  <F label="버튼 · 글자 강조 색">
+                    <input type="color" className="!h-[34px] !p-1" value={a.tint} onChange={(e) => put({ tint: e.target.value })} />
+                  </F>
+                  <F label="모양">
+                    <select value={a.layout} onChange={(e) => put({ layout: e.target.value as CustomApp["layout"] })}>
+                      {LAYOUTS.map(([l, n]) => (
+                        <option key={l} value={l}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </F>
+                  <F label="화면">
+                    <select value={a.theme} onChange={(e) => put({ theme: e.target.value as CustomApp["theme"] })}>
+                      <option value="light">밝게</option>
+                      <option value="dark">어둡게</option>
+                    </select>
+                  </F>
+                  <F label="맨 위 설명 (선택)" className="col-span-2">
+                    <T value={a.header} onChange={(v) => put({ header: v })} />
+                  </F>
+                  <div className="col-span-full flex flex-wrap items-center gap-2">
+                    <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
+                      아이콘 사진 올리기
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (f) put({ iconImg: await shrinkImage(f, 200) });
+                        }}
+                      />
+                    </label>
+                    {a.iconImg && (
+                      <Btn kind="danger" onClick={() => put({ iconImg: undefined })}>
+                        아이콘 사진 지우기
+                      </Btn>
+                    )}
+                  </div>
+                </div>
+                <div className="text-[13px] font-semibold text-black/60 mt-4 mb-2">글 · 항목 ({a.items.length})</div>
+                <Rows
+                  items={a.items}
+                  set={(v) => put({ items: v })}
+                  make={() => ({ id: uid(), title: "", sub: "", body: "", photo: "", when: "" })}
+                  label="글 추가"
+                  render={(it, putIt) => (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <F label={a.layout === "feed" ? "계정 이름" : "제목"}>
+                        <T value={it.title} onChange={(v) => putIt({ title: v })} />
+                      </F>
+                      <F label={a.layout === "feed" ? "위치 · 한 줄" : "부제 · 한 줄 설명"}>
+                        <T value={it.sub} onChange={(v) => putIt({ sub: v })} />
+                      </F>
+                      <F label="날짜 · 시간 표시">
+                        <T value={it.when} ph="어제 / 10월 24일" onChange={(v) => putIt({ when: v })} />
+                      </F>
+                      <F label="내용" className="col-span-full">
+                        <textarea rows={3} value={it.body} onChange={(e) => putIt({ body: e.target.value })} />
+                      </F>
+                      <div className="col-span-full flex flex-wrap items-center gap-2">
+                        {photoSrc(it.photo, d.photos) && <img src={photoSrc(it.photo, d.photos)} alt="" className="w-[44px] h-[44px] rounded-[8px] object-cover" />}
+                        <label className="!m-0 !text-[14px] !font-medium !text-black inline-flex items-center h-[34px] px-3 rounded-[9px] bg-black/[0.05] hover:bg-black/[0.09] cursor-pointer">
+                          사진 올리기
+                          <input
+                            type="file"
+                            accept="image/*"
+                            hidden
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!f) return;
+                              const src = await shrinkImage(f, 900);
+                              update((x) => {
+                                const y = x.customApps.find((z) => z.id === a.id)?.items.find((z) => z.id === it.id);
+                                if (y) y.photo = src;
+                              });
+                            }}
+                          />
+                        </label>
+                        {d.photos.length > 0 && (
+                          <select className="!w-auto" value={d.photos.some((p) => p.id === it.photo) ? it.photo : ""} onChange={(e) => putIt({ photo: e.target.value })}>
+                            <option value="">사진 앱에서 고르기…</option>
+                            {d.photos.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.caption || p.when || p.id}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {it.photo && (
+                          <Btn kind="danger" onClick={() => putIt({ photo: "" })}>
+                            사진 빼기
+                          </Btn>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </>
+  );
+}
+
 function Songs({ d }: { d: PhoneData }) {
   return (
     <Card title="음악">
@@ -1433,6 +1827,94 @@ function AutoField({ value, onChange, label, depth = 0 }: { value: unknown; onCh
   );
 }
 
+/* ───────── 사파리: 열린 탭(웹사이트) 고르기 · 만들기 ───────── */
+type PageType = Page["type"];
+/** 웹사이트 종류마다 예시 내용 (새 탭을 만들면 이걸로 시작 → 고쳐 쓰면 됨) */
+const PAGE_TPL: Record<Exclude<PageType, "blank">, { name: string; url: string; title: string; page: Page }> = {
+  search: { name: "검색 결과 (네이버 · 구글)", url: "m.search.naver.com", title: "검색어 : 네이버 검색", page: { type: "search", engine: "naver", query: "검색어", results: [{ title: "검색 결과 제목", url: "example.com", desc: "검색 결과 설명", source: "블로그" }] } },
+  cafe: { name: "카페 글", url: "m.cafe.naver.com", title: "카페 글 제목", page: { type: "cafe", cafe: "카페 이름", board: "자유게시판", title: "글 제목", author: "닉네임", views: 120, body: "글 내용", comments: [{ who: "댓글러", text: "댓글 내용" }] } },
+  board: { name: "커뮤니티 글 (갤러리 · 게시판)", url: "m.dcinside.com", title: "글 제목 - 갤러리", page: { type: "board", site: "커뮤니티", gallery: "갤러리 이름", title: "글 제목", author: "ㅇㅇ", views: 300, recommend: 5, body: "글 내용", comments: [{ who: "ㅇㅇ", text: "댓글" }] } },
+  market: { name: "중고거래 (당근 · 번개 · 중고나라)", url: "daangn.com", title: "물건 이름 | 당근", page: { type: "market", site: "daangn", title: "물건 이름", price: "10,000원", area: "OO동", seller: "판매자", temp: 36.5, body: "물건 설명", photo: "", meta: "끌올 3분 전" } },
+  car: { name: "중고차", url: "encar.com", title: "차 이름 - 엔카", page: { type: "car", title: "차 이름", price: "1,500만원", specs: [["연식", "2019년"], ["주행", "8만km"]], body: "차 설명", dealer: "OO모터스" } },
+  shop: { name: "쇼핑 (쿠팡 등)", url: "coupang.com", title: "상품 이름 : 쿠팡", page: { type: "shop", name: "상품 이름", price: "19,900원", discount: "20%", rating: 4.5, reviews: 1234, delivery: "내일 도착", seller: "판매자" } },
+  wiki: { name: "위키 (나무위키 등)", url: "namu.wiki", title: "문서 이름 - 나무위키", page: { type: "wiki", title: "문서 이름", updated: "최근 수정 시각: 2026-10-24", sections: [{ h: "개요", body: "문서 내용" }] } },
+  video: { name: "동영상 (유튜브)", url: "m.youtube.com", title: "영상 제목 - YouTube", page: { type: "video", title: "영상 제목", channel: "채널 이름", subs: "구독자 1.2만명", views: "조회수 3.4만회", when: "2일 전", duration: "12:34", desc: "영상 설명", comments: [{ who: "@댓글러", text: "댓글" }] } },
+  sns: { name: "SNS 검색 (X 등)", url: "x.com", title: "검색어 - X 검색", page: { type: "sns", query: "검색어", posts: [{ name: "이름", handle: "@id", text: "글 내용", when: "1시간", replies: 2, reposts: 5, likes: 30 }] } },
+  job: { name: "구인 공고", url: "alba.co.kr", title: "공고 제목 - 알바", page: { type: "job", site: "알바 사이트", company: "회사 이름", title: "공고 제목", pay: "시급 12,000원", conditions: ["주 3일", "야간"], body: "공고 내용" } },
+  news: { name: "뉴스 기사", url: "n.news.naver.com", title: "기사 제목 : 네이버 뉴스", page: { type: "news", press: "OO일보", title: "기사 제목", body: "기사 본문", reporter: "홍길동 기자" } },
+};
+function SafariEd({ d }: { d: PhoneData }) {
+  const sf = d.safari;
+  const set = (fn: (x: PhoneData["safari"]) => void) => update((x) => fn(x.safari));
+  const addTab = (t: Exclude<PageType, "blank">) => {
+    const tpl = PAGE_TPL[t];
+    set((x) => void x.tabs.push({ id: uid(), title: tpl.title, url: tpl.url, page: structuredClone(tpl.page) }));
+    setTimeout(() => preview("safari"), 50);
+  };
+  return (
+    <>
+      <p className="text-[13px] text-black/50 mb-3">
+        사파리에 <b>열려 있는 탭 = 웹사이트 한 장</b>이에요. 아래에서 종류를 골라 탭을 만들고, 글자만 바꿔 쓰면 돼요. 오른쪽 폰 사파리에서 바로 보여요.
+      </p>
+      <div className="text-[13px] font-semibold text-black/60 mb-2">새 탭(웹사이트) 만들기</div>
+      <div className="flex flex-wrap gap-2 mb-5">
+        {(Object.keys(PAGE_TPL) as Exclude<PageType, "blank">[]).map((t) => (
+          <Btn key={t} onClick={() => addTab(t)}>
+            <Plus size={14} /> {PAGE_TPL[t].name}
+          </Btn>
+        ))}
+      </div>
+      <div className="text-[13px] font-semibold text-black/60 mb-2">열린 탭 ({sf.tabs.length})</div>
+      <Rows
+        items={sf.tabs}
+        set={(v) => set((x) => void (x.tabs = v))}
+        make={() => ({ id: uid(), title: PAGE_TPL.search.title, url: PAGE_TPL.search.url, page: structuredClone(PAGE_TPL.search.page) })}
+        label="검색 결과 탭 추가"
+        render={(tab, put) => {
+          const { type, ...rest } = tab.page as Page & Record<string, unknown>;
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <F label="탭 제목 (탭 목록에 보이는 이름)">
+                <T value={tab.title} onChange={(v) => put({ title: v })} />
+              </F>
+              <F label="주소창에 보이는 주소">
+                <T value={tab.url} onChange={(v) => put({ url: v })} />
+              </F>
+              <F label="웹사이트 종류">
+                <select
+                  value={type}
+                  onChange={(e) => {
+                    const t = e.target.value as Exclude<PageType, "blank">;
+                    if (t !== type && confirm("종류를 바꾸면 이 탭 내용이 예시로 바뀌어요. 바꿀까요?")) put({ page: structuredClone(PAGE_TPL[t].page) });
+                  }}
+                >
+                  {(Object.keys(PAGE_TPL) as Exclude<PageType, "blank">[]).map((t) => (
+                    <option key={t} value={t}>
+                      {PAGE_TPL[t].name}
+                    </option>
+                  ))}
+                </select>
+              </F>
+              <AutoField value={rest} onChange={(v) => put({ page: { type, ...(v as object) } as Page })} />
+              <div className="col-span-full">
+                <Btn onClick={() => preview("safari")}>폰 사파리에서 보기</Btn>
+              </div>
+            </div>
+          );
+        }}
+      />
+      <div className="grid md:grid-cols-2 gap-4 mt-5">
+        <div className="grid gap-3">
+          <AutoField label="즐겨찾기 (사파리 첫 화면)" value={sf.favorites} onChange={(v) => set((x) => void (x.favorites = v as typeof x.favorites))} depth={1} />
+        </div>
+        <div className="grid gap-3">
+          <AutoField label="최근 검색어 · 방문 기록" value={sf.history} onChange={(v) => set((x) => void (x.history = v as string[]))} depth={1} />
+        </div>
+      </div>
+    </>
+  );
+}
+
 function JsonEd({ d }: { d: PhoneData }) {
   // 폰에서 숨긴 앱(인스타 · 업무)은 목록에서 뺌 — 데이터는 그대로 보관
   const keys = ["safari", "weather", "alarms", "places", "cashwalk", "health", "voiceMemos", "screenTime", "vault"] as const;
@@ -1473,11 +1955,16 @@ function JsonEd({ d }: { d: PhoneData }) {
       </div>
       {mode === "easy" ? (
         <>
-          <p className="text-[13px] text-black/50 mb-3">고치면 바로 저장되고 오른쪽 폰에 바로 보여요.</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <AutoField value={val} label={names[k]} onChange={(v) => update((x) => void ((x as unknown as Record<string, unknown>)[k] = v))} />
-          </div>
-          {k === "safari" && <p className="text-[12px] text-black/45 mt-3">페이지 종류(type): search(검색 결과) / cafe(카페 글) / market(중고거래) / job(구인) / news(기사). 사진은 사진 탭의 ID.</p>}
+          {k === "safari" ? (
+            <SafariEd d={d} />
+          ) : (
+            <>
+              <p className="text-[13px] text-black/50 mb-3">고치면 바로 저장되고 오른쪽 폰에 바로 보여요.</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <AutoField value={val} label={names[k]} onChange={(v) => update((x) => void ((x as unknown as Record<string, unknown>)[k] = v))} />
+              </div>
+            </>
+          )}
         </>
       ) : (
         <>
@@ -1545,8 +2032,19 @@ function AiEd({ d }: { d: PhoneData }) {
   return (
     <Card title="AI로 콘텐츠 생성">
       <p className="text-[13px] text-black/50 mb-4">
-        캐릭터 설정·관계·분위기를 적으면 설정에 맞는 가상의 대화/메모/일정/통화를 만들어 줍니다. 정적 사이트라 서버가 없으므로 <b>본인의 Anthropic API 키</b>로 이 브라우저에서 직접 호출합니다. 키는 이 브라우저에만 저장되고 내보내기·게시 데이터에 포함되지 않습니다.
+        <b>안 써도 되는 기능이에요.</b> 캐릭터 설정을 적으면 AI가 대화 · 메모 · 일정 · 통화 대사를 대신 써 줘요. 마음에 들면 "폰에 추가", 아니면 다시 생성.
       </p>
+      <ol className="text-[13px] text-black/60 mb-4 list-decimal pl-5 leading-[21px]">
+        <li>
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[#007AFF]">
+            Anthropic 콘솔
+          </a>
+          에 가입하고 <b>API 키</b>를 만들어요 (유료 · 쓴 만큼만 결제).
+        </li>
+        <li>만든 키(sk-ant-로 시작)를 아래 칸에 붙여넣어요. 키는 이 브라우저에만 저장되고, 백업 · 게시 파일엔 안 들어가요.</li>
+        <li>만들 것을 고르고 설정 · 관계 · 분위기를 적은 뒤 <b>생성</b>.</li>
+        <li>아래에 결과가 나오면 확인하고 <b>폰에 추가</b>. (추가한 뒤에도 각 메뉴에서 고칠 수 있어요)</li>
+      </ol>
       <div className="grid md:grid-cols-[1fr_220px] gap-3 mb-4">
         <F label="Anthropic API 키">
           <input type="password" value={conf.apiKey} placeholder="sk-ant-..." onChange={(e) => setConf({ ...conf, apiKey: e.target.value })} />
@@ -1601,7 +2099,30 @@ function AiEd({ d }: { d: PhoneData }) {
         )}
       </div>
       {err && <div className="text-[13px] mt-3 text-[#FF3B30]">{err}</div>}
-      {out !== null && <pre className="mt-3 text-[12px] bg-black/[0.04] rounded-[10px] p-3 max-h-[360px] overflow-auto whitespace-pre-wrap">{JSON.stringify(out, null, 2)}</pre>}
+      {out !== null && (
+        <div className="mt-3 rounded-[12px] bg-black/[0.035] p-3 max-h-[380px] overflow-auto text-[14px] leading-[21px]">
+          {/* 결과 미리 보기: 대화면 말풍선 순서대로, 아니면 한 줄씩 */}
+          {(() => {
+            const o = out as { messages?: { from?: string; text?: string }[] } | unknown[];
+            if (o && !Array.isArray(o) && Array.isArray(o.messages))
+              return o.messages.map((m, i) => (
+                <div key={i} className={`flex ${m.from === "me" ? "justify-end" : ""} mb-1`}>
+                  <span className={`px-3 py-1.5 rounded-[14px] max-w-[80%] whitespace-pre-wrap ${m.from === "me" ? "bg-[#007AFF] text-white" : "bg-white"}`}>{m.text}</span>
+                </div>
+              ));
+            const list: unknown[] = Array.isArray(o) ? o : [o];
+            return list.map((x, i) => (
+              <div key={i} className="py-1 border-b border-black/5 last:border-0">
+                {summaryOf(x)}
+              </div>
+            ));
+          })()}
+          <details className="mt-2">
+            <summary className="text-[12px] text-black/40 cursor-pointer">원본 데이터 보기</summary>
+            <pre className="text-[11px] whitespace-pre-wrap">{JSON.stringify(out, null, 2)}</pre>
+          </details>
+        </div>
+      )}
     </Card>
   );
 }
@@ -1688,6 +2209,9 @@ function Backup({ d }: { d: PhoneData }) {
           </Btn>
           <Btn onClick={() => fileRef.current?.click()}>
             <Upload size={15} /> 불러오기
+          </Btn>
+          <Btn onClick={() => confirm("내용을 전부 비운 새 폰으로 시작할까요? (다른 캐릭터 템플릿용)\n지금 내용은 먼저 '파일로 내보내기'나 '회차 저장'으로 남겨 두세요. 실수하면 위의 ↶ 되돌리기로 돌아올 수 있어요.") && update((x) => void Object.assign(x, blankData()))}>
+            <Plus size={15} /> 빈 폰으로 시작 (새 캐릭터)
           </Btn>
           <Btn kind="danger" onClick={() => confirm("모든 수정 내용을 지우고 기본 데이터로 되돌릴까요?") && resetData()}>
             <RotateCcw size={15} /> 기본값으로 초기화
@@ -1795,6 +2319,7 @@ function Backup({ d }: { d: PhoneData }) {
 
 const SECTIONS: [string, string, (p: { d: PhoneData }) => React.ReactElement][] = [
   ["basic", "기본 설정", Basic],
+  ["home", "홈 화면 · 앱", HomeEd],
   ["events", "이벤트 · 잠금화면", Events],
   ["threads", "대화방 · 메시지", Threads],
   ["calls", "통화 기록", Calls],
@@ -1866,7 +2391,7 @@ export default function Editor() {
   useEffect(() => {
     sessionStorage.setItem("ed-sec", sec);
     if (sec === "events") preview(undefined, undefined, "lock");
-    else if (sec === "basic") preview();
+    else if (sec === "basic" || sec === "home") preview();
     else if (SECTION_APP[sec]) preview(SECTION_APP[sec]);
   }, [sec]);
   useEffect(() => {
@@ -1895,6 +2420,7 @@ export default function Editor() {
           <div className="font-semibold text-[16px] ml-2">최태식 폰 편집기</div>
           <span className="text-[12px] text-black/40 hidden md:inline">수정 즉시 자동 저장 · 오른쪽 미리보기에 바로 반영</span>
           <span className="flex-1" />
+          <UndoBar />
           {!wide && (
             <Btn kind="primary" onClick={() => setShowPrev(true)}>
               <Smartphone size={15} /> 미리보기

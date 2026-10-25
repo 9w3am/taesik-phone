@@ -1,4 +1,7 @@
-import type { ComponentType } from "react";
+import { createElement, type ComponentType } from "react";
+import type { CustomApp } from "../store";
+import CustomAppView from "./Custom";
+import { CUSTOM_ICONS } from "../icons";
 import Messages from "./Messages";
 import Kakao from "./Kakao";
 import PhoneApp, { ContactsApp } from "./PhoneApp";
@@ -38,3 +41,19 @@ export const APPS: Record<string, { label: string; C: ComponentType; light: bool
   camera: { label: "카메라", C: CameraApp, light: false },
   settings: { label: "설정", C: Settings, light: true },
 };
+
+/* 직접 만든 앱 등록: 편집 화면에서 만든 앱을 "c:아이디"로 앱 목록 · 아이콘 목록에 넣음 */
+const customComps: Record<string, ComponentType> = {};
+export function syncCustomApps(list: CustomApp[]) {
+  for (const k of Object.keys(APPS)) if (k.startsWith("c:") && !list.some((x) => "c:" + x.id === k)) delete APPS[k];
+  for (const k of Object.keys(CUSTOM_ICONS)) if (!list.some((x) => "c:" + x.id === k)) delete CUSTOM_ICONS[k];
+  for (const x of list) {
+    const k = "c:" + x.id;
+    // 같은 앱은 같은 화면 부품을 계속 써야 열려 있는 화면이 처음으로 돌아가지 않음
+    customComps[k] ??= () => createElement(CustomAppView, { id: x.id });
+    APPS[k] = { label: x.name || "앱", C: customComps[k], light: x.theme !== "dark" };
+    CUSTOM_ICONS[k] = x;
+  }
+}
+/** 홈 화면에 둘 수 있는 기본 앱 전체 (편집 화면 '숨긴 앱' 목록용) */
+export const BUILTIN_APPS = Object.keys(APPS);

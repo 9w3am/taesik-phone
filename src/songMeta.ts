@@ -126,6 +126,8 @@ export async function searchSong(title: string, artist: string, withCover = true
 
 /* ───────── 가사 ───────── */
 export type LyricLine = { t: number | null; text: string };
+/** 가사 줄을 부르기 이만큼(초) 전에 미리 밝힘 — 폰 · 편집 화면 확인 둘 다 같은 기준 */
+export const LYRIC_LEAD = 0.3;
 
 /** "[01:23.45] 가사" (싱크 가사) 또는 그냥 줄글. 시간 없는 줄은 t = null */
 export function parseLyrics(src = ""): LyricLine[] {

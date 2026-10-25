@@ -511,6 +511,14 @@ export function defaultData(): PhoneData {
     },
 
     /* ───────── 음악 (곡 정보만, 링크 아웃) ───────── */
+    // 홈 화면 배치: 편집 화면 "홈 화면 · 앱"에서 바꿈 (여기 없는 앱은 숨김)
+    home: {
+      grid: ["kakao", "photos", "calendar", "notes", "bank", "maps", "weather", "camera", "settings", "cashwalk", "health", "folder:유틸리티"],
+      dock: ["phone", "messages", "safari", "music"],
+      folders: { 유틸리티: ["contacts", "clock", "calculator", "voicememos"] },
+    },
+    // 직접 만든 앱 (편집 화면에서 추가)
+    customApps: [],
     songs: [
       { id: id(), title: "Nights", artist: "Frank Ocean", album: "Blonde", url: "", hue: 18 },
       { id: id(), title: "Redbone", artist: "Childish Gambino", album: "\"Awaken, My Love!\"", url: "", hue: 340 },
@@ -754,4 +762,38 @@ export function defaultData(): PhoneData {
       ],
     },
   };
+}
+
+/** 빈 폰 (다른 캐릭터 템플릿용): 기능 · 모양은 그대로, 내용만 비움 */
+export function blankData(): PhoneData {
+  const d = defaultData();
+  d.owner = "";
+  d.deviceName = "iPhone";
+  d.passcode = "0000";
+  d.passcodeHint = "";
+  d.decoyCode = "";
+  d.vault = { code: "", notes: [] };
+  d.events.incomingCall.enabled = false;
+  d.events.banner.enabled = false;
+  d.events.lowBattery.enabled = false;
+  if (d.events.watcher) d.events.watcher.enabled = false;
+  d.lockNotifs = [];
+  d.threads = [];
+  d.calls = [];
+  d.contacts = [];
+  d.notes = [];
+  d.calendar = [];
+  d.dday = { title: "", date: "" };
+  d.bank = { ...d.bank, balance: 0, txs: [] };
+  d.songs = [];
+  d.customApps = [];
+  d.photos = [];
+  d.safari = { tabs: [], history: [], favorites: d.safari.favorites };
+  d.alarms = [];
+  d.places = [];
+  d.kakaoProfile = { status: "" };
+  d.triggers = [];
+  d.jobs = [];
+  d.voiceMemos = [];
+  return d;
 }

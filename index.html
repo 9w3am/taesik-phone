@@ -7,12 +7,22 @@
     <!-- 보안 규칙: 이 사이트가 불러올 수 있는 곳을 제한 (외부 스크립트·플러그인 차단) -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://*.apple.com; connect-src 'self' ws: wss: https://*.supabase.co https://api.anthropic.com https://www.youtube.com https://i.ytimg.com https://open.spotify.com https://*.scdn.co https://*.spotifycdn.com https://itunes.apple.com https://*.mzstatic.com https://lrclib.net; object-src 'none'; base-uri 'self'; form-action 'none'"
+      content="default-src 'self'; manifest-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://*.apple.com; connect-src 'self' ws: wss: https://*.supabase.co https://api.anthropic.com https://www.youtube.com https://i.ytimg.com https://open.spotify.com https://*.scdn.co https://*.spotifycdn.com https://itunes.apple.com https://*.mzstatic.com https://lrclib.net; object-src 'none'; base-uri 'self'; form-action 'none'"
     />
     <meta name="referrer" content="no-referrer" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>최태식의 iPhone</title>
+    <!-- 링크 공유하면 카톡 · 트위터 등에서 보이는 미리보기 -->
+    <meta name="description" content="남의 폰 훔쳐보기 — 최태식의 iPhone" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="최태식의 iPhone" />
+    <meta property="og:description" content="잠금 화면 너머를 들여다보세요." />
+    <meta property="og:image" content="https://9w3am.github.io/taesik-phone/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- 휴대폰 홈 화면에 추가하면 앱처럼 전체 화면 -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='14' y='4' width='36' height='56' rx='9' fill='%23111'/%3E%3Crect x='26' y='8' width='12' height='4' rx='2' fill='%23444'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap" />

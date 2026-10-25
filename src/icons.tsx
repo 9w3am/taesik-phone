@@ -247,7 +247,16 @@ export const ICONS: Record<string, () => React.ReactElement> = {
   ),
 };
 
+/** 직접 만든 앱 아이콘 정보 (apps/index.ts의 syncCustomApps가 채움) */
+export const CUSTOM_ICONS: Record<string, { name: string; iconBg: string; iconText: string; iconImg?: string }> = {};
 export function AppIcon({ id, size = 60 }: { id: string; size?: number }) {
+  const c = CUSTOM_ICONS[id];
+  if (c)
+    return (
+      <div className="app-icon flex items-center justify-center font-bold text-white" style={{ width: size, height: size, background: c.iconBg, fontSize: size * ((c.iconText || c.name.slice(0, 1)).length > 1 ? 0.36 : 0.48) }}>
+        {c.iconImg?.startsWith("data:image/") ? <img src={c.iconImg} alt="" className="w-full h-full object-cover" /> : c.iconText || c.name.slice(0, 1)}
+      </div>
+    );
   const I = ICONS[id] ?? (() => <S bg={fill("#8E8E93")}>{null}</S>);
   return (
     <div className="app-icon" style={{ width: size, height: size }}>

@@ -3,12 +3,12 @@ import { Flashlight, Camera, Lock, MapPin, Cloud, Search, Phone as PhoneIcon, Ph
 import { useData, update, DAYS, type PhoneData, type Song } from "./store";
 import { AppIcon } from "./icons";
 import { Avatar, Ctx, hm, useNow, type PhoneCtx } from "./ui";
-import { APPS } from "./apps";
+import { APPS, syncCustomApps } from "./apps";
 import { CallScreen } from "./apps/Call";
 import { soundSrc } from "./sounds";
 import { ControlCenter, NotifCenter } from "./Overlays";
 import { Handset, HandsetDown } from "./phoneIcons";
-import { MusicProvider, MusicHosts, useMusic } from "./music";
+import { MusicProvider, MusicHosts, useMusic, useMusicTime } from "./music";
 import { Cover } from "./apps/Music";
 
 /** 수신 화면 보조 문구: 연락처에 있으면 라벨(휴대전화 등), 번호면 대한민국, 모르면 비움 */
@@ -109,6 +109,7 @@ function Island({ calling, onOpenMusic }: { calling: boolean; onOpenMusic: () =>
 /* ───────── 잠금화면 '지금 재생 중' (실제 아이폰 잠금화면 음악 카드) ───────── */
 function NowPlaying() {
   const m = useMusic();
+  const t = useMusicTime();
   const s = m.song;
   if (!m.started || !s) return null;
   const f = (x: number) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, "0")}`;
@@ -123,11 +124,11 @@ function NowPlaying() {
         <Airplay size={20} className="text-white/70" />
       </div>
       <div className="mt-[12px] h-[5px] rounded-full bg-white/25 overflow-hidden">
-        <div className="h-full bg-white/85" style={{ width: `${Math.min(100, (m.t / m.dur) * 100)}%` }} />
+        <div className="h-full bg-white/85" style={{ width: `${Math.min(100, (t / m.dur) * 100)}%` }} />
       </div>
       <div className="flex justify-between text-[11px] text-white/55 mt-[4px] tabular font-medium">
-        <span>{f(m.t)}</span>
-        <span>-{f(Math.max(0, m.dur - m.t))}</span>
+        <span>{f(t)}</span>
+        <span>-{f(Math.max(0, m.dur - t))}</span>
       </div>
       <div className="flex items-center justify-center gap-[46px] mt-[2px] mb-[2px]">
         <button onClick={m.prev} aria-label="이전" className="active:opacity-50">
@@ -412,14 +413,14 @@ function Passcode({ code, hint, name, onOk, onCancel, decoy, onDecoy }: { code: 
 }
 
 /* ───────── 홈 화면 ───────── */
-type HomeItem = string;
-const GRID: HomeItem[] = ["kakao", "photos", "calendar", "notes", "bank", "maps", "weather", "camera", "settings", "cashwalk", "health", "folder:유틸리티"];
-/** 홈 화면 폴더 (실제 아이폰처럼 작은 아이콘 묶음) */
-const FOLDERS: Record<string, string[]> = { 유틸리티: ["contacts", "clock", "calculator", "voicememos"] };
-const DOCK: HomeItem[] = ["phone", "messages", "safari", "music"];
 
 function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
   const now = useNow(30000);
+  // 홈 화면 배치는 편집 화면에서 정함 (없는 앱 · 빈 폴더는 안 보이게)
+  const FOLDERS = Object.fromEntries(Object.entries(d.home.folders).map(([k, v]) => [k, v.filter((a) => APPS[a])]));
+  const okItem = (id: string) => (id.startsWith("folder:") ? (FOLDERS[id.slice(7)]?.length ?? 0) > 0 : !!APPS[id]);
+  const GRID = d.home.grid.filter(okItem);
+  const DOCK = d.home.dock.filter(okItem).slice(0, 4);
   const badge = (id: string) => {
     const t = (app: string) => d.threads.filter((x) => x.app === app).reduce((a, x) => a + (x.unread || 0), 0);
     if (id === "messages") return t("messages");
@@ -955,6 +956,7 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
     location.hash = "#/editor";
   };
 
+  syncCustomApps(d.customApps);
   const AppComp = app ? APPS[app]?.C : null;
   const onDarkSurface = phase !== "home" || !app ? false : statusDark;
   const indicatorDark = phase === "home" && !!app && statusDark && !call;

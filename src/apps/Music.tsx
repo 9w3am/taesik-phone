@@ -1,9 +1,9 @@
 /* 음악 (Apple Music 스타일) — 재생은 폰 전체 재생기(music.tsx)가 맡음: 앱을 나가도 계속 나옴 */
 import { useEffect, useRef, useState } from "react";
-import { Star, Play, Pause, FastForward, Rewind, House, LayoutGrid, Radio, Library, Search, MoreHorizontal, Airplay, ListMusic, ChevronRight, Check, ExternalLink, Quote, X, Smartphone, Music2, Mic2, Disc3, ListOrdered } from "lucide-react";
+import { Shuffle, Repeat, Repeat1, Star, Play, Pause, FastForward, Rewind, House, LayoutGrid, Radio, Library, Search, MoreHorizontal, Airplay, ListMusic, ChevronRight, Check, ExternalLink, Quote, X, Smartphone, Music2, Mic2, Disc3, ListOrdered } from "lucide-react";
 import { type Song } from "../store";
-import { type LyricLine } from "../songMeta";
-import { useMusic } from "../music";
+import { LYRIC_LEAD, type LyricLine } from "../songMeta";
+import { useMusic, useMusicTime } from "../music";
 import { LargeTitle, NavBar, TabBar, useScrolled, usePhoneCtx, useStatusBar } from "../ui";
 
 const RED = "#FA2D48";
@@ -96,7 +96,7 @@ function Lyrics({ lines, t, onSeek, loading }: { lines: LyricLine[]; t: number; 
   const touched = useRef(0);
   const synced = lines.some((l) => l.t !== null);
   let cur = -1;
-  if (synced) lines.forEach((l, i) => l.t !== null && l.t <= t + 0.15 && (cur = i));
+  if (synced) lines.forEach((l, i) => l.t !== null && l.t <= t + LYRIC_LEAD && (cur = i));
   useEffect(() => {
     const el = box.current;
     if (!el || Date.now() - touched.current < 2500) return;
@@ -135,7 +135,7 @@ function Lyrics({ lines, t, onSeek, loading }: { lines: LyricLine[]; t: number; 
                 color: on ? "#fff" : past ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.36)",
                 filter: synced && !on ? `blur(${Math.min(1.6, Math.abs(i - cur) * 0.45)}px)` : "none",
                 transform: synced && on ? "scale(1.015)" : "scale(1)",
-                transition: "color .4s, filter .4s, transform .4s",
+                transition: on ? "color .12s, filter .12s, transform .3s" : "color .4s, filter .4s, transform .3s",
               }}
             >
               {l.text || <span className="tracking-[6px]">•••</span>}
@@ -165,7 +165,8 @@ function Player({ onClose, startLyrics }: { onClose: () => void; startLyrics: bo
     const r = e.currentTarget.getBoundingClientRect();
     return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
   };
-  const shown = drag !== null ? drag * m.dur : m.t;
+  const t = useMusicTime();
+  const shown = drag !== null ? drag * m.dur : t;
   const img = s.cover && s.cover.startsWith("data:image/") ? s.cover : "";
   const ly = showLy;
   const hint = m.tapHint && "소리가 안 나오면 재생 버튼을 한 번 더 눌러 주세요";
@@ -217,7 +218,7 @@ function Player({ onClose, startLyrics }: { onClose: () => void; startLyrics: bo
             </div>
           </>
         )}
-        {ly && <Lyrics lines={m.lyrics} t={m.t} loading={m.lyricsLoading} onSeek={(x) => (m.seek(x), m.setPlay(true))} />}
+        {ly && <Lyrics lines={m.lyrics} t={t} loading={m.lyricsLoading} onSeek={(x) => (m.seek(x), m.setPlay(true))} />}
         <div className={ly ? "mt-[6px] shrink-0" : "mt-[22px] shrink-0"}>
           <div
             className="py-[10px] -my-[10px] cursor-pointer touch-none"
@@ -286,7 +287,14 @@ function Player({ onClose, startLyrics }: { onClose: () => void; startLyrics: bo
       {sheet === "queue" && (
         <Sheet dark onClose={() => setSheet(null)}>
           <div className="flex items-center justify-between pb-[10px]">
-            <span className="text-[19px] font-bold">다음 재생</span>
+            <span className="text-[19px] font-bold flex-1">다음 재생</span>
+            {/* 셔플 · 반복 (애플뮤직 다음 재생 화면처럼) */}
+            <button onClick={m.toggleShuffle} aria-label="셔플" className="w-[34px] h-[30px] rounded-[8px] flex items-center justify-center mr-[6px]" style={m.shuffle ? { background: "rgba(255,255,255,0.9)", color: "#222" } : { background: "rgba(255,255,255,0.15)" }}>
+              <Shuffle size={16} />
+            </button>
+            <button onClick={m.cycleRepeat} aria-label="반복" className="w-[34px] h-[30px] rounded-[8px] flex items-center justify-center mr-[10px]" style={m.repeat !== "off" ? { background: "rgba(255,255,255,0.9)", color: "#222" } : { background: "rgba(255,255,255,0.15)" }}>
+              {m.repeat === "one" ? <Repeat1 size={16} /> : <Repeat size={16} />}
+            </button>
             <button onClick={() => setSheet(null)} aria-label="닫기" className="w-[30px] h-[30px] rounded-full bg-white/15 flex items-center justify-center">
               <X size={16} />
             </button>
@@ -390,7 +398,8 @@ export default function Music() {
           </>
         ) : (
           <>
-            {tab === "home" && (
+            {songs.length === 0 && <div className="text-center text-black/40 pt-[90px] text-[16px] leading-[24px]">보관함에 음악 없음<br /><span className="text-[13px]">편집 화면 '음악'에서 노래 링크를 넣어 보세요</span></div>}
+            {tab === "home" && songs.length > 0 && (
               <>
                 <div className="px-4 pt-[6px] pb-[10px] text-[22px] font-bold flex items-center">최근 재생한 항목</div>
                 <div className="flex gap-[12px] px-4 overflow-x-auto no-scrollbar pb-2">

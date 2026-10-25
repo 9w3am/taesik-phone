@@ -57,7 +57,6 @@ export type MusicApi = {
   playing: boolean;
   /** 이번에 한 번이라도 재생했는지 (잠금화면 카드 표시용) */
   started: boolean;
-  t: number;
   dur: number;
   kind: Kind;
   /** 휴대폰에서 자동 재생이 막혔을 때: 재생 버튼을 한 번 더 눌러 달라는 안내 */
@@ -76,9 +75,16 @@ export type MusicApi = {
   prev: () => void;
   seek: (x: number) => void;
   hosts: { yt: React.RefObject<HTMLDivElement> };
+  shuffle: boolean;
+  repeat: "off" | "all" | "one";
+  toggleShuffle: () => void;
+  cycleRepeat: () => void;
 };
 const Ctx = createContext<MusicApi | null>(null);
 export const useMusic = () => useContext(Ctx)!;
+/** 지금 재생 시간 (초당 20번 바뀜 — 필요한 화면만 이걸 써서 폰 전체가 매번 다시 그려지지 않게) */
+const TCtx = createContext(0);
+export const useMusicTime = () => useContext(TCtx);
 
 const lyricCache = new Map<string, LyricLine[]>();
 
@@ -171,7 +177,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const lastT = lyrics.reduce((m, l) => Math.max(m, l.t ?? 0), 0);
   const dur = realDur || Number(song?.dur) || (lastT ? Math.ceil(lastT + 20) : 180 + (((song?.title.length ?? 0) * 7) % 90));
 
-  const next = useCallback(() => songs.length && setIdx((i) => (i + 1) % songs.length), [songs.length]);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState<"off" | "all" | "one">("all");
+  const toggleShuffle = useCallback(() => setShuffle((x) => !x), []);
+  const cycleRepeat = useCallback(() => setRepeat((r) => (r === "all" ? "one" : r === "one" ? "off" : "all")), []);
+  const pickNext = (i: number) => (shuffle && songs.length > 1 ? (i + 1 + Math.floor(Math.random() * (songs.length - 1))) % songs.length : (i + 1) % songs.length);
+  /** 다음 곡 버튼 */
+  const next = useCallback(() => songs.length && setIdx(pickNext), [songs.length, shuffle]); // eslint-disable-line react-hooks/exhaustive-deps
   const seek = useCallback(
     (x: number) => {
       setT(x);
@@ -180,6 +192,26 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     },
     [kind],
   );
+  /** 곡이 끝났을 때 */
+  const advanceRef = useRef(() => {});
+  advanceRef.current = () => {
+    if (repeat === "one") {
+      setT(0);
+      yt.current?.seekTo(0, true);
+      yt.current?.playVideo();
+      if (audio.current) {
+        audio.current.currentTime = 0;
+        audio.current.play().catch(() => {});
+      }
+      return;
+    }
+    if (!shuffle && repeat === "off" && idx >= songs.length - 1) {
+      setPlaying(false);
+      setT(0);
+      return;
+    }
+    setIdx(pickNext);
+  };
   const tRef = useRef(0);
   tRef.current = t;
   const prev = useCallback(() => (tRef.current > 3 ? seek(0) : songs.length && setIdx((i) => (i - 1 + songs.length) % songs.length)), [seek, songs.length]);
@@ -280,6 +312,8 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     if (!playing) return;
     let last = performance.now();
     let stuck = 0;
+    // 유튜브는 재생 시간을 0.25초 정도 단위로만 알려 줌 → 마지막으로 받은 시간 + 흐른 시간으로 사이를 채움
+    const sm = { raw: -1, base: 0, at: 0 };
     const i = setInterval(() => {
       const n = performance.now();
       const dt = (n - last) / 1000;
@@ -288,10 +322,16 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         const p = yt.current;
         if (!p || !ytReady || loaded.current.yt !== ytId) return;
         const st = p.getPlayerState();
-        if (st === 0) return next();
+        if (st === 0) return advanceRef.current();
         const du = p.getDuration() || 0;
         if (du) setRealDur(du);
-        setT(p.getCurrentTime() || 0);
+        const raw = p.getCurrentTime() || 0;
+        if (raw !== sm.raw || st !== 1) {
+          sm.raw = raw;
+          sm.base = raw;
+          sm.at = n;
+        }
+        setT(st === 1 ? sm.base + Math.min(0.5, (n - sm.at) / 1000) : raw);
         stuck = st === 1 || st === 3 ? 0 : stuck + dt;
         if (stuck > 2.5) setTapHint(true);
         return;
@@ -301,11 +341,11 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         if (!a) return;
         if (a.duration) setRealDur(a.duration);
         setT(a.currentTime);
-        if (a.ended) return next();
+        if (a.ended) return advanceRef.current();
         return;
       }
-      setT((x) => (x + dt >= dur ? (next(), 0) : x + dt));
-    }, 150);
+      setT((x) => (x + dt >= dur ? (advanceRef.current(), 0) : x + dt));
+    }, 50);
     return () => clearInterval(i);
   }, [playing, kind, ytReady, ytId, dur, next]);
 
@@ -322,30 +362,15 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("music:play", f);
   }, [songs]);
 
-  const api: MusicApi = {
-    songs,
-    song,
-    idx,
-    playing,
-    started,
-    t,
-    dur,
-    kind,
-    tapHint,
-    lyrics,
-    lyricsLoading,
-    preview,
-    volume,
-    setVolume,
-    volAt,
-    playAt,
-    setPlay,
-    next,
-    prev,
-    seek,
-    hosts: { yt: ytHost },
-  };
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
+  const api = useMemo<MusicApi>(
+    () => ({ songs, song, idx, playing, started, dur, kind, tapHint, lyrics, lyricsLoading, preview, volume, setVolume, volAt, playAt, setPlay, next, prev, seek, hosts: { yt: ytHost }, shuffle, repeat, toggleShuffle, cycleRepeat }),
+    [songs, song, idx, playing, started, dur, kind, tapHint, lyrics, lyricsLoading, preview, volume, setVolume, volAt, playAt, setPlay, next, prev, seek, shuffle, repeat, toggleShuffle, cycleRepeat],
+  );
+  return (
+    <Ctx.Provider value={api}>
+      <TCtx.Provider value={t}>{children}</TCtx.Provider>
+    </Ctx.Provider>
+  );
 }
 
 /** 유튜브 재생기 (화면 뒤에 숨어서 소리만 냄 — 화면엔 앨범 커버) */
