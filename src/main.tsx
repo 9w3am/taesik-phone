@@ -7,6 +7,7 @@ import { syncPublished } from "./store";
 syncPublished();
 
 const Editor = lazy(() => import("./Editor"));
+const IconSheet = lazy(() => import("./IconSheet"));
 
 /* /editor 경로 또는 #/editor 해시로 제작자 편집 화면 */
 const isEditor = () => location.hash.startsWith("#/editor") || /\/editor\/?$/.test(location.pathname);
@@ -22,6 +23,12 @@ function Root() {
       window.removeEventListener("popstate", f);
     };
   }, []);
+  if (location.hash.startsWith("#/icons"))
+    return (
+      <Suspense fallback={null}>
+        <IconSheet />
+      </Suspense>
+    );
   return ed ? (
     <Suspense fallback={null}>
       <Editor />

@@ -188,7 +188,7 @@ export const ICONS: Record<string, () => React.ReactElement> = {
   ),
   coupang: () => (
     <S bg={fill("#fff")}>
-      <text x="30" y="36" fontSize="11.5" textAnchor="middle" fontWeight="800" fontFamily="Arial, sans-serif" letterSpacing="-0.3">
+      <text x="30" y="35" fontSize="12.4" textAnchor="middle" fontWeight="800" fontFamily="Arial, sans-serif" letterSpacing="-0.6">
         <tspan fill="#9B4A1E">c</tspan>
         <tspan fill="#E2312C">o</tspan>
         <tspan fill="#F4A51C">u</tspan>
@@ -200,21 +200,31 @@ export const ICONS: Record<string, () => React.ReactElement> = {
     </S>
   ),
   baemin: () => (
-    <S bg={fill("#2AC1BC")}>
-      <text x="30" y="27" fontSize="11" textAnchor="middle" fontWeight="900" fill="#fff" fontFamily="'Pretendard Variable',sans-serif">
-        배달의
+    <S bg={<>{lin("gbm", "#3DD3CD", "#1FB3AD")}<rect width="60" height="60" fill="url(#gbm)" /></>}>
+      {/* 배달의민족: 민트 바탕 · 큰 '배민' 글자 · 스쿠터 탄 배달원 */}
+      <text x="57" y="20" fontSize="17" textAnchor="end" fontWeight="900" fill="#fff" opacity="0.95" fontFamily="'BM Hanna','Pretendard Variable',sans-serif" letterSpacing="-1">
+        배민
       </text>
-      <text x="30" y="41" fontSize="11" textAnchor="middle" fontWeight="900" fill="#fff" fontFamily="'Pretendard Variable',sans-serif">
-        민족
-      </text>
+      <rect x="11" y="27" width="13" height="11" rx="2" fill="#fff" />
+      <rect x="11" y="31" width="13" height="2.2" fill="#2AC1BC" />
+      <path d="M14 39.5h24.5c3 0 5.4-2 6.1-4.8l1.1-4.3h3.4" stroke="#0E8C87" strokeWidth="4.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="27" y="29" width="10" height="10" rx="4" fill="#127C78" />
+      <circle cx="32.5" cy="26" r="5.4" fill="#178F8A" />
+      <path d="M33 24.3h4.8a1.2 1.2 0 0 1 0 2.4H33z" fill="#E9FFFE" />
+      <circle cx="18.5" cy="45" r="4.6" fill="#0B4D4A" />
+      <circle cx="18.5" cy="45" r="1.8" fill="#9FE7E3" />
+      <circle cx="42.5" cy="45" r="4.6" fill="#0B4D4A" />
+      <circle cx="42.5" cy="45" r="1.8" fill="#9FE7E3" />
     </S>
   ),
+
   kakaot: () => (
-    <S bg={fill("#FFE600")}>
-      <rect x="15" y="15" width="30" height="30" rx="9" fill="#1E1E1E" />
-      <path d="M23 24h14v4h-5v10h-4V28h-5z" fill="#FFE600" />
+    <S bg={<>{lin("gkt", "#2B2F57", "#191B37")}<rect width="60" height="60" fill="url(#gkt)" /></>}>
+      {/* 카카오 T: 남색 바탕에 노란 T */}
+      <path d="M16.5 17.5a3.5 3.5 0 0 1 3.5-3.5h20a3.5 3.5 0 0 1 3.5 3.5v2.6a3.5 3.5 0 0 1-3.5 3.5h-5.6v18.9a3 3 0 0 1-3 3h-3.8a3 3 0 0 1-3-3V23.6H20a3.5 3.5 0 0 1-3.5-3.5z" fill="#FFD84A" />
     </S>
   ),
+
   voicememos: () => (
     <S bg={fill("#1C1C1E")}>
       {[6, 14, 24, 34, 22, 40, 28, 16, 30, 18, 10].map((h, i) => (
@@ -228,14 +238,18 @@ export const ICONS: Record<string, () => React.ReactElement> = {
     </S>
   ),
   cashwalk: () => (
-    <S bg={fill("#FFD200")}>
-      <circle cx="30" cy="31" r="17" fill="#1A1A1A" />
-      <text x="30" y="38.5" fontSize="21" textAnchor="middle" fill="#FFD200" fontWeight="900" fontFamily="Arial, sans-serif">
-        C
-      </text>
-      <path d="M41 13c2.5-1.5 5.5-.6 6.4 1.8.9 2.4-.6 4.6-3 5.4" stroke="#1A1A1A" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+    <S bg={<>{lin("gcw", "#FFD52A", "#FFBE00")}<rect width="60" height="60" fill="url(#gcw)" /></>}>
+      {/* 캐시워크: 노란 바탕에 검은 운동화 */}
+      <path d="M9.5 40.5c0-3.3 1.2-6.4 3.3-8.8l4.4-9.6c.9-2 3.2-2.6 4.9-1.4l3.3 2.4c1.8 1.3 4.3 1.1 5.8-.5l1.3-1.4c1-1.1 2.8-1 3.7.2l10.4 13.6c1.4 1.9 3.7 2.9 6 2.9 1.8 0 3.1 1.4 3.1 3.2v2.1c0 1.5-1.2 2.7-2.7 2.7H12.8c-1.8 0-3.3-1.5-3.3-3.3z" fill="#1A1A1A" />
+      <path d="M10.5 42.4h44" stroke="#FFC400" strokeWidth="1.7" />
+      <g stroke="#fff" strokeWidth="1.7" strokeLinecap="round">
+        <path d="M26 27.6l3.2 2.3" />
+        <path d="M29 25.2l3 2.6" />
+        <path d="M32.2 23.2l2.6 2.8" />
+      </g>
     </S>
   ),
+
   notes: () => (
     <S bg={fill("#fff")}>
       <rect width="60" height="17" fill="#FFD02F" />
@@ -279,23 +293,32 @@ export const ICONS: Record<string, () => React.ReactElement> = {
     </S>
   ),
   settings: () => (
-    <S bg={<>{lin("gst", "#D7D7DC", "#9C9CA2")}<rect width="60" height="60" fill="url(#gst)" /></>}>
-      <g fill="#3A3A3C">
-        {Array.from({ length: 30 }).map((_, i) => (
-          <path key={i} d="M28.7 7.6h2.6l.7 3.6h-4z" transform={`rotate(${i * 12} 30 30)`} />
+    <S bg={<>{lin("gst", "#EDEDF2", "#A9A9B0")}<rect width="60" height="60" fill="url(#gst)" /></>}>
+      {/* 바깥 큰 톱니 */}
+      <g fill="#7D7D83">
+        {Array.from({ length: 32 }).map((_, i) => (
+          <rect key={i} x="28.6" y="6.2" width="2.8" height="5" rx="0.6" transform={`rotate(${i * 11.25} 30 30)`} />
         ))}
       </g>
-      <circle cx="30" cy="30" r="19.2" fill="#3A3A3C" />
-      <circle cx="30" cy="30" r="16.6" fill="#8E8E93" />
-      <circle cx="30" cy="30" r="15.4" fill="#D1D1D6" />
-      {Array.from({ length: 6 }).map((_, i) => (
-        <rect key={i} x="29" y="15.6" width="2" height="14.4" rx="1" fill="#7C7C82" transform={`rotate(${i * 60 + 30} 30 30)`} />
+      <circle cx="30" cy="30" r="20" fill="#7D7D83" />
+      <circle cx="30" cy="30" r="17.6" fill="#4E4E53" />
+      <circle cx="30" cy="30" r="16.2" fill="#D4D4D9" />
+      {/* 안쪽 작은 톱니 */}
+      <g fill="#8E8E93">
+        {Array.from({ length: 18 }).map((_, i) => (
+          <rect key={i} x="29.2" y="18.6" width="1.6" height="2.6" transform={`rotate(${i * 20} 30 30)`} />
+        ))}
+      </g>
+      <circle cx="30" cy="30" r="9.6" fill="#8E8E93" />
+      <circle cx="30" cy="30" r="8.2" fill="#C7C7CC" />
+      {/* 세 갈래 살 */}
+      {[0, 120, 240].map((r) => (
+        <rect key={r} x="27.9" y="13.8" width="4.2" height="16" rx="1.4" fill="#6E6E73" transform={`rotate(${r} 30 30)`} />
       ))}
-      <circle cx="30" cy="30" r="10.2" fill="none" stroke="#9A9AA0" strokeWidth="1.3" />
-      <circle cx="30" cy="30" r="5.2" fill="#D1D1D6" stroke="#7C7C82" strokeWidth="1.2" />
-      <circle cx="30" cy="30" r="2.2" fill="#3A3A3C" />
+      <circle cx="30" cy="30" r="4.4" fill="#E5E5EA" stroke="#6E6E73" strokeWidth="1.4" />
     </S>
   ),
+
   clock: Clock,
   calculator: () => (
     <S bg={fill("#1C1C1E")}>
