@@ -100,7 +100,7 @@ export type CustomApp = {
 };
 /** 홈 화면 배치: 아이콘 칸(grid) · 아래 독(dock) · 폴더. 어디에도 없으면 숨김 */
 export type HomeLayout = { grid: string[]; dock: string[]; folders: Record<string, string[]> };
-export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number; cover?: string; /** 곡 길이(초) */ dur?: number; /** 가사. [00:12.34] 처럼 시간을 붙이면 노래에 맞춰 내려감 */ lyrics?: string; /** 가사 싱크 조절(초): + 면 가사가 늦게, - 면 빨리 */ lyricsOffset?: number; /** 30초 미리듣기 주소 (애플) */ preview?: string; /** 소리용 유튜브 링크 (곡 링크가 유튜브가 아닐 때 전곡 재생용) */ yt?: string };
+export type Song = { id: string; title: string; artist: string; album: string; url: string; hue: number; cover?: string; /** 곡 길이(초) */ dur?: number; /** 가사. [00:12.34] 처럼 시간을 붙이면 노래에 맞춰 내려감 */ lyrics?: string; /** 가사 싱크 조절(초): + 면 가사가 늦게, - 면 빨리 */ lyricsOffset?: number; /** 30초 미리듣기 주소 (애플) */ preview?: string; /** 소리용 유튜브 링크 (곡 링크가 유튜브가 아닐 때 전곡 재생용) */ yt?: string; /** 직접 올린 음원: "local"(이 브라우저에 저장) 또는 사이트에 같이 올린 파일 이름 */ audio?: string };
 export type Photo = { id: string; kind?: string; asset?: string; src?: string; deleted?: boolean; vault?: boolean; caption: string; when: string; album?: string; fav?: boolean };
 export type Post = { id: string; user: string; caption: string; photo: string; likes: number; comments: number; when: string };
 export type Story = { id: string; user: string; text: string; bg: string; when: string; photo?: string; style?: "box" | "classic" };
@@ -302,6 +302,7 @@ export function sanitize(o: unknown): PhoneData | null {
       lyricsOffset: num(v.lyricsOffset),
       preview: str(v.preview) || undefined,
       yt: str(v.yt) || undefined,
+      audio: str(v.audio, 300) || undefined,
     }));
   return out as unknown as PhoneData;
 }

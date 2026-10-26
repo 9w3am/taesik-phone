@@ -4,11 +4,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useData, type Song } from "./store";
 import { fetchLyrics, parseLyrics, songYtId, type LyricLine } from "./songMeta";
+import { fileSrc, loadAllAudio, useAudioVer } from "./audioStore";
 
-type Kind = "yt" | "pv" | "none";
+type Kind = "file" | "yt" | "pv" | "none";
 /** 소리 낼 유튜브 영상 ID (소리용 링크 우선, 없으면 곡 링크가 유튜브일 때) */
 export const soundYtId = (s?: Song | null) => (s ? songYtId(s.yt || "") || songYtId(s.url) : "");
-export const songKind = (s?: Song | null): Kind => (!s ? "none" : soundYtId(s) ? "yt" : safePreview(s.preview) ? "pv" : "none");
+/** 소리 순서: 직접 올린 음원 파일(광고 없음) → 유튜브 → 애플 30초 미리듣기 */
+export const songKind = (s?: Song | null): Kind => (!s ? "none" : fileSrc(s) ? "file" : soundYtId(s) ? "yt" : safePreview(s.preview) ? "pv" : "none");
+/** 이 곡을 <audio>로 틀 때의 주소 (음원 파일 또는 미리듣기) */
+const audioSrc = (s: Song | null, k: Kind) => (!s ? "" : k === "file" ? fileSrc(s) : k === "pv" ? safePreview(s.preview) : "");
 /** 보안: 애플 미리듣기 주소만 허용 */
 export const safePreview = (u?: string) => {
   try {
@@ -91,6 +95,8 @@ const lyricCache = new Map<string, LyricLine[]>();
 export function MusicProvider({ children }: { children: React.ReactNode }) {
   const d = useData();
   const songs = d.songs;
+  useAudioVer(); // 음원 파일을 올리거나 지우면 다시 계산
+  useEffect(() => void loadAllAudio(), []);
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
@@ -102,7 +108,8 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const song = songs[idx] ?? songs[0] ?? null;
   const kind = songKind(song);
   const ytId = soundYtId(song);
-  const pv = song ? safePreview(song.preview) : "";
+  const pv = audioSrc(song, kind);
+  const isA = kind === "file" || kind === "pv";
 
   const ytHost = useRef<HTMLDivElement>(null);
   const yt = useRef<YTPlayer | null>(null);
@@ -116,15 +123,15 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
       if (!s) return;
       const id = soundYtId(s);
       const y = yt.current;
-      if (id && y && ytReady) {
+      if (id && y && ytReady && songKind(s) === "yt") {
         if (loaded.current.yt !== id) {
           loaded.current.yt = id;
           y.loadVideoById(id);
         } else y.playVideo();
         return;
       }
-      const p = safePreview(s.preview);
-      if (!id && p) {
+      const p = audioSrc(s, songKind(s));
+      if ((!id || songKind(s) === "file") && p) {
         if (!audio.current) audio.current = new Audio();
         const a = audio.current;
         if (loaded.current.pv !== p) {
@@ -143,12 +150,12 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const [auto, setAuto] = useState<LyricLine[]>([]);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const preview = kind === "pv";
-  const lyricDur = Math.round((kind === "yt" ? realDur : 0) || Number(song?.dur) || 0);
+  const lyricDur = Math.round((kind === "yt" || kind === "file" ? realDur : 0) || Number(song?.dur) || 0);
   useEffect(() => {
     setAuto([]);
     if (!song || own.length || !song.title.trim() || !started) return;
     // 유튜브는 실제 길이를 알고 나서 (그 길이에 맞는 싱크 가사를 고르려고)
-    if (kind === "yt" && !realDur) return;
+    if ((kind === "yt" || kind === "file") && !realDur) return;
     const key = `${song.title}|${song.artist}|${lyricDur}`;
     const hit = lyricCache.get(key);
     if (hit) return setAuto(hit);
@@ -188,9 +195,9 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     (x: number) => {
       setT(x);
       if (kind === "yt") yt.current?.seekTo(x, true);
-      if (kind === "pv" && audio.current) audio.current.currentTime = x;
+      if (isA && audio.current) audio.current.currentTime = x;
     },
-    [kind],
+    [kind, isA],
   );
   /** 곡이 끝났을 때 */
   const advanceRef = useRef(() => {});
@@ -282,10 +289,10 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
       } else if (playing) y.playVideo();
       else y.pauseVideo();
     }
-    if (!audio.current && kind === "pv") audio.current = new Audio();
+    if (!audio.current && isA) audio.current = new Audio();
     const a = audio.current;
     if (a) {
-      if (kind !== "pv") a.pause();
+      if (!isA) a.pause();
       else {
         if (loaded.current.pv !== pv) {
           loaded.current.pv = pv;
@@ -295,7 +302,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         else a.pause();
       }
     }
-  }, [ytReady, kind, ytId, pv, playing]);
+  }, [ytReady, kind, isA, ytId, pv, playing]);
 
   // 볼륨 (실제 소리도 같이)
   useEffect(() => {
@@ -336,7 +343,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         if (stuck > 2.5) setTapHint(true);
         return;
       }
-      if (kind === "pv") {
+      if (isA) {
         const a = audio.current;
         if (!a) return;
         if (a.duration) setRealDur(a.duration);
@@ -347,7 +354,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
       setT((x) => (x + dt >= dur ? (advanceRef.current(), 0) : x + dt));
     }, 50);
     return () => clearInterval(i);
-  }, [playing, kind, ytReady, ytId, dur, next]);
+  }, [playing, kind, isA, ytReady, ytId, dur, next]);
 
   // 편집 화면의 "폰에서 들어 보기": 그 곡 바로 재생
   const playRef = useRef(playAt);

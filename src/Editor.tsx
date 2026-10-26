@@ -1,6 +1,7 @@
 /* 제작자용 편집 화면 (/editor 또는 #/editor) */
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
+import { putAudio, delAudio, audioInfo, fileSrc, useAudioVer, loadAllAudio } from "./audioStore";
 import { useData, update, setData, resetData, sanitize, cleanAuto, uid, undo, redo, canUndo, canRedo, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song, type CustomApp, type CustomItem, type Page, type LaterEv } from "./store";
 import { defaultData, blankData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
@@ -1029,13 +1030,28 @@ const REACTION = 0.2;
 function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string) => void; onClose: () => void }) {
   const parsed = parseLyrics(song.lyrics);
   const lines = parsed.map((l) => l.text);
-  const vid = soundYtId(song);
+  useAudioVer();
+  const file = fileSrc(song);
+  const vid = file ? "" : soundYtId(song);
   // 이미 싱크가 있으면 그 시간부터 시작 (고칠 부분만 다시 찍으면 됨)
   const [times, setTimes] = useState<number[]>(() => (parsed.every((l) => l.t !== null) ? parsed.map((l) => l.t as number) : []));
   const [cursor, setCursor] = useState(() => (parsed.every((l) => l.t !== null) ? lines.length : 0));
   const [now, setNow] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [ready, setReady] = useState(!vid);
+  // 직접 올린 음원 파일로 맞추기 (광고 없음)
+  const aud = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    if (!file) return;
+    const a = new Audio(file);
+    a.onplay = () => setPlaying(true);
+    a.onpause = () => setPlaying(false);
+    aud.current = a;
+    return () => {
+      a.pause();
+      aud.current = null;
+    };
+  }, [file]);
   const host = useRef<HTMLDivElement>(null);
   const yt = useRef<YTPlayer | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -1044,6 +1060,7 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
   // 유튜브 시간은 띄엄띄엄 오니까 폰과 똑같이 사이를 채워서 읽음 (찍는 시간 = 폰에서 보이는 시간)
   const sm = useRef({ raw: -1, at: 0 });
   const getT = () => {
+    if (aud.current) return aud.current.currentTime;
     const y = yt.current;
     if (!y) return clock.current.base + (clock.current.at !== null ? (performance.now() - clock.current.at) / 1000 : 0);
     const raw = y.getCurrentTime() || 0;
@@ -1084,14 +1101,16 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
     return () => clearInterval(i);
   });
   const play = () => {
-    if (yt.current) yt.current.playVideo();
+    if (aud.current) void aud.current.play().catch(() => {});
+    else if (yt.current) yt.current.playVideo();
     else if (clock.current.at === null) {
       clock.current.at = performance.now();
       setPlaying(true);
     }
   };
   const pause = () => {
-    if (yt.current) yt.current.pauseVideo();
+    if (aud.current) aud.current.pause();
+    else if (yt.current) yt.current.pauseVideo();
     else if (clock.current.at !== null) {
       clock.current.base = getT();
       clock.current.at = null;
@@ -1100,7 +1119,8 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
   };
   const seek = (x: number) => {
     const t = Math.max(0, x);
-    if (yt.current) yt.current.seekTo(t, true);
+    if (aud.current) aud.current.currentTime = t;
+    else if (yt.current) yt.current.seekTo(t, true);
     else clock.current = { base: t, at: clock.current.at !== null ? performance.now() : null };
     setNow(t);
   };
@@ -1173,7 +1193,9 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
             </>
           )}
         </div>
-        {vid ? (
+        {file ? (
+          <div className="mt-3 rounded-[12px] bg-[#E8F5EC] text-[13px] text-[#1d6b34] p-3">♪ 올린 음원 파일로 맞춰요 (광고 없음)</div>
+        ) : vid ? (
           <div ref={host} className="mt-3 w-full aspect-video max-h-[180px] rounded-[12px] overflow-hidden bg-black shrink-0" />
         ) : (
           <div className="mt-3 rounded-[12px] bg-[#FFF4E5] text-[13px] text-[#8a5a00] p-3 leading-[19px]">
@@ -1236,6 +1258,79 @@ function LyricSync({ song, onDone, onClose }: { song: Song; onDone: (lrc: string
           </Btn>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** 음원 파일 올리기: 광고 없이 전곡 · 가사 싱크 그대로. 파일은 이 브라우저에만 저장 */
+function AudioFileField({ s, put }: { s: Song; put: (v: Partial<Song>) => void }) {
+  useAudioVer();
+  useEffect(() => void loadAllAudio(), []);
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const info = s.audio === "local" ? audioInfo(s.id) : undefined;
+  const pub = s.audio && s.audio !== "local" ? s.audio : "";
+  return (
+    <div className="col-span-full rounded-[12px] border border-[#34C759]/40 bg-[#F2FBF4] p-3">
+      <div className="text-[14px] font-semibold">음원 파일 (광고 없이 전곡)</div>
+      <div className="text-[12px] text-black/55 mt-1 leading-[18px]">
+        가지고 있는 mp3 · m4a 파일을 올리면 유튜브 대신 이 파일이 나와요. 가사 싱크도 그대로 맞아요. 파일은 <b>이 브라우저에만</b> 저장돼서 다른 사람 폰에선 안 나와요.
+      </div>
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <Btn kind="primary" disabled={busy} onClick={() => ref.current?.click()}>
+          <Upload size={15} /> {info ? "다른 파일로 바꾸기" : "음원 파일 올리기"}
+        </Btn>
+        {info && (
+          <>
+            <span className="text-[13px] text-[#1d6b34]">
+              ✓ {info.name} ({(info.size / 1048576).toFixed(1)}MB)
+            </span>
+            <Btn
+              onClick={async () => {
+                if (!confirm("올린 음원 파일을 지울까요?")) return;
+                await delAudio(s.id);
+                put({ audio: undefined });
+              }}
+            >
+              지우기
+            </Btn>
+          </>
+        )}
+        {s.audio === "local" && !info && <span className="text-[13px] text-[#B25000]">이 브라우저엔 파일이 없어요 — 다시 올려 주세요</span>}
+        <input
+          ref={ref}
+          type="file"
+          accept="audio/*,.mp3,.m4a"
+          hidden
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            if (!f.type.startsWith("audio/") && !/.(mp3|m4a|aac|ogg|wav)$/i.test(f.name)) return alert("음원 파일(mp3 · m4a 등)만 올릴 수 있어요.");
+            setBusy(true);
+            try {
+              await putAudio(s.id, f);
+              // 곡 길이도 파일에서 바로
+              const dur = await new Promise<number>((res) => {
+                const a = new Audio(fileSrc({ ...s, audio: "local" }));
+                a.onloadedmetadata = () => res(Math.round(a.duration) || 0);
+                a.onerror = () => res(0);
+              });
+              put({ audio: "local", ...(dur ? { dur } : {}) });
+            } catch {
+              alert("저장하지 못했어요. 비공개 창이면 일반 창에서 해 주세요.");
+            }
+            setBusy(false);
+          }}
+        />
+      </div>
+      <details className="mt-2 text-[12px] text-black/55">
+        <summary className="cursor-pointer">친구들도 듣게 하려면 (사이트에 같이 올리기)</summary>
+        <div className="mt-1 leading-[18px]">
+          파일을 프로젝트의 <code>public/music/</code> 폴더에 넣고 다시 올린 뒤, 아래에 파일 이름을 쓰세요. <b>그러면 그 노래 파일이 누구나 받을 수 있게 공개돼요.</b>
+        </div>
+        <input className="mt-1" value={pub} placeholder="예: music/song.mp3" onChange={(e) => put({ audio: e.target.value.trim() || undefined })} />
+      </details>
     </div>
   );
 }
@@ -1335,6 +1430,7 @@ function SongEd({ s, put: putNow }: { s: Song; put: (v: Partial<Song>) => void }
         )}
         {msg && <div className="text-[13px] mt-1.5" style={{ color: msg.startsWith("✓") ? "#248A3D" : "rgba(0,0,0,0.5)" }}>{msg}</div>}
       </F>
+      <AudioFileField s={s} put={put} />
       <F label="곡">
         <T value={s.title} onChange={(v) => putNow({ title: v })} />
       </F>
