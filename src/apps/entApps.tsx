@@ -1,6 +1,6 @@
 /* 엔터 앱: 유튜브 · 넷플릭스 · X — 화면 안쪽(검색 · 상세 · 글쓰기 · 프로필)까지 실제 앱처럼 */
 import { useRef, useState } from "react";
-import { ChevronLeft, Search, Bell, Cast, House, Clapperboard, CirclePlus, Youtube, User, Play, Pause, Download, MessageCircle, Repeat2, Heart, BarChart2, Share, Bookmark, Mail as MailIcon, Users, MoreHorizontal, Plus, Clock, ArrowUpRight, ThumbsUp, ThumbsDown, X as XIcon, CalendarDays, Image as ImageIcon } from "lucide-react";
+import { Compass, ChevronLeft, Search, Bell, Cast, House, Clapperboard, CirclePlus, Youtube, User, Play, Pause, Download, MessageCircle, Repeat2, Heart, BarChart2, Share, Bookmark, Mail as MailIcon, Users, MoreHorizontal, Plus, Clock, ArrowUpRight, ThumbsUp, ThumbsDown, X as XIcon, CalendarDays, Image as ImageIcon } from "lucide-react";
 import { useData, update, uid, type YtVideo, type NfTitle, type XPost } from "../store";
 import { photoSrc } from "../photos";
 import { TabBar, useStatusBar, Img } from "../ui";
@@ -200,6 +200,11 @@ export function YoutubeApp() {
           </div>
           {tab === "home" && (
             <div className="flex gap-[8px] px-[12px] pb-[10px] overflow-x-auto no-scrollbar">
+              {/* 맨 앞 '탐색' 나침반 버튼 (실제 유튜브 앱) */}
+              <span className="h-[32px] px-[10px] rounded-[8px] flex items-center gap-[6px] text-[14px] font-medium shrink-0" style={{ background: "rgba(0,0,0,0.05)" }}>
+                <Compass size={18} /> 탐색
+              </span>
+              <span className="w-px h-[24px] bg-black/10 self-center shrink-0" />
               {["전체", "음악", "게임", "운동", "자동차", "뉴스", "최근에 업로드된 동영상"].map((c) => (
                 <button key={c} onClick={() => setChip(c)} className="h-[32px] px-[12px] rounded-[8px] text-[14px] font-medium whitespace-nowrap shrink-0" style={chip === c ? { background: "#0F0F0F", color: "#fff" } : { background: "rgba(0,0,0,0.05)" }}>
                   {c}

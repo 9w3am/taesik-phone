@@ -74,7 +74,7 @@ export type CalEvent = { id: string; days: number[]; time: string; end?: string;
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string; auto?: string };
 /* ───── 흔히 쓰는 앱들 (메일 · 미리 알림 · 지갑 · 유튜브 · 넷플릭스 · X · 쿠팡 · 배민 · 카카오 T) ───── */
 export type Mail = { id: string; from: string; addr: string; subject: string; body: string; when: string; unread: boolean; box: "inbox" | "sent" | "junk" | "trash"; flag?: boolean };
-export type Reminder = { id: string; text: string; note: string; due: string; done: boolean; list: string };
+export type Reminder = { id: string; text: string; note: string; due: string; done: boolean; list: string; flag?: boolean };
 export type WalletCard = { id: string; name: string; sub: string; number: string; color: string };
 export type YtVideo = { id: string; title: string; channel: string; views: string; when: string; duration: string; hue: number; photo: string; progress: number; desc?: string };
 export type NfTitle = { id: string; title: string; ep: string; progress: number; hue: number; photo: string; desc?: string; year?: string; eps?: number };

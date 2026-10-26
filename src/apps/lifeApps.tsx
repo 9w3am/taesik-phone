@@ -447,13 +447,14 @@ export function KakaoTApp() {
   const [search, setSearch] = useState(false);
   const [q, setQ] = useState("");
   const dests = [...new Set(d.kakaot.map((r) => r.to))];
+  // 실제 카카오 T처럼 서비스마다 색이 있는 아이콘
   const services: [string, React.ReactNode][] = [
-    ["택시", <Car key="1" size={28} />],
-    ["대리", <Car key="2" size={28} />],
-    ["바이크", <Bike key="3" size={28} />],
-    ["주차", <ParkingSquare key="4" size={28} />],
-    ["퀵 · 배송", <LayoutGrid key="5" size={28} />],
-    ["전체", <Menu key="6" size={28} />],
+    ["택시", <Car key="1" size={30} color="#1E1E1E" fill="#FFC800" strokeWidth={1.8} />],
+    ["대리", <Car key="2" size={30} color="#1E1E1E" fill="#3D7BFF" strokeWidth={1.8} />],
+    ["바이크", <Bike key="3" size={30} color="#00B493" strokeWidth={2.2} />],
+    ["주차", <ParkingSquare key="4" size={30} color="#fff" fill="#4A5BF0" strokeWidth={2} />],
+    ["퀵 · 배송", <LayoutGrid key="5" size={30} color="#FF6B3D" strokeWidth={2.2} />],
+    ["전체", <Menu key="6" size={28} color="#555" />],
   ];
   const fare = (r: Ride) => {
     const total = won(r.price);

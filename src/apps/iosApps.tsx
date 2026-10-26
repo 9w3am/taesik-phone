@@ -221,6 +221,15 @@ function RemDetail({ r, onClose }: { r: Reminder; onClose: () => void }) {
           <span className="flex-1">날짜</span>
           <input value={f.due} onChange={(e) => setF({ ...f, due: e.target.value })} placeholder="없음" className="w-[110px] text-right outline-none text-[#007AFF]" />
         </label>
+        <button onClick={() => setF({ ...f, flag: !f.flag })} className={`${cell} w-full border-t border-black/10`}>
+          <span className="w-[30px] h-[30px] rounded-[7px] bg-[#FF9500] flex items-center justify-center">
+            <Flag size={16} color="#fff" fill="#fff" />
+          </span>
+          <span className="flex-1 text-left">깃발</span>
+          <span className="w-[51px] h-[31px] rounded-full relative transition-colors" style={{ background: f.flag ? "#34C759" : "#E9E9EA" }}>
+            <span className="absolute top-[2px] w-[27px] h-[27px] rounded-full bg-white transition-all" style={{ left: f.flag ? 22 : 2, boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }} />
+          </span>
+        </button>
       </div>
       <button
         onClick={() => {
@@ -253,6 +262,7 @@ export function RemindersApp() {
     ["오늘", "#007AFF", <CalIcon key="t" size={17} color="#fff" />, (r) => r.due === "오늘" && !r.done],
     ["예정", "#FF3B30", <CalendarClock key="s" size={17} color="#fff" />, (r) => !!r.due && !r.done],
     ["전체", "#3A3A3C", <Inbox key="a" size={17} color="#fff" />, (r) => !r.done],
+    ["깃발 표시", "#FF9500", <Flag key="f" size={16} color="#fff" fill="#fff" />, (r) => !!r.flag && !r.done],
     ["완료됨", "#8E8E93", <CheckCircle2 key="d" size={17} color="#fff" />, (r) => r.done],
   ];
   /** 새 미리 알림: 지금 보고 있는 목록에 빈 줄을 만들고 바로 입력 */
@@ -374,6 +384,7 @@ export function RemindersApp() {
                   {r.note && <div className="text-[15px] text-black/45">{r.note}</div>}
                   {r.due && <div className="text-[15px]" style={{ color: r.due === "오늘" && !r.done ? "#FF3B30" : "rgba(0,0,0,0.45)" }}>{r.due}</div>}
                 </div>
+                {r.flag && !r.done && <Flag size={16} className="text-[#FF9500] mt-[3px]" fill="#FF9500" />}
                 {r.id !== newId && (
                   <button onClick={() => setEditId(r.id)} aria-label="세부사항" className="text-[#007AFF] pt-[1px]">
                     <Info size={21} />

@@ -1771,7 +1771,44 @@ function Songs({ d }: { d: PhoneData }) {
   );
 }
 
+/** 기본으로 들어 있는 무료 사진 출처 (위키미디어 공용 · 자유 이용 허락) */
+const PHOTO_CREDITS: [string, string, string][] = [
+  ["스쿼트 (유튜브)", "Serhii Dukhota performing a squat in a gym", "CC BY-SA 4.0"],
+  ["중고차 (유튜브)", "Used car lot - geograph.org.uk - 1036517", "CC BY-SA 2.0"],
+  ["러닝 (유튜브)", "Runner on the hill", "CC BY-SA 4.0"],
+  ["데드리프트 (유튜브)", "Fit young man doing deadlift exercise in gym", "CC BY 2.0"],
+  ["닭가슴살 (유튜브 · 배민)", "Chicken breast … - Massachusetts", "CC0"],
+  ["가죽 장갑 (쿠팡)", "Black Half-Finger Leather Gloves SAF", "CC BY-SA 4.0"],
+  ["생수 (쿠팡)", "Water bottle in room", "CC BY-SA 4.0"],
+  ["단백질 (쿠팡)", "Protein shake", "CC BY 3.0"],
+  ["포케 (배민)", "Poke Bowl Losos Zlaty Klas 2025", "CC0"],
+  ["원룸 (당근)", "Studio apartment in Finland", "CC BY-SA 4.0"],
+  ["아이폰 (번개장터)", "Apple iPhone 13 Pro and 13 Pro Max", "CC BY-SA 4.0"],
+  ["그랜저 (엔카)", "0 Hyundai Grandeur (IG) 1", "CC BY-SA 4.0"],
+];
+function PhotoCredits() {
+  return (
+    <Card title="기본 사진 출처">
+      <p className="text-[13px] text-black/50 mb-2">유튜브 · 쿠팡 · 배민 · 사파리에 들어 있는 사진은 위키미디어 공용(commons.wikimedia.org)의 자유 이용 사진이에요. 직접 올린 사진으로 바꿔도 돼요.</p>
+      <div className="text-[12px] text-black/60 space-y-[2px]">
+        {PHOTO_CREDITS.map(([w, f, l]) => (
+          <div key={f}>
+            <b className="text-black/75">{w}</b> — {f} · {l}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
 function PhotosEd({ d }: { d: PhoneData }) {
+  return (
+    <>
+      <PhotosCard d={d} />
+      <PhotoCredits />
+    </>
+  );
+}
+function PhotosCard({ d }: { d: PhoneData }) {
   const fileRef = useRef<HTMLInputElement>(null);
   return (
     <Card
