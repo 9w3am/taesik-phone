@@ -140,6 +140,14 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
   const c = useComposer(t);
   const scrollRef = useAutoBottom(t.messages.length);
   const fresh = useFresh(t.messages);
+  // 글이 길어지면 입력창도 늘어남 (최대 5줄) · 보내고 나면 다시 한 줄
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(110, Math.max(30, el.scrollHeight)) + "px";
+  }, [c.text]);
   const lastMine = [...t.messages].map((m, i) => [m, i] as const).filter(([m]) => m.from === "me").pop()?.[1];
   const [menu, setMenu] = useState<string | null>(null);
   const [focus, setFocus] = useState(false);
@@ -260,16 +268,19 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
         </div>
       )}
       {copied && <div className="absolute left-1/2 -translate-x-1/2 top-[45%] z-50 px-[16px] py-[10px] rounded-[12px] bg-black/75 text-white text-[14px] fade">복사됨</div>}
-      {/* 입력창 */}
-      <div className="flex items-end gap-[8px] px-[10px] pt-[6px] bg-white" style={{ paddingBottom: "calc(var(--kbsab) + 4px)" }}>
-        <span className="w-[34px] h-[34px] rounded-full bg-[#E9E9EB] flex items-center justify-center shrink-0 text-[#7c7c80]">
-          <Plus size={22} strokeWidth={2.2} />
+      {/* 입력창 (iOS 18 메시지 모양) */}
+      <div className="flex items-end gap-[8px] pl-[8px] pr-[10px] pt-[6px] bg-white" style={{ paddingBottom: "calc(var(--kbsab) + 6px)" }}>
+        <span className="w-[36px] h-[36px] rounded-full bg-[#E9E9EB] flex items-center justify-center shrink-0">
+          <svg width="16" height="16" viewBox="0 0 16 16">
+            <path d="M8 1.5v13M1.5 8h13" stroke="#6C6C70" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
         </span>
-        <div className="flex-1 min-h-[34px] rounded-[18px] border border-[#c7c7cc] flex items-end pl-[12px] pr-[4px] py-[3px]">
+        <div className="flex-1 min-h-[36px] rounded-[18px] flex items-end pl-[14px] pr-[4px] py-[3px] bg-white" style={{ boxShadow: "inset 0 0 0 1px #D1D1D6" }}>
           <textarea
             rows={1}
             value={c.text}
             readOnly={!c.editable}
+            ref={taRef}
             onChange={(e) => c.setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -278,18 +289,25 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
                 setReplyTo(null);
               }
             }}
-            placeholder="iMessage"
+            placeholder={t.sms ? "문자 메시지" : "iMessage"}
             onFocus={() => setFocus(true)}
             onBlur={() => setFocus(false)}
-            className="flex-1 resize-none outline-none bg-transparent text-[17px] leading-[22px] py-[2px] max-h-[88px] placeholder:text-[#c4c4c6]"
+            className="flex-1 resize-none outline-none bg-transparent text-[17px] leading-[22px] py-[4px] max-h-[110px] placeholder:text-[#A1A1A6]"
           />
           {c.canSend ? (
-            <button onClick={() => (c.send(replyTo ?? undefined), setReplyTo(null))} className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shrink-0" style={{ background: "#007AFF" }}>
-              <ArrowUp size={19} strokeWidth={3} />
+            <button onClick={() => (c.send(replyTo ?? undefined), setReplyTo(null))} aria-label="보내기" className="w-[30px] h-[30px] mb-[0px] rounded-full flex items-center justify-center shrink-0" style={{ background: t.sms ? "#34C759" : "#007AFF" }}>
+              <svg width="14" height="16" viewBox="0 0 14 16">
+                <path d="M7 14.5V2M1.5 7.2L7 1.7l5.5 5.5" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           ) : (
-            <span className="w-[28px] h-[28px] flex items-center justify-center text-[#c4c4c6]">
-              <Mic size={20} />
+            <span className="w-[30px] h-[30px] flex items-center justify-center shrink-0">
+              {/* 받아쓰기 (파형 모양) */}
+              <svg width="20" height="18" viewBox="0 0 20 18">
+                {[3, 7, 11, 15, 19].map((x, i) => (
+                  <rect key={x} x={x - 2.4} y={9 - [3, 6, 8, 5, 2.5][i]} width="2.2" height={[3, 6, 8, 5, 2.5][i] * 2} rx="1.1" fill="#A1A1A6" />
+                ))}
+              </svg>
             </span>
           )}
         </div>
@@ -302,6 +320,7 @@ export default function Messages() {
   const d = useData();
   const { appArg } = usePhoneCtx();
   const [openId, setOpenId] = useState<string | null>((appArg as string) || null);
+  useEffect(() => void ((window as unknown as { __phoneThread?: string | null }).__phoneThread = openId), [openId]);
   const [q, setQ] = useState("");
   const [ref, scrolled] = useScrolled<HTMLDivElement>();
   const list = d.threads.filter((t) => t.app === "messages");

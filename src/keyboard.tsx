@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /** 키보드 높이 (폰 화면 기준 px, 아래 홈 막대 영역 포함) */
-export const KB_HEIGHT = 336;
+export const KB_HEIGHT = 291;
 
 /* ───────── 한글 조합 ───────── */
 const CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
@@ -23,6 +23,8 @@ const KO = [
   ["ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ", "ㅗ", "ㅓ", "ㅏ", "ㅣ"],
   ["ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ"],
 ];
+/** 컴퓨터 자판 → 두벌식 (자판이 영어 상태여도 폰 키보드가 한글이면 한글로) */
+const PHYS: Record<string, string> = { q: "ㅂ", w: "ㅈ", e: "ㄷ", r: "ㄱ", t: "ㅅ", y: "ㅛ", u: "ㅕ", i: "ㅑ", o: "ㅐ", p: "ㅔ", a: "ㅁ", s: "ㄴ", d: "ㅇ", f: "ㄹ", g: "ㅎ", h: "ㅗ", j: "ㅓ", k: "ㅏ", l: "ㅣ", z: "ㅋ", x: "ㅌ", c: "ㅊ", v: "ㅍ", b: "ㅠ", n: "ㅜ", m: "ㅡ", Q: "ㅃ", W: "ㅉ", E: "ㄸ", R: "ㄲ", T: "ㅆ", O: "ㅒ", P: "ㅖ" };
 const KO_SHIFT: Record<string, string> = { ㅂ: "ㅃ", ㅈ: "ㅉ", ㄷ: "ㄸ", ㄱ: "ㄲ", ㅅ: "ㅆ", ㅐ: "ㅒ", ㅔ: "ㅖ" };
 const EN = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
@@ -152,12 +154,10 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
     };
     target.addEventListener("input", reset);
     target.addEventListener("pointerdown", reset);
-    target.addEventListener("keydown", reset);
     comp.current = null;
     return () => {
       target.removeEventListener("input", reset);
       target.removeEventListener("pointerdown", reset);
-      target.removeEventListener("keydown", reset);
     };
   }, [target]);
   const put = (del: number, text: string) => {
@@ -262,6 +262,60 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
   };
   useEffect(() => () => clearTimeout(holdT.current), []);
   const rows = page === "num" ? NUM : page === "sym" ? SYM : lang === "ko" ? KO : EN;
+  /** 컴퓨터 자판으로 친 키를 폰 키보드에서도 눌린 것처럼 보여 줌 */
+  const flash = (label: string) => {
+    const kb = kbRef.current;
+    const b = kb?.querySelector<HTMLElement>(`[data-k="${CSS.escape(label)}"]`);
+    if (!kb || !b) return;
+    const r = b.getBoundingClientRect();
+    const R = kb.getBoundingClientRect();
+    const sc = (kb.offsetWidth || 393) / (R.width || 393);
+    if (b.dataset.pop) setPop({ k: label, x: (r.left - R.left) * sc, y: (r.top - R.top) * sc, w: r.width * sc });
+    b.style.filter = "brightness(0.85)";
+    window.setTimeout(() => {
+      b.style.filter = "";
+      setPop((cur) => (cur?.k === label ? null : cur));
+    }, 130);
+  };
+  const st = useRef({ lang, page, jamo, back });
+  st.current = { lang, page, jamo, back };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key;
+      const { lang: L, page: P, jamo: J, back: B } = st.current;
+      if (k === "HangulMode" || k === "Lang1") {
+        e.preventDefault();
+        comp.current = null;
+        setLang((x) => (x === "ko" ? "en" : "ko"));
+        return;
+      }
+      // 컴퓨터의 한글 입력기로 치는 중이면 그대로 두고 키만 반짝
+      if (e.isComposing || k === "Process") return;
+      if (/^[a-zA-Z]$/.test(k) && L === "ko" && P === "abc") {
+        const j = PHYS[k] ?? PHYS[k.toLowerCase()];
+        e.preventDefault();
+        J(j);
+        flash(j);
+        if (!muted) tick("key");
+        return;
+      }
+      if (k === "Backspace") {
+        flash("지우기");
+        if (comp.current) {
+          e.preventDefault();
+          B();
+        }
+        return;
+      }
+      comp.current = null;
+      if (k === " ") flash("스페이스");
+      else if (k === "Enter") flash("리턴");
+      else if (k.length === 1) flash(/^[a-zA-Z]$/.test(k) ? k : k);
+    };
+    (target as HTMLElement).addEventListener("keydown", onKey);
+    return () => (target as HTMLElement).removeEventListener("keydown", onKey);
+  }, [target, muted]); // eslint-disable-line react-hooks/exhaustive-deps
   const showPop = (e: React.PointerEvent<HTMLElement>, k: string) => {
     const r = e.currentTarget.getBoundingClientRect();
     const R = kbRef.current!.getBoundingClientRect();
@@ -359,6 +413,8 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
             {row.map((k) => (
               <button
                 key={k}
+                data-k={label(k)}
+                data-pop="1"
                 onPointerDown={(e) => {
                   showPop(e, label(k));
                   sound("key");
@@ -373,7 +429,7 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
               </button>
             ))}
             {ri === 2 && (
-              <button aria-label="지우기" onPointerDown={() => holdDel(true)} onPointerUp={() => holdDel(false)} onPointerLeave={() => holdDel(false)} className={key} style={{ ...modStyle, width: page === "abc" ? 42 : 46, height: 42, marginLeft: page === "abc" ? 8 : 6 }}>
+              <button aria-label="지우기" data-k="지우기" onPointerDown={() => holdDel(true)} onPointerUp={() => holdDel(false)} onPointerLeave={() => holdDel(false)} className={key} style={{ ...modStyle, width: page === "abc" ? 42 : 46, height: 42, marginLeft: page === "abc" ? 8 : 6 }}>
                 <svg width="24" height="18" viewBox="0 0 24 18">
                   <path d="M8 1.5h13a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H8L1.5 9z" fill="none" stroke="#000" strokeWidth="1.5" strokeLinejoin="round" />
                   <path d="M11.5 5.5l7 7m0-7l-7 7" stroke="#000" strokeWidth="1.5" strokeLinecap="round" />
@@ -418,6 +474,7 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
               sound("key");
               space();
             }}
+            data-k="스페이스"
             className={key}
             style={{ ...keyStyle, flex: 1, height: 42, fontSize: 16 }}
           >
@@ -431,6 +488,7 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
             className={key}
             style={{ ...(isSearch ? { background: "#007AFF", color: "#fff", boxShadow: "0 1px 0 #898A8D" } : modStyle), width: 89, height: 42, fontSize: 16 }}
             aria-label="리턴"
+            data-k="리턴"
           >
             {isSearch ? (
               "검색"
@@ -444,7 +502,7 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
       </div>
       )}
       {/* 아래: 언어 바꾸기(🌐) · 받아쓰기(🎤) */}
-      <div className="absolute left-0 right-0 flex justify-between px-[22px]" style={{ bottom: 40, display: page === "emoji" ? "none" : undefined }}>
+      <div className="absolute left-0 right-0 flex justify-between px-[22px]" style={{ top: 214, display: page === "emoji" ? "none" : undefined }}>
         <button
           aria-label="언어 바꾸기"
           onPointerDown={() => {

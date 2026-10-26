@@ -645,9 +645,10 @@ function MsgEditor({ t }: { t: Thread }) {
 }
 
 function Threads({ d }: { d: PhoneData }) {
-  const [app, setApp] = useState<AppKind>("messages");
+  const want = (window as unknown as { __editThread?: { app: AppKind; id: string | null } }).__editThread;
+  const [app, setApp] = useState<AppKind>(want?.app ?? "messages");
   const list = d.threads.filter((t) => t.app === app);
-  const [sel, setSel] = useState<string | null>(list[0]?.id ?? null);
+  const [sel, setSel] = useState<string | null>(want?.id ?? list[0]?.id ?? null);
   const t = d.threads.find((x) => x.id === sel && x.app === app) ?? list[0];
   useEffect(() => {
     if (t) preview(t.app, t.id);
@@ -2001,7 +2002,7 @@ function SafariEd({ d }: { d: PhoneData }) {
 function JsonEd({ d }: { d: PhoneData }) {
   // 폰에서 숨긴 앱(인스타 · 업무)은 목록에서 뺌 — 데이터는 그대로 보관
   const keys = ["safari", "mail", "reminders", "wallet", "youtube", "netflix", "x", "coupang", "baemin", "kakaot", "weather", "alarms", "places", "cashwalk", "health", "voiceMemos", "screenTime", "vault"] as const;
-  const [k, setK] = useState<(typeof keys)[number]>("safari");
+  const [k, setK] = useState<(typeof keys)[number]>(() => ((keys as readonly string[]).includes((window as unknown as { __editJsonKey?: string }).__editJsonKey ?? "") ? ((window as unknown as { __editJsonKey: string }).__editJsonKey as (typeof keys)[number]) : "safari"));
   const [mode, setMode] = useState<"easy" | "json">("easy");
   const [text, setText] = useState(() => JSON.stringify(d[k], null, 2));
   const [err, setErr] = useState("");
@@ -2465,6 +2466,96 @@ function PreviewPane({ onClose }: { onClose?: () => void }) {
   );
 }
 
+/* ───────── 휴대폰 편집 화면: 폰을 꽉 차게 직접 쓰면서, '이 화면 편집'으로 지금 화면의 편집 칸을 아래에서 꺼냄 ───────── */
+const JSON_APP: Record<string, string> = { safari: "safari", mail: "mail", reminders: "reminders", wallet: "wallet", youtube: "youtube", netflix: "netflix", x: "x", coupang: "coupang", baemin: "baemin", kakaot: "kakaot", weather: "weather", clock: "alarms", maps: "places", cashwalk: "cashwalk", health: "health", voicememos: "voiceMemos", calculator: "vault" };
+const APP_SEC: Record<string, string> = { messages: "threads", kakao: "threads", phone: "calls", contacts: "contacts", notes: "notes", calendar: "calendar", music: "songs", photos: "photos", bank: "bank", settings: "basic" };
+function MobileEditor({ d, goPhone }: { d: PhoneData; goPhone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [sec, setSec] = useState("home");
+  const [k, setK] = useState(() => Math.min(window.innerWidth / 393, (window.innerHeight - 64) / 852));
+  useEffect(() => {
+    const f = () => setK(Math.min(window.innerWidth / 393, (window.innerHeight - 64) / 852));
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  /** 지금 폰에 열린 화면에 맞는 편집 칸 */
+  const here = () => {
+    const w = window as unknown as { __phoneState?: { app: string | null; phase: string }; __phoneThread?: string | null; __editThread?: unknown; __editJsonKey?: string };
+    const st = w.__phoneState;
+    const app = st?.app ?? null;
+    if (st?.phase === "lock" || st?.phase === "code") return "events";
+    if (!app) return "home";
+    if (app.startsWith("c:")) return "home";
+    if (app === "messages" || app === "kakao") w.__editThread = { app, id: w.__phoneThread ?? null };
+    if (JSON_APP[app]) {
+      w.__editJsonKey = JSON_APP[app];
+      return "json";
+    }
+    return APP_SEC[app] ?? "home";
+  };
+  const Cur = SECTIONS.find((x) => x[0] === sec)?.[2] ?? HomeEd;
+  return (
+    <div className="fixed inset-0 bg-[#0b0b0c] flex flex-col" style={{ fontFamily: "var(--font)" }}>
+      <div className="h-[56px] shrink-0 flex items-center gap-2 px-3 text-white">
+        <button onClick={goPhone} className="flex items-center gap-1 text-[#0A84FF] text-[15px]" aria-label="폰 보기">
+          <ArrowLeft size={18} /> 폰 보기
+        </button>
+        <span className="flex-1" />
+        <span className="invert">
+          <UndoBar />
+        </span>
+        <button
+          onClick={() => {
+            setSec(here());
+            setOpen(true);
+          }}
+          className="h-[34px] px-[14px] rounded-full bg-[#007AFF] text-white text-[14px] font-semibold whitespace-nowrap"
+        >
+          ✏️ 이 화면 편집
+        </button>
+      </div>
+      <div className="flex-1 min-h-0 flex items-start justify-center">
+        <Phone embedded bare previewScale={k} />
+      </div>
+      {open && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: "rgba(0,0,0,0.25)" }} onClick={() => setOpen(false)}>
+          <div className="ed bg-[#F2F2F7] text-black rounded-t-[18px] flex flex-col sheet" style={{ height: "82%" }} onClick={(e) => e.stopPropagation()}>
+            <div className="shrink-0 pt-[8px] px-[14px]">
+              <div className="mx-auto w-[38px] h-[5px] rounded-full bg-black/20 mb-[8px]" />
+              <div className="flex items-center">
+                <span className="flex-1 text-[17px] font-bold">{SECTIONS.find((x) => x[0] === sec)?.[1]}</span>
+                <button onClick={() => setOpen(false)} className="h-[32px] px-[14px] rounded-full bg-black/[0.06] text-[14px] font-semibold">
+                  닫고 폰 보기
+                </button>
+              </div>
+              <div className="flex gap-1 overflow-x-auto no-scrollbar py-[10px] -mx-[14px] px-[14px]">
+                {SECTIONS.map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => {
+                      setSec(id);
+                      // 고른 메뉴의 앱을 폰에서 열어 줌
+                      if (id === "events") preview(undefined, undefined, "lock");
+                      else if (id === "basic" || id === "home") preview();
+                      else if (SECTION_APP[id]) preview(SECTION_APP[id]);
+                    }}
+                    className={`px-3 h-[34px] rounded-full text-[14px] whitespace-nowrap shrink-0 ${sec === id ? "bg-black text-white font-semibold" : "bg-white text-black/70"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-[12px] pb-[40px]">
+              <Cur d={d} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Editor() {
   const d = useData();
   const [sec, setSec] = useState(() => sessionStorage.getItem("ed-sec") || "threads");
@@ -2473,6 +2564,7 @@ export default function Editor() {
   const [roomy, setRoomy] = useState(() => window.innerWidth >= 1280);
   useEffect(() => {
     sessionStorage.setItem("ed-sec", sec);
+    if (window.innerWidth < 720) return;
     if (sec === "events") preview(undefined, undefined, "lock");
     else if (sec === "basic" || sec === "home") preview();
     else if (SECTION_APP[sec]) preview(SECTION_APP[sec]);
@@ -2493,6 +2585,7 @@ export default function Editor() {
     if (location.pathname.endsWith("/editor")) location.href = location.pathname.replace(/editor\/?$/, "");
     else location.hash = "";
   };
+  if (!wide) return <MobileEditor d={d} goPhone={goPhone} />;
   return (
     <div className="ed min-h-full bg-[#F2F2F7] text-black" style={{ fontFamily: "var(--font)" }}>
       <header className="sticky top-0 z-20 bg-white/85 backdrop-blur border-b border-black/[0.06]">

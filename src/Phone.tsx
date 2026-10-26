@@ -814,7 +814,7 @@ type CallState = { name: string; lines: string[]; mode: "out" | "in"; ringing: b
 type Banner = { app: string; title: string; text: string; target?: string } | null;
 
 /** embedded: 에디터 옆 실시간 미리보기용 (잠금 건너뜀, 체류 이벤트 끔) */
-export default function Phone(props: { embedded?: boolean; previewScale?: number } = {}) {
+export default function Phone(props: { embedded?: boolean; previewScale?: number; bare?: boolean } = {}) {
   return (
     <MusicProvider>
       <PhoneInner {...props} />
@@ -822,7 +822,7 @@ export default function Phone(props: { embedded?: boolean; previewScale?: number
   );
 }
 
-function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: boolean; previewScale?: number }) {
+function PhoneInner({ embedded = false, previewScale = 0.78, bare = false }: { embedded?: boolean; previewScale?: number; bare?: boolean }) {
   const music = useMusic();
   const d = useData();
   const [phase, setPhase] = useState<"lock" | "code" | "home" | "decoy">(embedded ? "home" : "lock");
@@ -1002,6 +1002,10 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
   }, []);
   const startCall = useCallback((name: string, lines: string[], mode: "out" | "in" = "out") => setCall({ name, lines, mode, ringing: mode === "in" }), []);
 
+  useEffect(() => {
+    if (!embedded) return;
+    (window as unknown as { __phoneState?: unknown }).__phoneState = { app, arg: appArg, phase };
+  }, [embedded, app, appArg, phase]);
   const ctx: PhoneCtx = useMemo(
     () => ({ open, home, setStatusDark, call: startCall, toast, appArg }),
     [open, home, startCall, toast, appArg],
@@ -1396,6 +1400,15 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
     </div>
   );
 
+  // 휴대폰 편집 화면: 테두리 없이 폰 화면만
+  if (embedded && bare)
+    return (
+      <div className="relative overflow-hidden rounded-[28px]" style={{ width: 393 * previewScale, height: 852 * previewScale }}>
+        <div className="absolute left-0 top-0" style={{ transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
+          {screen}
+        </div>
+      </div>
+    );
   if (embedded)
     return (
       <div className="relative" style={{ width: 433 * previewScale, height: 892 * previewScale }}>

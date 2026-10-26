@@ -213,6 +213,7 @@ export default function Kakao() {
   const [pw, setPw] = useState("");
   const [pwBad, setPwBad] = useState(false);
   const [openId, setOpenId] = useState<string | null>((appArg as string) || null);
+  useEffect(() => void ((window as unknown as { __phoneThread?: string | null }).__phoneThread = openId), [openId]);
   const list = d.threads.filter((t) => t.app === "kakao");
   useEffect(() => {
     if (openId) markRead(openId);
