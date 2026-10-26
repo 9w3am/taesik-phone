@@ -814,7 +814,7 @@ type CallState = { name: string; lines: string[]; mode: "out" | "in"; ringing: b
 type Banner = { app: string; title: string; text: string; target?: string } | null;
 
 /** embedded: 에디터 옆 실시간 미리보기용 (잠금 건너뜀, 체류 이벤트 끔) */
-export default function Phone(props: { embedded?: boolean; previewScale?: number; bare?: boolean } = {}) {
+export default function Phone(props: { embedded?: boolean; previewScale?: number; bare?: boolean; editMode?: boolean } = {}) {
   return (
     <MusicProvider>
       <PhoneInner {...props} />
@@ -822,7 +822,7 @@ export default function Phone(props: { embedded?: boolean; previewScale?: number
   );
 }
 
-function PhoneInner({ embedded = false, previewScale = 0.78, bare = false }: { embedded?: boolean; previewScale?: number; bare?: boolean }) {
+function PhoneInner({ embedded = false, previewScale = 0.78, bare = false, editMode = false }: { embedded?: boolean; previewScale?: number; bare?: boolean; editMode?: boolean }) {
   const music = useMusic();
   const d = useData();
   const [phase, setPhase] = useState<"lock" | "code" | "home" | "decoy">(embedded ? "home" : "lock");
@@ -1007,8 +1007,8 @@ function PhoneInner({ embedded = false, previewScale = 0.78, bare = false }: { e
     (window as unknown as { __phoneState?: unknown }).__phoneState = { app, arg: appArg, phase };
   }, [embedded, app, appArg, phase]);
   const ctx: PhoneCtx = useMemo(
-    () => ({ open, home, setStatusDark, call: startCall, toast, appArg }),
-    [open, home, startCall, toast, appArg],
+    () => ({ open, home, setStatusDark, call: startCall, toast, appArg, edit: editMode }),
+    [open, home, startCall, toast, appArg, editMode],
   );
 
   // 체류 시간 이벤트 (배너 · 수신 전화 · 배터리)

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Megaphone, ChevronDown, ChevronRight, Info, Search, MessageCirclePlus, Settings, UserPlus, ChevronLeft, Menu, Plus, Smile, Hash, BellOff, User, MessageCircle, ShoppingBag, MoreHorizontal, Music, Mail, CalendarDays, Wallet, FolderClosed, Gift, Ticket } from "lucide-react";
 import { useData, won, type Thread, type Msg } from "../store";
+import { SenderChip, MsgEditSheet, RenameSheet, EditHint } from "../editKit";
 import { photoSrc } from "../photos";
 import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
 import { markRead, preview, useAutoBottom, useComposer, useFresh } from "./Messages";
@@ -42,7 +43,11 @@ function PayCard({ m, mine }: { m: Msg; mine: boolean }) {
 
 function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: number }) {
   const d = useData();
-  const c = useComposer(t);
+  const { edit } = usePhoneCtx();
+  const [who, setWho] = useState<"me" | "them">("me");
+  const [editMid, setEditMid] = useState<string | null>(null);
+  const [rename, setRename] = useState(false);
+  const c = useComposer(t, edit, who);
   const ref = useAutoBottom(t.messages.length);
   const fresh = useFresh(t.messages);
   const lastIdx = t.messages.length - 1;
@@ -55,7 +60,24 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
     return () => clearTimeout(tm);
   }, [t.messages.length]);
   return (
-    <div className="absolute inset-0 z-30 flex flex-col push" style={{ background: KBG }}>
+    <div
+      className="absolute inset-0 z-30 flex flex-col push"
+      style={{ background: KBG }}
+      onClickCapture={(e) => {
+        if (!edit) return;
+        const el = e.target as HTMLElement;
+        if (el.closest("[data-rename]")) {
+          e.stopPropagation();
+          return setRename(true);
+        }
+        const row = el.closest<HTMLElement>("[data-mid]");
+        if (row) {
+          e.stopPropagation();
+          setEditMid(row.dataset.mid!);
+        }
+      }}
+    >
+      {edit && <EditHint text="말풍선을 누르면 고치기 · 아래에서 나/상대 골라 추가" />}
       <div className="relative z-10" style={{ paddingTop: "var(--sat)", background: KBG }}>
         <div className="h-[48px] flex items-center px-[6px]">
           <button data-back onClick={onBack} className="flex items-center h-full pr-1">
@@ -63,7 +85,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
             {unread > 0 && <span className="text-[15px] font-medium -ml-1">{unread > 999 ? "999+" : unread}</span>}
           </button>
           <div className="flex-1 min-w-0 flex items-baseline gap-[5px] ml-1">
-            <span className="text-[17px] font-semibold truncate">{t.name}</span>
+            <span data-rename className="text-[17px] font-semibold truncate">{t.name}</span>
             {t.members && <span className="text-[15px] text-black/45 shrink-0">{t.members}</span>}
           </div>
           <div className="flex items-center gap-[16px] pr-[10px]">
@@ -83,7 +105,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
         {t.messages.map((m, i) => {
           if (m.kind === "date")
             return (
-              <div key={m.id} className="flex justify-center my-[12px]">
+              <div key={m.id} data-mid={m.id} className="flex justify-center my-[12px]">
                 <span className="text-[12px] px-[12px] py-[5px] rounded-full text-white/95 flex items-center gap-[5px]" style={{ background: "rgba(0,0,0,0.15)" }}>
                   <CalendarDays size={12} />
                   {m.text}
@@ -93,7 +115,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
             );
           if (m.from === "system")
             return (
-              <div key={m.id} className="flex justify-center my-[10px]">
+              <div key={m.id} data-mid={m.id} className="flex justify-center my-[10px]">
                 <span className="text-[12px] px-[12px] py-[5px] rounded-full text-white/95 text-center leading-[16px] max-w-[88%]" style={{ background: "rgba(0,0,0,0.15)" }}>
                   {m.text}
                 </span>
@@ -125,13 +147,13 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
             );
           if (mine)
             return (
-              <div key={m.id} className={`flex justify-end items-end gap-[5px] pr-[4px] ${fresh(m.id) ? "bubble-in" : ""}`} style={{ marginTop: first ? 10 : 4, transformOrigin: "100% 100%" }}>
+              <div key={m.id} data-mid={m.id} className={`flex justify-end items-end gap-[5px] pr-[4px] ${fresh(m.id) ? "bubble-in" : ""}`} style={{ marginTop: first ? 10 : 4, transformOrigin: "100% 100%" }}>
                 {i === lastIdx && !readGone && t.name !== "나와의 채팅" && <span className="text-[11px] font-bold text-[#FEE500] mb-[2px]" style={{ textShadow: "0 0 1px rgba(0,0,0,0.15)" }}>1</span>}
                 <div className="max-w-[72%]">{body}</div>
               </div>
             );
           return (
-            <div key={m.id} className={`flex gap-[8px] pl-[2px] ${fresh(m.id) ? "bubble-in" : ""}`} style={{ marginTop: first ? 12 : 4, transformOrigin: "0 100%" }}>
+            <div key={m.id} data-mid={m.id} className={`flex gap-[8px] pl-[2px] ${fresh(m.id) ? "bubble-in" : ""}`} style={{ marginTop: first ? 12 : 4, transformOrigin: "0 100%" }}>
               <div className="w-[40px] shrink-0">{first && <KakaoAvatar size={40} seed={m.who || t.name} />}</div>
               <div className="max-w-[70%] min-w-0">
                 {first && <div className="text-[12px] text-black/70 mb-[5px] ml-[2px]">{m.who || t.name}</div>}
@@ -141,9 +163,11 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           );
         })}
       </div>
+      {editMid && <MsgEditSheet t={t} mid={editMid} onClose={() => setEditMid(null)} />}
+      {rename && <RenameSheet t={t} onClose={() => setRename(false)} />}
       <div className="bg-white flex items-end gap-[6px] px-[8px] pt-[7px]" style={{ paddingBottom: "calc(var(--kbsab) + 2px)" }}>
         <span className="w-[34px] h-[34px] flex items-center justify-center text-[#555] shrink-0">
-          <Plus size={26} strokeWidth={1.6} />
+          {edit ? <SenderChip value={who} onChange={setWho} accent="#FEE500" /> : <Plus size={26} strokeWidth={1.6} />}
         </span>
         <div className="flex-1 min-h-[36px] rounded-[18px] bg-[#F3F3F3] flex items-center pl-[12px] pr-[6px]">
           <textarea

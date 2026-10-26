@@ -155,6 +155,7 @@ select {
 .screen textarea {
   -webkit-user-select: text;
   user-select: text;
+  caret-color: #007aff; /* 아이폰 커서는 파란색 */
 }
 .screen img {
   -webkit-user-drag: none;

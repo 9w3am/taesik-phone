@@ -2471,6 +2471,7 @@ const JSON_APP: Record<string, string> = { safari: "safari", mail: "mail", remin
 const APP_SEC: Record<string, string> = { messages: "threads", kakao: "threads", phone: "calls", contacts: "contacts", notes: "notes", calendar: "calendar", music: "songs", photos: "photos", bank: "bank", settings: "basic" };
 function MobileEditor({ d, goPhone }: { d: PhoneData; goPhone: () => void }) {
   const [open, setOpen] = useState(false);
+  const [editOn, setEditOn] = useState(true);
   const [sec, setSec] = useState("home");
   const [k, setK] = useState(() => Math.min(window.innerWidth / 393, (window.innerHeight - 64) / 852));
   useEffect(() => {
@@ -2501,21 +2502,22 @@ function MobileEditor({ d, goPhone }: { d: PhoneData; goPhone: () => void }) {
           <ArrowLeft size={18} /> 폰 보기
         </button>
         <span className="flex-1" />
-        <span className="invert">
-          <UndoBar />
-        </span>
+        <button onClick={() => setEditOn(!editOn)} className="h-[34px] px-[12px] rounded-full text-[14px] font-semibold whitespace-nowrap" style={editOn ? { background: "#007AFF", color: "#fff" } : { background: "rgba(255,255,255,0.14)", color: "#fff" }}>
+          ✏️ 편집 {editOn ? "켬" : "끔"}
+        </button>
         <button
           onClick={() => {
             setSec(here());
             setOpen(true);
           }}
-          className="h-[34px] px-[14px] rounded-full bg-[#007AFF] text-white text-[14px] font-semibold whitespace-nowrap"
+          className="h-[34px] px-[12px] rounded-full text-[14px] font-semibold whitespace-nowrap text-white"
+          style={{ background: "rgba(255,255,255,0.14)" }}
         >
-          ✏️ 이 화면 편집
+          더 편집
         </button>
       </div>
       <div className="flex-1 min-h-0 flex items-start justify-center">
-        <Phone embedded bare previewScale={k} />
+        <Phone embedded bare editMode={editOn} previewScale={k} />
       </div>
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: "rgba(0,0,0,0.25)" }} onClick={() => setOpen(false)}>

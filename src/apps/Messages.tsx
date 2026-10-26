@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, SquarePen, Video, Plus, Mic, ArrowUp, ChevronLeft, Heart, ThumbsUp, ThumbsDown, Reply, Copy, Undo2 } from "lucide-react";
 import { useData, update, uid, type Thread, type Msg } from "../store";
+import { appendMsg, SenderChip, MsgEditSheet, RenameSheet, EditHint } from "../editKit";
 import { photoSrc } from "../photos";
 import { Avatar, LargeTitle, NavBar, SearchField, useScrolled, usePhoneCtx, Img } from "../ui";
 
@@ -23,13 +24,15 @@ export function sendMsg(id: string, text: string, replyTo?: string) {
 export const preview = (m?: Msg) => (!m || m.kind === "date" ? "" : m.kind === "deleted" ? "삭제된 메시지입니다." : m.kind === "photo" ? "사진" : m.kind === "pay" ? `송금 ${m.amount?.toLocaleString()}원` : m.text.replace(/\n/g, " "));
 
 /** 공용 입력창 훅: 초안(draft)이 있으면 그대로 표시 → 전송 버튼으로 보냄 */
-export function useComposer(t: Thread) {
+export function useComposer(t: Thread, edit?: boolean, from: "me" | "them" = "me") {
   const d = useData();
   const [text, setText] = useState(t.draft ?? "");
   useEffect(() => setText(t.draft ?? ""), [t.id, t.draft]);
-  const editable = d.allowSend;
+  const editable = d.allowSend || !!edit;
   const canSend = text.trim().length > 0 && (editable || !!t.draft);
-  return { text, setText, editable, canSend, send: (replyTo?: string) => canSend && (sendMsg(t.id, text, replyTo), setText("")) };
+  // 편집 모드: 고른 사람(나 · 상대)의 말로 바로 추가
+  const send = (replyTo?: string) => canSend && ((edit ? appendMsg(t.id, from, text) : sendMsg(t.id, text, replyTo)), setText(""));
+  return { text, setText, editable, canSend, send };
 }
 
 /** 키보드 위 자동완성 단어 (iOS 예측 입력 막대) — 누르면 입력창에 붙음 */
@@ -137,7 +140,11 @@ function Bubble({ m, tail, sms, onHold }: { m: Msg; tail: boolean; sms?: boolean
 }
 
 function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => void; unreadOthers: number }) {
-  const c = useComposer(t);
+  const { edit } = usePhoneCtx();
+  const [who, setWho] = useState<"me" | "them">("me");
+  const [editMid, setEditMid] = useState<string | null>(null);
+  const [rename, setRename] = useState(false);
+  const c = useComposer(t, edit, who);
   const scrollRef = useAutoBottom(t.messages.length);
   const fresh = useFresh(t.messages);
   // 글이 길어지면 입력창도 늘어남 (최대 5줄) · 보내고 나면 다시 한 줄
@@ -161,7 +168,23 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
       if (th && m) fn(m, th.messages);
     });
   return (
-    <div className="absolute inset-0 z-40 bg-white flex flex-col push">
+    <div
+      className="absolute inset-0 z-40 bg-white flex flex-col push"
+      onClickCapture={(e) => {
+        if (!edit) return;
+        const el = e.target as HTMLElement;
+        if (el.closest("[data-rename]")) {
+          e.stopPropagation();
+          return setRename(true);
+        }
+        const row = el.closest<HTMLElement>("[data-mid]");
+        if (row) {
+          e.stopPropagation();
+          setEditMid(row.dataset.mid!);
+        }
+      }}
+    >
+      {edit && <EditHint text="말풍선을 누르면 고치기 · 아래에서 나/상대 골라 추가" />}
       {/* 헤더 */}
       <div className="relative z-20 blur-bar hair-b" style={{ paddingTop: "var(--sat)", background: "rgba(249,249,249,0.9)" }}>
         <div className="relative h-[78px] flex items-start justify-between px-2 pt-1">
@@ -171,7 +194,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
           </button>
           <div className="absolute left-1/2 -translate-x-1/2 top-[4px] flex flex-col items-center">
             <Avatar name={t.name} size={50} />
-            <div className="flex items-center text-[11px] mt-[4px] text-black max-w-[180px]">
+            <div data-rename className="flex items-center text-[11px] mt-[4px] text-black max-w-[180px]">
               <span className="truncate">{t.name}</span>
               <ChevronRight size={11} className="text-black/40 shrink-0" strokeWidth={3} />
             </div>
@@ -185,13 +208,13 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
         {t.messages.map((m, i) => {
           if (m.kind === "date")
             return (
-              <div key={m.id} className="text-center text-[11px] text-[#8e8e93] font-semibold mt-[16px] mb-[6px]">
+              <div key={m.id} data-mid={m.id} className="text-center text-[11px] text-[#8e8e93] font-semibold mt-[16px] mb-[6px]">
                 {m.text}
               </div>
             );
           if (m.from === "system")
             return (
-              <div key={m.id} className="text-center text-[11px] text-[#8e8e93] my-[12px] px-6 leading-[15px]">
+              <div key={m.id} data-mid={m.id} className="text-center text-[11px] text-[#8e8e93] my-[12px] px-6 leading-[15px]">
                 {m.text}
               </div>
             );
@@ -200,7 +223,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
           const tail = !next || next.from !== m.from;
           const gap = prev && prev.from === m.from ? 2 : 10;
           return (
-            <div key={m.id} className={fresh(m.id) ? "bubble-in" : ""} style={{ marginTop: gap, transformOrigin: m.from === "me" ? "100% 100%" : "0 100%" }}>
+            <div key={m.id} data-mid={m.id} className={fresh(m.id) ? "bubble-in" : ""} style={{ marginTop: gap, transformOrigin: m.from === "me" ? "100% 100%" : "0 100%" }}>
               <Bubble m={m} tail={tail} sms={t.sms} onHold={setMenu} />
               {i === lastMine && <div className="text-right text-[11px] text-[#8e8e93] font-medium mt-[3px] mr-1">읽음</div>}
             </div>
@@ -268,13 +291,19 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
         </div>
       )}
       {copied && <div className="absolute left-1/2 -translate-x-1/2 top-[45%] z-50 px-[16px] py-[10px] rounded-[12px] bg-black/75 text-white text-[14px] fade">복사됨</div>}
+      {editMid && <MsgEditSheet t={t} mid={editMid} onClose={() => setEditMid(null)} />}
+      {rename && <RenameSheet t={t} onClose={() => setRename(false)} />}
       {/* 입력창 (iOS 18 메시지 모양) */}
       <div className="flex items-end gap-[8px] pl-[8px] pr-[10px] pt-[6px] bg-white" style={{ paddingBottom: "calc(var(--kbsab) + 6px)" }}>
-        <span className="w-[36px] h-[36px] rounded-full bg-[#E9E9EB] flex items-center justify-center shrink-0">
-          <svg width="16" height="16" viewBox="0 0 16 16">
-            <path d="M8 1.5v13M1.5 8h13" stroke="#6C6C70" strokeWidth="2.2" strokeLinecap="round" />
-          </svg>
-        </span>
+        {edit ? (
+          <SenderChip value={who} onChange={setWho} />
+        ) : (
+          <span className="w-[36px] h-[36px] rounded-full bg-[#E9E9EB] flex items-center justify-center shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <path d="M8 1.5v13M1.5 8h13" stroke="#6C6C70" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </span>
+        )}
         <div className="flex-1 min-h-[36px] rounded-[18px] flex items-end pl-[14px] pr-[4px] py-[3px] bg-white" style={{ boxShadow: "inset 0 0 0 1px #D1D1D6" }}>
           <textarea
             rows={1}
@@ -289,7 +318,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
                 setReplyTo(null);
               }
             }}
-            placeholder={t.sms ? "문자 메시지" : "iMessage"}
+            placeholder={edit ? (who === "me" ? "내가 보낼 말" : `${t.name}의 말`) : t.sms ? "문자 메시지" : "iMessage"}
             onFocus={() => setFocus(true)}
             onBlur={() => setFocus(false)}
             className="flex-1 resize-none outline-none bg-transparent text-[17px] leading-[22px] py-[4px] max-h-[110px] placeholder:text-[#A1A1A6]"

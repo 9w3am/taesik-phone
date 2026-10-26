@@ -22,6 +22,8 @@ export type PhoneCtx = {
   call: (name: string, lines: string[], mode?: "out" | "in") => void;
   toast: (t: string) => void;
   appArg: unknown;
+  /** 휴대폰 편집 모드: 폰 안에서 바로 고치기 */
+  edit?: boolean;
 };
 export const Ctx = createContext<PhoneCtx>(null as unknown as PhoneCtx);
 export const usePhoneCtx = () => useContext(Ctx);
