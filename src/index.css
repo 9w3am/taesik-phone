@@ -144,6 +144,22 @@ select {
 .standalone [data-island] {
   visibility: hidden;
 }
+/* 폰 화면 안: 글자 · 사진 끌기 / 선택 / 복사 막기 (입력칸은 그대로) — 실제 폰처럼 */
+.screen,
+.screen * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.screen input,
+.screen textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.screen img {
+  -webkit-user-drag: none;
+  pointer-events: auto;
+}
 /* 휴대폰: 길게 눌렀을 때 뜨는 브라우저 메뉴 · 글자 선택 막기 (실제 아이폰 앱처럼) */
 .stage {
   -webkit-touch-callout: none;

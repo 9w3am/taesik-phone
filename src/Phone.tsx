@@ -10,6 +10,7 @@ import { ControlCenter, NotifCenter } from "./Overlays";
 import { Handset, HandsetDown } from "./phoneIcons";
 import { MusicProvider, MusicHosts, useMusic, useMusicTime } from "./music";
 import { IosKeyboard, KB_HEIGHT, usePhoneKeyboard } from "./keyboard";
+import { usePhoneTouchFeel } from "./touchFeel";
 import { Cover } from "./apps/Music";
 
 /** 수신 화면 보조 문구: 연락처에 있으면 라벨(휴대전화 등), 번호면 대한민국, 모르면 비움 */
@@ -852,6 +853,7 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
   const [mScale, setMScale] = useState(1); // 모바일 화면 배율 (디자인은 항상 393x852 그대로)
   const [kb, setKb] = useState(0); // 키보드 높이 (폰 화면 기준 px)
   const [kbTarget, hideKb] = usePhoneKeyboard(screenRef, mobile);
+  usePhoneTouchFeel(screenRef, mobile);
   useEffect(() => setKb(kbTarget ? KB_HEIGHT : 0), [kbTarget]);
   const [mH, setMH] = useState(852); // 휴대폰: 화면 높이 (폭은 393 그대로, 높이는 기기에 꽉 차게)
   const standalone = typeof window !== "undefined" && (window.matchMedia?.("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true);
@@ -909,7 +911,8 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
   // 레이아웃: 모바일은 전체화면, PC는 기기 목업 중앙
   useEffect(() => {
     const f = () => {
-      const m = window.innerWidth <= 500 || (window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 820 && window.innerHeight > window.innerWidth);
+      // 휴대폰(세로 폭 600 이하)만 꽉 찬 화면, 태블릿 · 컴퓨터는 기기 테두리
+      const m = window.innerWidth <= 600 && window.innerHeight > window.innerWidth * 1.15;
       setMobile(m);
       setScale(Math.min(1, (window.innerHeight - 32) / 892, (window.innerWidth - 24) / 433));
       // 휴대폰: 폭에 맞춰 키우고, 높이는 화면 끝까지 꽉 (위아래 빈 곳 없음). 아주 낮은 화면이면 높이에 맞춤
