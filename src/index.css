@@ -139,6 +139,16 @@ select {
 .mobile .stage {
   overflow: hidden;
 }
+/* 홈 화면에서 연 아이폰 앱 모드: 진짜 상태바 · 다이내믹 아일랜드가 위에 있으니 가짜는 숨김 */
+.standalone [data-statusbar],
+.standalone [data-island] {
+  visibility: hidden;
+}
+/* 휴대폰: 길게 눌렀을 때 뜨는 브라우저 메뉴 · 글자 선택 막기 (실제 아이폰 앱처럼) */
+.stage {
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
 .mobile .screen {
   border-radius: 0;
 }
@@ -211,6 +221,18 @@ select {
 }
 .bubble-in {
   animation: bubbleIn 0.32s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+/* 아이폰 키보드: 아래에서 올라옴 */
+@keyframes kbUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+.kb-up {
+  animation: kbUp 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 /* 사진 열기: 살짝 작은 데서 커지며 */
 @keyframes photoIn {

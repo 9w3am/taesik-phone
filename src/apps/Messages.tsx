@@ -62,6 +62,20 @@ export function useAutoBottom(dep: unknown) {
     const el = ref.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [dep]);
+  // 키보드가 올라와 화면이 줄어들면 마지막 말풍선이 계속 보이게 (실제 아이폰처럼)
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let atBottom = true;
+    const onScroll = () => (atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+    const ro = new ResizeObserver(() => atBottom && (el.scrollTop = el.scrollHeight));
+    el.addEventListener("scroll", onScroll);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, []);
   return ref;
 }
 

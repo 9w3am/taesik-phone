@@ -556,12 +556,12 @@ export function defaultData(): PhoneData {
     netflix: {
       profile: "T",
       watching: [
-        { id: id(), title: "피지컬: 100", ep: "시즌 2: 5화", progress: 0.4, hue: 0, photo: "" },
-        { id: id(), title: "수리남", ep: "4화", progress: 0.75, hue: 30, photo: "" },
+        { id: id(), title: "피지컬: 100", ep: "시즌 2: 5화", progress: 0.4, hue: 0, photo: "", desc: "가장 강한 몸을 가진 100명이 겨루는 서바이벌.", year: "2024", eps: 9 },
+        { id: id(), title: "수리남", ep: "4화", progress: 0.75, hue: 30, photo: "", desc: "남미 수리남을 장악한 무법자와 그를 쫓는 평범한 사업가의 이야기.", year: "2022", eps: 6 },
       ],
       myList: [
-        { id: id(), title: "오징어 게임", ep: "", progress: 0, hue: 330, photo: "" },
-        { id: id(), title: "D.P.", ep: "", progress: 0, hue: 120, photo: "" },
+        { id: id(), title: "오징어 게임", ep: "", progress: 0, hue: 330, photo: "", desc: "상금 456억 원을 걸고 목숨을 건 게임에 뛰어든 사람들.", year: "2021", eps: 9 },
+        { id: id(), title: "D.P.", ep: "", progress: 0, hue: 120, photo: "", desc: "탈영병을 잡는 군무이탈 체포조의 이야기.", year: "2021", eps: 6 },
       ],
     },
     // X: 아이디는 랜덤 (신상 안 드러나게)

@@ -1758,6 +1758,7 @@ const KEY_OPTS: Record<string, [string, string][]> = {
     ["inbox", "받은 편지함"],
     ["sent", "보낸 편지함"],
     ["junk", "정크"],
+    ["trash", "휴지통"],
   ],
 };
 /** 새 항목: 마지막 항목 모양을 따라 빈 값으로 */

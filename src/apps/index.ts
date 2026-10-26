@@ -15,7 +15,9 @@ import CashWalk from "./CashWalk";
 import Health from "./Health";
 import VoiceMemos from "./VoiceMemos";
 import Jobs from "./Jobs";
-import { MailApp, RemindersApp, WalletApp, YoutubeApp, NetflixApp, XApp, CoupangApp, BaeminApp, KakaoTApp } from "./More";
+import { MailApp, RemindersApp, WalletApp } from "./iosApps";
+import { YoutubeApp, NetflixApp, XApp } from "./entApps";
+import { CoupangApp, BaeminApp, KakaoTApp } from "./lifeApps";
 import { Calendar, Clock, Weather, Calculator, Maps, CameraApp, Settings } from "./Misc";
 
 /** light: 밝은 배경 앱 (상태바 검정 글자) */

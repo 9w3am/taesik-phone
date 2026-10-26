@@ -9,6 +9,7 @@ import { soundSrc } from "./sounds";
 import { ControlCenter, NotifCenter } from "./Overlays";
 import { Handset, HandsetDown } from "./phoneIcons";
 import { MusicProvider, MusicHosts, useMusic, useMusicTime } from "./music";
+import { IosKeyboard, KB_HEIGHT, usePhoneKeyboard } from "./keyboard";
 import { Cover } from "./apps/Music";
 
 /** 수신 화면 보조 문구: 연락처에 있으면 라벨(휴대전화 등), 번호면 대한민국, 모르면 비움 */
@@ -45,7 +46,7 @@ function StatusBar({ dark, battery, lowPower, onLongPress, hideTime, carrier }: 
   const lvl = Math.max(0, Math.min(100, battery));
   const fillC = lowPower ? "#FFD60A" : lvl <= 20 ? "#FF3B30" : c;
   return (
-    <div className="absolute top-0 left-0 right-0 h-[54px] z-[60] pointer-events-none flex items-center justify-between" style={{ color: c }}>
+    <div data-statusbar className="absolute top-0 left-0 right-0 h-[54px] z-[60] pointer-events-none flex items-center justify-between" style={{ color: c }}>
       <div
         className="w-[150px] flex justify-center pt-[6px] select-none"
       >
@@ -75,6 +76,40 @@ function StatusBar({ dark, battery, lowPower, onLongPress, hideTime, carrier }: 
   );
 }
 
+/* ───────── 아이폰 사파리: 주소창은 사파리가 못 숨기게 해서, 홈 화면에 추가하는 방법을 한 번 안내 ───────── */
+function IosInstallHint() {
+  const [show, setShow] = useState(() => {
+    try {
+      const ios = /iPhone|iPod/.test(navigator.userAgent);
+      const sa = (navigator as unknown as { standalone?: boolean }).standalone === true;
+      return ios && !sa && !localStorage.getItem("taesik-phone:a2hs");
+    } catch {
+      return false;
+    }
+  });
+  if (!show) return null;
+  const close = () => {
+    setShow(false);
+    try {
+      localStorage.setItem("taesik-phone:a2hs", "1");
+    } catch {
+      /* 비공개 창 */
+    }
+  };
+  return (
+    <div className="fixed left-[10px] right-[10px] bottom-[10px] z-[999] rounded-[16px] px-[14px] py-[12px] text-white text-[14px] leading-[20px] flex gap-[10px] items-start fade" style={{ background: "rgba(30,30,32,0.94)", boxShadow: "0 8px 30px rgba(0,0,0,0.4)" }}>
+      <span className="flex-1">
+        <b>전체 화면으로 보려면</b>
+        <br />
+        아래 공유 버튼 <span className="inline-block px-[4px] rounded bg-white/15">⬆︎</span> → <b>홈 화면에 추가</b> → 홈 화면 아이콘으로 열기
+      </span>
+      <button onClick={close} className="text-white/70 text-[18px] leading-[18px] px-[4px]" aria-label="닫기">
+        ✕
+      </button>
+    </div>
+  );
+}
+
 /* ───────── 다이내믹 아일랜드 ───────── */
 function Island({ calling, onOpenMusic }: { calling: boolean; onOpenMusic: () => void }) {
   const m = useMusic();
@@ -83,6 +118,7 @@ function Island({ calling, onOpenMusic }: { calling: boolean; onOpenMusic: () =>
   return (
     <div
       onClick={() => playing && !calling && onOpenMusic()}
+      data-island
       className="absolute top-[11px] left-1/2 -translate-x-1/2 z-[70] bg-black rounded-full flex items-center justify-between px-[7px] transition-all duration-500"
       style={{ width: wide ? 200 : 125, height: 37, cursor: playing ? "pointer" : undefined }}
     >
@@ -414,7 +450,7 @@ function Passcode({ code, hint, name, onOk, onCancel, decoy, onDecoy }: { code: 
 
 /* ───────── 홈 화면 ───────── */
 
-function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
+function Home({ d, open, h = 852 }: { d: PhoneData; open: (id: string) => void; h?: number }) {
   const now = useNow(30000);
   // 홈 화면 배치는 편집 화면에서 정함 (없는 앱 · 빈 폴더는 안 보이게)
   const FOLDERS = Object.fromEntries(Object.entries(d.home.folders).map(([k, v]) => [k, v.filter((a) => APPS[a])]));
@@ -464,10 +500,44 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
       </button>
     );
   };
+  // 홈 화면 페이지: 화면 높이에 들어가는 줄 수만큼 한 페이지, 넘치면 다음 페이지 (옆으로 넘기기 · 실제 아이폰처럼)
+  const ROW = 88;
+  const rows1 = Math.max(1, Math.floor((h - 160 - 271 + 26) / ROW));
+  const rowsN = Math.max(1, Math.floor((h - 160 - 66 + 26) / ROW));
+  const pages: string[][] = [GRID.slice(0, rows1 * 4)];
+  for (let i = rows1 * 4; i < GRID.length; i += rowsN * 4) pages.push(GRID.slice(i, i + rowsN * 4));
+  const [page, setPage] = useState(0);
+  const [dx, setDx] = useState(0);
+  const sw = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const pg = Math.min(page, pages.length - 1);
   return (
     <div className="absolute inset-0 fade">
       <Wallpaper />
-      <div className="relative pt-[66px] px-[22px]">
+      <div
+        className="absolute inset-0 overflow-hidden"
+        onPointerDown={(e) => (sw.current = { x: e.clientX, y: e.clientY, moved: false })}
+        onPointerMove={(e) => {
+          const g = sw.current;
+          if (!g || pages.length < 2) return;
+          const mx = e.clientX - g.x;
+          if (!g.moved && Math.abs(mx) > 10 && Math.abs(mx) > Math.abs(e.clientY - g.y)) g.moved = true;
+          if (g.moved) setDx((pg === 0 && mx > 0) || (pg === pages.length - 1 && mx < 0) ? mx / 3 : mx);
+        }}
+        onPointerUp={() => {
+          const g = sw.current;
+          sw.current = null;
+          if (!g?.moved) return;
+          if (dx < -50) setPage(Math.min(pages.length - 1, pg + 1));
+          else if (dx > 50) setPage(Math.max(0, pg - 1));
+          setDx(0);
+        }}
+        onClickCapture={(e) => {
+          // 넘기는 중에 손 뗀 건 아이콘 누름으로 치지 않음
+          if (Math.abs(dx) > 10) e.stopPropagation();
+        }}
+      >
+        <div className="flex h-full" style={{ transform: `translateX(calc(${-pg * 100}% + ${dx}px))`, transition: dx ? "none" : "transform .38s cubic-bezier(.25,.9,.3,1)" }}>
+      <div className="relative w-full shrink-0 pt-[66px] px-[22px]">
         {/* 위젯 */}
         <div className="grid grid-cols-2 gap-x-[22px]">
           <button onClick={() => open("weather")} className="flex flex-col items-center gap-[6px]">
@@ -508,13 +578,25 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
         </div>
         {/* 아이콘 그리드 */}
         <div className="grid grid-cols-4 gap-y-[26px] mt-[22px] justify-items-center">
-          {GRID.map((id) => (
+          {pages[0].map((id) => (
             <Icon key={id} id={id} />
           ))}
         </div>
+      </div>
+      {pages.slice(1).map((list, i) => (
+        <div key={i} className="relative w-full shrink-0 pt-[66px] px-[22px]">
+          <div className="grid grid-cols-4 gap-y-[26px] justify-items-center">
+            {list.map((id) => (
+              <Icon key={id} id={id} />
+            ))}
+          </div>
+        </div>
+      ))}
+        </div>
+      </div>
       {/* 열린 폴더 */}
       {folder && (
-        <div className="fixed inset-0 z-30 flex flex-col items-center justify-center fade" style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }} onClick={() => setFolder(null)}>
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center fade" style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)" }} onClick={() => setFolder(null)}>
           <div className="text-[30px] font-semibold text-white mb-[18px]">{folder}</div>
           <div className="w-[300px] rounded-[38px] p-[22px] grid grid-cols-3 gap-y-[22px] justify-items-center blur-bar" style={{ background: "rgba(255,255,255,0.22)" }} onClick={(e) => e.stopPropagation()}>
             {FOLDERS[folder].map((a) => (
@@ -533,13 +615,26 @@ function Home({ d, open }: { d: PhoneData; open: (id: string) => void }) {
           </div>
         </div>
       )}
-      </div>
-      {/* 검색 */}
-      <div className="absolute bottom-[128px] left-0 right-0 flex justify-center">
-        <div className="h-[30px] px-[12px] rounded-full flex items-center gap-[5px] text-white text-[13px] font-semibold blur-bar" style={{ background: "rgba(255,255,255,0.18)" }}>
-          <Search size={12} strokeWidth={3} />
-          검색
-        </div>
+      {/* 검색 (페이지가 여러 개면 넘길 때 점으로 바뀜 · 실제 iOS) */}
+      <div className="absolute bottom-[128px] left-0 right-0 flex justify-center pointer-events-none">
+        {pages.length > 1 && dx !== 0 ? (
+          <div className="h-[30px] px-[12px] rounded-full flex items-center gap-[8px] blur-bar" style={{ background: "rgba(255,255,255,0.18)" }}>
+            {pages.map((_, i) => (
+              <span key={i} className="w-[7px] h-[7px] rounded-full" style={{ background: i === pg ? "#fff" : "rgba(255,255,255,0.4)" }} />
+            ))}
+          </div>
+        ) : (
+          <div className="h-[30px] px-[12px] rounded-full flex items-center gap-[5px] text-white text-[13px] font-semibold blur-bar" style={{ background: "rgba(255,255,255,0.18)" }}>
+            {pages.length > 1 ? (
+              pages.map((_, i) => <span key={i} className="w-[7px] h-[7px] rounded-full" style={{ background: i === pg ? "#fff" : "rgba(255,255,255,0.4)" }} />)
+            ) : (
+              <>
+                <Search size={12} strokeWidth={3} />
+                검색
+              </>
+            )}
+          </div>
+        )}
       </div>
       {/* 독 */}
       <div className="absolute bottom-[12px] left-[12px] right-[12px] h-[96px] rounded-[34px] flex items-center justify-around px-[8px] blur-bar" style={{ background: "rgba(255,255,255,0.2)" }}>
@@ -756,7 +851,10 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
   const [scale, setScale] = useState(1);
   const [mScale, setMScale] = useState(1); // 모바일 화면 배율 (디자인은 항상 393x852 그대로)
   const [kb, setKb] = useState(0); // 키보드 높이 (폰 화면 기준 px)
-  const [vvTop, setVvTop] = useState(0);
+  const [kbTarget, hideKb] = usePhoneKeyboard(screenRef, mobile);
+  useEffect(() => setKb(kbTarget ? KB_HEIGHT : 0), [kbTarget]);
+  const [mH, setMH] = useState(852); // 휴대폰: 화면 높이 (폭은 393 그대로, 높이는 기기에 꽉 차게)
+  const standalone = typeof window !== "undefined" && (window.matchMedia?.("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true);
   const fired = useRef<Set<string>>(new Set());
   const ring = useRef<HTMLAudioElement | null>(null);
   const pendingOpen = useRef<{ app: string; arg?: string } | null>(null);
@@ -814,37 +912,36 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
       const m = window.innerWidth <= 500 || (window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 820 && window.innerHeight > window.innerWidth);
       setMobile(m);
       setScale(Math.min(1, (window.innerHeight - 32) / 892, (window.innerWidth - 24) / 433));
-      // 키보드가 열려 있을 땐 배율을 바꾸지 않는다 (화면이 줄어드는 것 방지)
-      const typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement;
-      if (!typing) setMScale(Math.min(window.innerWidth / 393, window.innerHeight / 852));
+      // 휴대폰: 폭에 맞춰 키우고, 높이는 화면 끝까지 꽉 (위아래 빈 곳 없음). 아주 낮은 화면이면 높이에 맞춤
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let k = vw / 393;
+      if (vh / k < 640) k = vh / 640;
+      setMScale(k);
+      setMH(Math.round(vh / k));
     };
     f();
     window.addEventListener("resize", f);
     return () => window.removeEventListener("resize", f);
   }, []);
 
+  // 휴대폰: 진짜 전체 화면 (안드로이드 크롬 등은 처음 한 번 누르면 주소창까지 숨김) · 두 손가락 확대 막기
   useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv || !mobile) return;
-    const f = () => {
-      const typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement;
-      const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      const phoneTop = (window.innerHeight - 852 * mScale) / 2; // 폰 화면이 화면 가운데에 놓인 위치
-      const phoneBottomGap = phoneTop; // 폰 아래 검은 여백
-      const kbOnPhone = typing && covered > 120 ? Math.max(0, covered - phoneBottomGap) / mScale : 0;
-      setKb(kbOnPhone);
-      setVvTop(vv.offsetTop);
+    if (!mobile || embedded) return;
+    const full = () => {
+      const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
+      if (!standalone && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+      window.removeEventListener("pointerup", full);
     };
-    vv.addEventListener("resize", f);
-    vv.addEventListener("scroll", f);
-    window.addEventListener("focusin", f);
-    window.addEventListener("focusout", () => setTimeout(f, 50));
+    window.addEventListener("pointerup", full);
+    const noZoom = (e: Event) => e.preventDefault();
+    document.addEventListener("gesturestart", noZoom);
     return () => {
-      vv.removeEventListener("resize", f);
-      vv.removeEventListener("scroll", f);
-      window.removeEventListener("focusin", f);
+      window.removeEventListener("pointerup", full);
+      document.removeEventListener("gesturestart", noZoom);
     };
-  }, [mobile, mScale]);
+  }, [mobile, embedded, standalone]);
+
 
   useEffect(() => {
     if (!embedded) return;
@@ -966,7 +1063,7 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
     <div
       ref={screenRef}
       className="screen"
-      style={{ ["--kb" as string]: `${kb}px` } as React.CSSProperties}
+      style={{ ["--kb" as string]: `${kb}px`, ...(mobile && !embedded ? { height: mH } : {}) } as React.CSSProperties}
       onPointerDownCapture={(e) => {
         const r = screenRef.current?.getBoundingClientRect();
         if (!r || !r.width) return;
@@ -1019,7 +1116,7 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
             {/* 앱이 열려 있으면 홈 화면은 살짝 뒤로 물러나 있다가, 닫히면 다시 다가옴 */}
             <div className="absolute inset-0 home-in">
               <div className="absolute inset-0" style={{ transform: AppComp && !closing ? "scale(0.9)" : "scale(1)", opacity: AppComp && !closing ? 0.6 : 1, transition: "transform .42s cubic-bezier(.2,.9,.25,1), opacity .42s" }}>
-                <Home d={d} open={open} />
+                <Home d={d} open={open} h={mobile && !embedded ? mH : 852} />
               </div>
             </div>
             {AppComp && (
@@ -1126,6 +1223,8 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
         <Island calling={false} onOpenMusic={() => phase === "home" && open("music")} />
         <MusicHosts />
         <VolumeHud />
+        {/* 아이폰 키보드: 폰 안 입력칸을 누르면 올라옴 (기기 키보드는 안 뜸) */}
+        {kbTarget && <IosKeyboard key={phase + (app ?? "")} target={kbTarget} muted={d.sounds?.muted} onHide={hideKb} />}
 
         {/* 화면 맨 위: 왼쪽에서 끌어내리면 알림 센터, 오른쪽이면 제어 센터 (오른쪽 위 탭도 됨) · 시계 길게 누르면 에디터 */}
         {phase !== "code" && !(call && call.ringing) && !cc && !nc && (
@@ -1304,13 +1403,14 @@ function PhoneInner({ embedded = false, previewScale = 0.78 }: { embedded?: bool
     );
   if (mobile)
     return (
-      <div className="mobile">
-        <div className="stage" style={{ transform: vvTop ? `translateY(${vvTop}px)` : undefined }}>
-          {/* 줄어든 크기 그대로 자리를 잡아야 화면 가운데에 딱 맞음 (393보다 좁은 폰에서 옆·아래 잘림 방지) */}
-          <div style={{ width: 393 * mScale, height: 852 * mScale, position: "relative", flexShrink: 0 }}>
-            <div style={{ position: "absolute", left: 0, top: 0, width: 393, height: 852, transform: `scale(${mScale})`, transformOrigin: "top left" }}>{screen}</div>
+      <div className={`mobile ${standalone ? "standalone" : ""}`}>
+        <div className="stage">
+          {/* 줄어든(커진) 크기 그대로 자리를 잡아야 화면에 딱 맞음 */}
+          <div style={{ width: 393 * mScale, height: mH * mScale, position: "relative", flexShrink: 0 }}>
+            <div style={{ position: "absolute", left: 0, top: 0, width: 393, height: mH, transform: `scale(${mScale})`, transformOrigin: "top left" }}>{screen}</div>
           </div>
         </div>
+        <IosInstallHint />
       </div>
     );
   return (

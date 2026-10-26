@@ -45,11 +45,11 @@ export type Note = { id: string; folder: string; title: string; body: string; pi
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
 export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
 /* ───── 흔히 쓰는 앱들 (메일 · 미리 알림 · 지갑 · 유튜브 · 넷플릭스 · X · 쿠팡 · 배민 · 카카오 T) ───── */
-export type Mail = { id: string; from: string; addr: string; subject: string; body: string; when: string; unread: boolean; box: "inbox" | "sent" | "junk" };
+export type Mail = { id: string; from: string; addr: string; subject: string; body: string; when: string; unread: boolean; box: "inbox" | "sent" | "junk" | "trash"; flag?: boolean };
 export type Reminder = { id: string; text: string; note: string; due: string; done: boolean; list: string };
 export type WalletCard = { id: string; name: string; sub: string; number: string; color: string };
-export type YtVideo = { id: string; title: string; channel: string; views: string; when: string; duration: string; hue: number; photo: string; progress: number };
-export type NfTitle = { id: string; title: string; ep: string; progress: number; hue: number; photo: string };
+export type YtVideo = { id: string; title: string; channel: string; views: string; when: string; duration: string; hue: number; photo: string; progress: number; desc?: string };
+export type NfTitle = { id: string; title: string; ep: string; progress: number; hue: number; photo: string; desc?: string; year?: string; eps?: number };
 export type XPost = { id: string; name: string; handle: string; text: string; when: string; replies: number; reposts: number; likes: number; photo: string };
 export type ShopOrder = { id: string; name: string; option: string; price: string; when: string; status: string; photo: string };
 export type FoodOrder = { id: string; store: string; menu: string; price: string; when: string; status: string; photo: string };
