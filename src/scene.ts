@@ -55,13 +55,17 @@ function run(t: Thread) {
     for (let n = [...cur].length - 1; n >= 0; n--) frames.push([...cur].slice(0, n).join(""));
     frames.push(...typingFrames(s.text));
     const del = [...cur].length;
+    const ms = s.ms ?? 110;
     let f = 0;
+    // 사람처럼: 지우기 전에 잠깐 멈칫 → 치는 속도 그대로 한 칸씩 지우고 → 살짝 쉬었다가 새로 침 / 다 치면 바로 다음
+    const gap = (k: number) => (k === del && del ? ms * 2 : ms * (0.8 + Math.random() * 0.4));
     const tick = () => {
-      if (f >= frames.length) return void setTimeout(() => next(i + 1), 300);
+      if (f >= frames.length) return void next(i + 1);
       set(id, { typed: frames[f++] });
-      setTimeout(tick, f <= del ? 70 : 110 + Math.random() * 90);
+      setTimeout(tick, gap(f));
     };
-    tick();
+    if (del) setTimeout(tick, 300);
+    else tick();
   };
   next(0);
 }

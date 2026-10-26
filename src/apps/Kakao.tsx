@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Megaphone, ChevronDown, ChevronRight, Info, Search, MessageCirclePlus, Settings, UserPlus, ChevronLeft, Menu, Plus, Smile, Hash, BellOff, User, MessageCircle, ShoppingBag, MoreHorizontal, Music, Mail, CalendarDays, Wallet, FolderClosed, Gift, Ticket } from "lucide-react";
 import { useData, won, type Thread, type Msg } from "../store";
 import { SenderChip, MsgEditSheet, RenameSheet, EditHint } from "../editKit";
+import { useScene } from "../scene";
 import { photoSrc } from "../photos";
 import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
 import { markRead, preview, useAutoBottom, useComposer, useFresh } from "./Messages";
@@ -48,9 +49,12 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
   const [editMid, setEditMid] = useState<string | null>(null);
   const [rename, setRename] = useState(false);
   const c = useComposer(t, edit, who);
-  const ref = useAutoBottom(t.messages.length);
+  // 연출이 있는 방: 들어오면 저절로 흘러감 (편집 모드에선 안 함)
+  const sc = useScene(t, !edit);
+  const tm = sc ? [...t.messages, ...sc.extra] : t.messages;
+  const ref = useAutoBottom(tm.length);
   const fresh = useFresh(t.messages);
-  const lastIdx = t.messages.length - 1;
+  const lastIdx = tm.length - 1;
   // 내가 보낸 마지막 말풍선 옆 노란 1 → 몇 초 뒤 상대가 읽으면 사라짐
   const [readGone, setReadGone] = useState(false);
   const [focus, setFocus] = useState(false);
@@ -58,7 +62,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
     setReadGone(false);
     const tm = setTimeout(() => setReadGone(true), 4000);
     return () => clearTimeout(tm);
-  }, [t.messages.length]);
+  }, [tm.length]);
   return (
     <div
       className="absolute inset-0 z-30 flex flex-col push"
@@ -102,7 +106,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
         </div>
       )}
       <div ref={ref} className="flex-1 scroll px-[10px] pt-[8px] pb-[12px]">
-        {t.messages.map((m, i) => {
+        {tm.map((m, i) => {
           if (m.kind === "date")
             return (
               <div key={m.id} data-mid={m.id} className="flex justify-center my-[12px]">
@@ -121,7 +125,7 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
                 </span>
               </div>
             );
-          const prev = t.messages[i - 1];
+          const prev = tm[i - 1];
           const mine = m.from === "me";
           const first = !prev || prev.from !== m.from || (prev.who || "") !== (m.who || "") || prev.from === ("system" as string);
           const body =
@@ -172,8 +176,8 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
         <div className="flex-1 min-h-[36px] rounded-[18px] bg-[#F3F3F3] flex items-center pl-[12px] pr-[6px]">
           <textarea
             rows={1}
-            value={c.text}
-            readOnly={!c.editable}
+            value={sc ? sc.typed : c.text}
+            readOnly={!c.editable || !!sc}
             onChange={(e) => c.setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -188,8 +192,8 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           />
           <Smile size={23} strokeWidth={1.6} className="text-[#555] shrink-0" />
         </div>
-        {c.canSend ? (
-          <button onClick={() => c.send()} className="h-[36px] px-[12px] rounded-[18px] text-[15px] font-semibold shrink-0" style={{ background: "#FEE500", color: "#191919" }}>
+        {(sc ? !!sc.typed : c.canSend) ? (
+          <button onClick={() => !sc && c.send()} className="h-[36px] px-[12px] rounded-[18px] text-[15px] font-semibold shrink-0" style={{ background: "#FEE500", color: "#191919" }}>
             전송
           </button>
         ) : (

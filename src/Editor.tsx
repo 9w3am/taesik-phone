@@ -786,7 +786,7 @@ function SceneEd({ t, put }: { t: Thread; put: (v: Partial<Thread>) => void }) {
         <Btn
           onClick={() => {
             resetScene(t.id);
-            preview("messages", t.id);
+            preview(t.app, t.id);
           }}
         >
           폰에서 다시 보기
@@ -820,6 +820,17 @@ function SceneEd({ t, put }: { t: Thread; put: (v: Partial<Thread>) => void }) {
             {s.kind !== "wait" && (
               <F label={s.kind === "type" ? "입력창에 칠 글 (앞에 쓴 건 지우고 새로 침)" : "말 (여러 줄 가능)"} className="md:col-span-2">
                 <textarea rows={s.kind === "msg" ? 2 : 1} value={s.text} onChange={(e) => putS({ text: e.target.value } as Partial<SceneStep>)} />
+              </F>
+            )}
+            {s.kind === "type" && (
+              <F label="타자 속도">
+                <select value={s.ms ?? 110} onChange={(e) => putS({ ms: Number(e.target.value) } as Partial<SceneStep>)}>
+                  <option value={70}>아주 빠르게</option>
+                  <option value={100}>빠르게</option>
+                  <option value={110}>보통</option>
+                  <option value={200}>천천히</option>
+                  <option value={300}>아주 천천히 (망설이듯)</option>
+                </select>
               </F>
             )}
             {s.kind !== "type" && (
@@ -937,7 +948,7 @@ function Threads({ d }: { d: PhoneData }) {
             <F label="보내지 않은 초안 (입력창에 미리 적혀 있고, 방문자가 전송 버튼을 누르면 최태식 메시지로 전송됨)" className="mt-4">
               <T value={t.draft ?? ""} onChange={(v) => put({ draft: v })} />
             </F>
-            {app === "messages" && <SceneEd t={t} put={put} />}
+            {app !== "insta" && <SceneEd t={t} put={put} />}
           </Card>
         ) : (
           <Card>

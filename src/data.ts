@@ -22,30 +22,30 @@ const day = (text: string): Msg => ({ id: id(), from: "system", kind: "date", te
 
 /* 연출 방 (편집 > 대화방에서 내용 · 순서를 고칠 수 있음) */
 export const SCENE_NAME = "+82 10-****-8810";
+// "의뢰..." 뒤에 이어지는 말 — 알고 보니 대출 스팸
 const SPAM = [
-  "[Web발신]\n(광고) OO 리딩방 무료 입장\n수익 인증 300%\n무료거부 080-000-0000",
-  "[Web발신]\n고객님 택배가 주소 불일치로 보관 중입니다. 주소 확인 ▶ OO.kr",
-  "[Web발신]\n(광고) 저신용 · 무직자 비대면 당일 승인 한도 조회 ▶",
-  "[국외발신]\n해외 결제 승인 OO만원. 본인 아닐 시 문의 ▶",
-  "[Web발신]\n(광고) 첫 충전 100% 지급 이벤트 ▶",
-  "[Web발신]\nOO은행 보안 인증이 필요합니다 ▶ OO.kr",
-  "[Web발신]\n(광고) 무료 리딩방 마감 임박!!",
+  "하신 비대면 대출 한도 조회가 완료되었습니다.",
+  "[Web발신]\n(광고) 고객님 최대 3,000만원 당일 승인 가능 ▶ OO.kr",
+  "[Web발신]\n무직자 · 저신용 OK. 서류 없이 5분 심사",
+  "[Web발신]\n오늘 안에 확인하지 않으시면 승인 한도가 소멸됩니다 ▶",
+  "[Web발신]\n(광고) 지금 상담 신청 시 첫 달 이자 0원",
+  "무료거부 080-000-0000",
 ];
 export const sceneThread = () => ({
   id: "scene_req",
   app: "messages" as const,
   name: SCENE_NAME,
   unread: 1,
-  sms: true,
   last: "오늘",
   messages: [day("오늘"), th("의뢰...")],
   scene: [
     { kind: "wait", sec: 1.2 },
-    { kind: "type", text: "받" },
-    { kind: "wait", sec: 0.9 },
-    ...SPAM.map((text) => ({ kind: "msg" as const, text, sec: 0.32 })),
-    { kind: "wait", sec: 1.2 },
-    { kind: "type", text: "미친놈인가" },
+    // "받아요"를 치다가 "받ㅇ"에서 끊김
+    { kind: "type", text: "받ㅇ", ms: 100 },
+    // ㅇ 치자마자 바로 스팸
+    ...SPAM.map((text) => ({ kind: "msg" as const, text, sec: 0.45 })),
+    { kind: "wait", sec: 1.0 },
+    { kind: "type", text: "미친놈인가", ms: 100 },
   ] as SceneStep[],
 });
 const pay = (from: "me" | "them", amount: number, text = ""): Msg => ({ id: id(), from, text, kind: "pay", amount });

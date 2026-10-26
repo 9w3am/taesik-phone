@@ -35,7 +35,7 @@ export type Thread = {
   scene?: SceneStep[];
 };
 /** 연출 한 단계: 상대(또는 나) 말이 옴 · 입력창에 글을 침 · 잠깐 기다림 */
-export type SceneStep = { kind: "msg"; text: string; from?: "them" | "me"; sec?: number } | { kind: "type"; text: string } | { kind: "wait"; sec: number };
+export type SceneStep = { kind: "msg"; text: string; from?: "them" | "me"; sec?: number } | { kind: "type"; text: string; /** 한 타 간격(ms) — 클수록 천천히 */ ms?: number } | { kind: "wait"; sec: number };
 /** 나중에 일어나는 일: 시간이 지나거나 어떤 방을 읽으면 메시지 · 전화 · 입금이 옴 */
 export type LaterEv = {
   id: string;
@@ -300,7 +300,17 @@ export function sanitize(o: unknown): PhoneData | null {
       if (n && !o.lockNotifs.some((x) => x.title === sc.name)) o.lockNotifs = [n, ...o.lockNotifs];
     }
   }
-  out.sceneVer = 1;
+  // 연출 새 판: "받ㅇ" 치자마자 "의뢰..." 뒤에 이어지는 스팸 → 자연스럽게 지우고 "미친놈인가" · 아이메시지(파란색)
+  if (((x.sceneVer as number) ?? 0) < 4) {
+    const o = out as unknown as PhoneData;
+    const sc = (base as unknown as PhoneData).threads.find((t) => t.id === "scene_req");
+    const mine = o.threads.find((t) => t.id === "scene_req");
+    if (sc && mine) {
+      mine.scene = sc.scene;
+      mine.sms = undefined;
+    }
+  }
+  out.sceneVer = 4;
   // 노래: 칸마다 모양 검사 (이상한 값이 들어 있으면 고쳐서 받음 — 앱이 멈추지 않게)
   const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);

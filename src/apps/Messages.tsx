@@ -208,7 +208,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
       </div>
       {/* 말풍선 */}
       <div ref={scrollRef} className="flex-1 scroll px-[16px] pt-[10px] pb-[10px]">
-        <div className="text-center text-[11px] text-[#8e8e93] font-medium mb-[10px]">iMessage</div>
+        <div className="text-center text-[11px] text-[#8e8e93] font-medium mb-[10px]">{t.sms ? "문자 메시지" : "iMessage"}</div>
         {tm.map((m, i) => {
           if (m.kind === "date")
             return (
