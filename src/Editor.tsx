@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
 import { putAudio, delAudio, audioInfo, fileSrc, useAudioVer, loadAllAudio } from "./audioStore";
-import { useData, update, setData, resetData, sanitize, cleanAuto, uid, undo, redo, canUndo, canRedo, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song, type CustomApp, type CustomItem, type Page, type LaterEv } from "./store";
+import { useData, update, setData, resetData, sanitize, cleanAuto, uid, undo, redo, canUndo, canRedo, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song, type CustomApp, type CustomItem, type Page, type LaterEv, type SceneStep } from "./store";
+import { resetScene } from "./scene";
 import { defaultData, blankData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
 import { fromLink, searchSong, fetchLyrics, isSpCollection, songYtId, LYRIC_LEAD, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
@@ -774,6 +775,65 @@ function MsgEditor({ t }: { t: Thread }) {
   );
 }
 
+/** 대화방 연출: 보는 사람이 방에 들어가면 저절로 흘러가는 장면 (보기 전용) */
+function SceneEd({ t, put }: { t: Thread; put: (v: Partial<Thread>) => void }) {
+  const steps = t.scene ?? [];
+  const label = { msg: "상대 말이 옴", type: "입력창에 침 (안 보냄)", wait: "잠깐 기다림" } as const;
+  return (
+    <div className="mt-5 rounded-[12px] border border-[#007AFF]/30 bg-[#F3F8FF] p-3">
+      <div className="flex items-center gap-2">
+        <span className="text-[14px] font-semibold flex-1">연출 (방에 들어가면 저절로 흘러감)</span>
+        <Btn
+          onClick={() => {
+            resetScene(t.id);
+            preview("messages", t.id);
+          }}
+        >
+          폰에서 다시 보기
+        </Btn>
+      </div>
+      <p className="text-[12px] text-black/55 mt-1 mb-2 leading-[18px]">
+        보는 사람이 알림을 누르거나 목록에서 <b>직접 이 방에 들어가야</b> 시작해요. 저장되지 않아서 새로 열 때마다 처음부터 다시 나오고, 이 방에선 보는 사람이 글을 칠 수 없어요. 비워 두면 연출 없음.
+      </p>
+      <Rows
+        items={steps}
+        set={(v) => put({ scene: v.length ? v : undefined })}
+        make={(): SceneStep => ({ kind: "msg", text: "", sec: 0.35 })}
+        label="단계 추가"
+        render={(s, putS) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <F label="무엇">
+              <select
+                value={s.kind}
+                onChange={(e) => {
+                  const k = e.target.value as SceneStep["kind"];
+                  putS((k === "wait" ? { kind: "wait", sec: 1 } : k === "type" ? { kind: "type", text: "" } : { kind: "msg", text: "", sec: 0.35 }) as Partial<SceneStep>);
+                }}
+              >
+                {(Object.keys(label) as SceneStep["kind"][]).map((k) => (
+                  <option key={k} value={k}>
+                    {label[k]}
+                  </option>
+                ))}
+              </select>
+            </F>
+            {s.kind !== "wait" && (
+              <F label={s.kind === "type" ? "입력창에 칠 글 (앞에 쓴 건 지우고 새로 침)" : "말 (여러 줄 가능)"} className="md:col-span-2">
+                <textarea rows={s.kind === "msg" ? 2 : 1} value={s.text} onChange={(e) => putS({ text: e.target.value } as Partial<SceneStep>)} />
+              </F>
+            )}
+            {s.kind !== "type" && (
+              <F label={s.kind === "wait" ? "몇 초" : "다음까지 몇 초"}>
+                <input type="number" step="0.1" min="0" value={s.sec ?? 0.35} onChange={(e) => putS({ sec: Math.max(0, Number(e.target.value) || 0) } as Partial<SceneStep>)} />
+              </F>
+            )}
+          </div>
+        )}
+      />
+    </div>
+  );
+}
+
 function Threads({ d }: { d: PhoneData }) {
   const want = (window as unknown as { __editThread?: { app: AppKind; id: string | null } }).__editThread;
   const [app, setApp] = useState<AppKind>(want?.app ?? "messages");
@@ -877,6 +937,7 @@ function Threads({ d }: { d: PhoneData }) {
             <F label="보내지 않은 초안 (입력창에 미리 적혀 있고, 방문자가 전송 버튼을 누르면 최태식 메시지로 전송됨)" className="mt-4">
               <T value={t.draft ?? ""} onChange={(v) => put({ draft: v })} />
             </F>
+            {app === "messages" && <SceneEd t={t} put={put} />}
           </Card>
         ) : (
           <Card>

@@ -118,7 +118,8 @@ export function usePhoneKeyboard(root: React.RefObject<HTMLElement>, layoutKey?:
     mark();
     const mo = new MutationObserver(mark);
     mo.observe(el, { childList: true, subtree: true });
-    const onIn = (e: FocusEvent) => isText(e.target as Element) && setTarget(e.target as HTMLInputElement);
+    // 읽기 전용 칸(연출 중인 입력창 등)은 실제 아이폰처럼 키보드가 안 뜸
+    const onIn = (e: FocusEvent) => isText(e.target as Element) && !(e.target as HTMLInputElement).readOnly && setTarget(e.target as HTMLInputElement);
     const onOut = () =>
       setTimeout(() => {
         const a = document.activeElement;

@@ -31,7 +31,11 @@ export type Thread = {
   last?: string; // 목록에 보이는 날짜 표기 (예: 어제, 목요일)
   messages: Msg[];
   auto?: string; // '나중에 일어나는 일'로 새로 생긴 방
+  /** 연출: 이 방에 들어가면 저절로 흘러감 (보기 전용) */
+  scene?: SceneStep[];
 };
+/** 연출 한 단계: 상대(또는 나) 말이 옴 · 입력창에 글을 침 · 잠깐 기다림 */
+export type SceneStep = { kind: "msg"; text: string; from?: "them" | "me"; sec?: number } | { kind: "type"; text: string } | { kind: "wait"; sec: number };
 /** 나중에 일어나는 일: 시간이 지나거나 어떤 방을 읽으면 메시지 · 전화 · 입금이 옴 */
 export type LaterEv = {
   id: string;
@@ -173,6 +177,7 @@ export type PhoneData = {
   homeVer?: number;
   /** 기본 사진(무료 사진) 채움 버전 */
   photoVer?: number;
+  sceneVer?: number;
   photos: Photo[];
   ig: { me: IgUser; users: IgUser[]; feed: Post[]; stories: string[]; storyItems: Story[]; notes: { user: string; text: string }[]; seen?: string[] };
   safari: { tabs: SafariTab[]; history: string[]; favorites: { title: string; url: string }[] };
@@ -227,7 +232,7 @@ export function sanitize(o: unknown): PhoneData | null {
     if (k in x && x[k] !== undefined && typeof x[k] === typeof base[k]) out[k] = x[k];
   }
   // 기본값에 없는 선택 항목들
-  for (const k of ["sounds", "later", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen", "photoVer"]) if (k in x) out[k] = x[k];
+  for (const k of ["sounds", "later", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen", "photoVer", "sceneVer"]) if (k in x) out[k] = x[k];
   // 직접 만든 앱: 칸마다 모양 검사
   const pick = <T extends string>(v: unknown, ok: readonly T[], d: T): T => (ok.includes(v as T) ? (v as T) : d);
   out.customApps = (Array.isArray(x.customApps) ? x.customApps : [])
@@ -284,6 +289,18 @@ export function sanitize(o: unknown): PhoneData | null {
     fill(pages, b.safari.tabs.map((t) => t.page as { photo?: string; title?: string; name?: string }), (p) => p.title ?? p.name ?? "");
   }
   out.photoVer = 1;
+  // 연출 방(스팸 장면): 예전 저장본에 없으면 한 번 넣어 줌 (지웠으면 다시 안 넣음)
+  if (!x.sceneVer) {
+    const o = out as unknown as PhoneData;
+    const b = base as unknown as PhoneData;
+    const sc = b.threads.find((t) => t.id === "scene_req");
+    if (sc && !o.threads.some((t) => t.id === "scene_req")) {
+      o.threads = [sc, ...o.threads];
+      const n = b.lockNotifs.find((x) => x.title === sc.name);
+      if (n && !o.lockNotifs.some((x) => x.title === sc.name)) o.lockNotifs = [n, ...o.lockNotifs];
+    }
+  }
+  out.sceneVer = 1;
   // 노래: 칸마다 모양 검사 (이상한 값이 들어 있으면 고쳐서 받음 — 앱이 멈추지 않게)
   const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);

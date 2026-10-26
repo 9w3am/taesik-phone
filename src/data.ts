@@ -1,4 +1,4 @@
-import type { Msg, PhoneData } from "./store";
+import type { SceneStep, Msg, PhoneData } from "./store";
 
 /*
   기본 콘텐츠 — 최태식
@@ -19,6 +19,35 @@ const th = (text: string, x: Partial<Msg> = {}): Msg => ({ id: id(), from: "them
 const g = (who: string, text: string): Msg => ({ id: id(), from: "them", who, text });
 const sys = (text: string): Msg => ({ id: id(), from: "system", text });
 const day = (text: string): Msg => ({ id: id(), from: "system", kind: "date", text });
+
+/* 연출 방 (편집 > 대화방에서 내용 · 순서를 고칠 수 있음) */
+export const SCENE_NAME = "+82 10-****-8810";
+const SPAM = [
+  "[Web발신]\n(광고) OO 리딩방 무료 입장\n수익 인증 300%\n무료거부 080-000-0000",
+  "[Web발신]\n고객님 택배가 주소 불일치로 보관 중입니다. 주소 확인 ▶ OO.kr",
+  "[Web발신]\n(광고) 저신용 · 무직자 비대면 당일 승인 한도 조회 ▶",
+  "[국외발신]\n해외 결제 승인 OO만원. 본인 아닐 시 문의 ▶",
+  "[Web발신]\n(광고) 첫 충전 100% 지급 이벤트 ▶",
+  "[Web발신]\nOO은행 보안 인증이 필요합니다 ▶ OO.kr",
+  "[Web발신]\n(광고) 무료 리딩방 마감 임박!!",
+];
+export const sceneThread = () => ({
+  id: "scene_req",
+  app: "messages" as const,
+  name: SCENE_NAME,
+  unread: 1,
+  sms: true,
+  last: "오늘",
+  messages: [day("오늘"), th("의뢰...")],
+  scene: [
+    { kind: "wait", sec: 1.2 },
+    { kind: "type", text: "받" },
+    { kind: "wait", sec: 0.9 },
+    ...SPAM.map((text) => ({ kind: "msg" as const, text, sec: 0.32 })),
+    { kind: "wait", sec: 1.2 },
+    { kind: "type", text: "미친놈인가" },
+  ] as SceneStep[],
+});
 const pay = (from: "me" | "them", amount: number, text = ""): Msg => ({ id: id(), from, text, kind: "pay", amount });
 
 export function defaultData(): PhoneData {
@@ -48,6 +77,7 @@ export function defaultData(): PhoneData {
       watcher: { enabled: true, afterSec: 300 },
     },
     lockNotifs: [
+      { app: "messages", title: SCENE_NAME, text: "의뢰...", when: "지금" },
       { app: "messages", title: "W", text: "새 번호로 다시 연락함. 이 방은 오늘 닫는다.", when: "지금" },
       { app: "kakao", title: "박 실장", text: "밤에 시간 되냐", when: "12분 전" },
       { app: "phone", title: "부재중 전화 (2)", text: "알 수 없음", when: "1시간 전" },
@@ -56,6 +86,8 @@ export function defaultData(): PhoneData {
     /* ───────── 대화방 ───────── */
     threads: [
       /* ── 메시지 (iMessage / 문자) ── */
+      // 연출 방: 들어가면 저절로 — "의뢰..." 다음 입력창에 "받" → 스팸이 와다닥 → 입력창이 "미친놈인가"
+      sceneThread(),
       {
         id: "yuno",
         app: "messages",

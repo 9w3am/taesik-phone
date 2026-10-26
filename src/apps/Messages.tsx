@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight, SquarePen, Video, Plus, Mic, ArrowUp, ChevronLeft, Heart, ThumbsUp, ThumbsDown, Reply, Copy, Undo2 } from "lucide-react";
 import { useData, update, uid, type Thread, type Msg } from "../store";
 import { appendMsg, SenderChip, MsgEditSheet, RenameSheet, EditHint } from "../editKit";
+import { useScene } from "../scene";
 import { photoSrc } from "../photos";
 import { Avatar, LargeTitle, NavBar, SearchField, useScrolled, usePhoneCtx, Img } from "../ui";
 
@@ -145,7 +146,10 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
   const [editMid, setEditMid] = useState<string | null>(null);
   const [rename, setRename] = useState(false);
   const c = useComposer(t, edit, who);
-  const scrollRef = useAutoBottom(t.messages.length);
+  // 연출이 있는 방: 들어오면 저절로 흘러감 (편집 모드에선 안 함)
+  const sc = useScene(t, !edit);
+  const tm = sc ? [...t.messages, ...sc.extra] : t.messages;
+  const scrollRef = useAutoBottom(tm.length);
   const fresh = useFresh(t.messages);
   // 글이 길어지면 입력창도 늘어남 (최대 5줄) · 보내고 나면 다시 한 줄
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -154,8 +158,8 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
     if (!el) return;
     el.style.height = "auto";
     el.style.height = Math.min(110, Math.max(30, el.scrollHeight)) + "px";
-  }, [c.text]);
-  const lastMine = [...t.messages].map((m, i) => [m, i] as const).filter(([m]) => m.from === "me").pop()?.[1];
+  }, [c.text, sc?.typed]);
+  const lastMine = [...tm].map((m, i) => [m, i] as const).filter(([m]) => m.from === "me").pop()?.[1];
   const [menu, setMenu] = useState<string | null>(null);
   const [focus, setFocus] = useState(false);
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -205,7 +209,7 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
       {/* 말풍선 */}
       <div ref={scrollRef} className="flex-1 scroll px-[16px] pt-[10px] pb-[10px]">
         <div className="text-center text-[11px] text-[#8e8e93] font-medium mb-[10px]">iMessage</div>
-        {t.messages.map((m, i) => {
+        {tm.map((m, i) => {
           if (m.kind === "date")
             return (
               <div key={m.id} data-mid={m.id} className="text-center text-[11px] text-[#8e8e93] font-semibold mt-[16px] mb-[6px]">
@@ -307,8 +311,8 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
         <div className="flex-1 min-h-[36px] rounded-[18px] flex items-end pl-[14px] pr-[4px] py-[3px] bg-white" style={{ boxShadow: "inset 0 0 0 1px #D1D1D6" }}>
           <textarea
             rows={1}
-            value={c.text}
-            readOnly={!c.editable}
+            value={sc ? sc.typed : c.text}
+            readOnly={!c.editable || !!sc}
             ref={taRef}
             onChange={(e) => c.setText(e.target.value)}
             onKeyDown={(e) => {
@@ -323,8 +327,8 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
             onBlur={() => setFocus(false)}
             className="flex-1 resize-none outline-none bg-transparent text-[17px] leading-[22px] py-[4px] max-h-[110px] placeholder:text-[#A1A1A6]"
           />
-          {c.canSend ? (
-            <button onClick={() => (c.send(replyTo ?? undefined), setReplyTo(null))} aria-label="보내기" className="w-[30px] h-[30px] mb-[0px] rounded-full flex items-center justify-center shrink-0" style={{ background: t.sms ? "#34C759" : "#007AFF" }}>
+          {(sc ? !!sc.typed : c.canSend) ? (
+            <button onClick={() => !sc && (c.send(replyTo ?? undefined), setReplyTo(null))} aria-label="보내기" className="w-[30px] h-[30px] mb-[0px] rounded-full flex items-center justify-center shrink-0" style={{ background: t.sms ? "#34C759" : "#007AFF" }}>
               <svg width="14" height="16" viewBox="0 0 14 16">
                 <path d="M7 14.5V2M1.5 7.2L7 1.7l5.5 5.5" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
