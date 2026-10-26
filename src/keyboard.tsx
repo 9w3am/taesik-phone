@@ -40,6 +40,18 @@ const SYM = [
   [".", ",", "?", "!", "'"],
 ];
 
+/* 이모지 키보드 (실제 아이폰처럼 분류별 · 옆으로 넘기기) */
+const EMOJI: [string, string, string[]][] = [
+  ["🕘", "자주 사용하는 항목", ["😂", "❤️", "👍", "🙏", "😭", "🥲", "😅", "🔥", "✨", "👀", "💯", "😮‍💨", "🫠", "🤔", "😎", "🙃"]],
+  ["😀", "스마일리 및 사람", ["😀", "😃", "😄", "😁", "😆", "🥹", "😅", "😂", "🤣", "🥲", "☺️", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😋", "😛", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🫣", "🤭", "🫢", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "👍", "👎", "👊", "✊", "🤝", "👏", "🙌", "🙏", "💪", "👋"]],
+  ["🐶", "동물 및 자연", ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🦆", "🦅", "🦉", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🌲", "🌵", "🌸", "🌹", "🌙", "⭐️", "☀️", "⛅️", "🌧️", "⛈️", "❄️", "🌊"]],
+  ["🍔", "음식 및 음료", ["🍏", "🍎", "🍌", "🍉", "🍇", "🍓", "🍑", "🥑", "🥦", "🌽", "🥕", "🥚", "🍳", "🥓", "🍗", "🍖", "🌭", "🍔", "🍟", "🍕", "🥪", "🌮", "🍜", "🍣", "🍱", "🍙", "🍚", "🍰", "🍩", "🍪", "🥛", "🧃", "🥤", "💧"]],
+  ["⚽️", "활동", ["⚽️", "🏀", "🏈", "⚾️", "🎾", "🏐", "🏓", "🥊", "🥋", "🏋️", "🤸", "🚴", "🏃", "🧗", "🎮", "🎯", "🎲", "🎧", "🎤", "🎬"]],
+  ["🚗", "여행 및 장소", ["🚗", "🚕", "🚙", "🚌", "🏎️", "🚓", "🚑", "🚒", "🚚", "🏍️", "🚲", "✈️", "🚀", "⛴️", "🚢", "🏠", "🏢", "🏥", "🏦", "🏪", "🌃", "🌉"]],
+  ["💡", "사물", ["⌚️", "📱", "💻", "⌨️", "📷", "📞", "☎️", "📺", "⏰", "💡", "🔦", "💵", "💳", "💎", "🔑", "🗝️", "🔒", "🔓", "🧰", "🔧", "🔨", "✂️", "📦", "✉️", "📌", "📎", "🗑️"]],
+  ["❤️", "기호", ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "❣️", "💕", "💞", "💯", "✅", "❌", "⭕️", "❗️", "❓", "‼️", "⚠️", "🚫", "🔞", "♻️", "🆗", "🆕", "🔴", "⚫️", "⚪️"]],
+];
+
 /* 키보드 소리: 실제 아이폰처럼 짧은 '톡' (파일 없이 직접 만듦) */
 let actx: AudioContext | null = null;
 function tick(kind: "key" | "del" | "mod") {
@@ -73,7 +85,15 @@ function edit(el: HTMLInputElement | HTMLTextAreaElement, del: number, text: str
   const v = el.value;
   const s0 = el.selectionStart ?? v.length;
   const e0 = el.selectionEnd ?? s0;
-  const start = s0 === e0 ? Math.max(0, s0 - del) : s0;
+  // 지울 때는 "글자 하나" 단위로 (이모지 😂 · 👍🏻 같은 건 여러 칸이라 반만 지워지면 깨짐)
+  let back = del;
+  if (del === 1 && s0 === e0 && s0 > 0) {
+    const before = v.slice(0, s0);
+    const Seg = (Intl as unknown as { Segmenter?: new (l?: string, o?: { granularity: string }) => { segment: (s: string) => Iterable<{ segment: string }> } }).Segmenter;
+    const last = Seg ? [...new Seg("ko", { granularity: "grapheme" }).segment(before)].pop()?.segment : Array.from(before).pop();
+    back = last ? last.length : 1;
+  }
+  const start = s0 === e0 ? Math.max(0, s0 - back) : s0;
   const nv = v.slice(0, start) + text + v.slice(e0);
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
   Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, nv);
@@ -115,7 +135,8 @@ export function usePhoneKeyboard(root: React.RefObject<HTMLElement>, layoutKey?:
 
 export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElement | HTMLTextAreaElement; muted?: boolean; onHide: () => void }) {
   const [lang, setLang] = useState<"ko" | "en">("ko");
-  const [page, setPage] = useState<"abc" | "num" | "sym">("abc");
+  const [page, setPage] = useState<"abc" | "num" | "sym" | "emoji">("abc");
+  const [cat, setCat] = useState(0);
   const [shift, setShift] = useState<0 | 1 | 2>(0); // 0 끔 · 1 한 번 · 2 고정(영어)
   const [pop, setPop] = useState<null | { k: string; x: number; y: number; w: number }>(null);
   const comp = useRef<Comp | null>(null);
@@ -260,6 +281,54 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
       onPointerDown={(e) => e.preventDefault()}
       onMouseDown={(e) => e.preventDefault()}
     >
+      {page === "emoji" ? (
+        <div className="absolute inset-0 flex flex-col" style={{ paddingBottom: 34 }}>
+          <div className="px-[12px] pt-[8px] text-[12px] font-semibold text-black/45">{EMOJI[cat][1]}</div>
+          <div data-dragscroll className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden no-scrollbar touch-pan-x">
+            <div className="grid grid-rows-5 grid-flow-col auto-cols-[44px] gap-x-[2px] px-[8px] h-full pt-[2px]">
+              {EMOJI[cat][2].map((em, i) => (
+                <button
+                  key={em + i}
+                  // 이모지는 손을 뗄 때 입력 (옆으로 넘기다가 잘못 들어가지 않게)
+                  onClick={() => {
+                    sound("key");
+                    comp.current = null;
+                    put(0, em);
+                  }}
+                  className="text-[30px] leading-[36px] flex items-center justify-center rounded-[8px] active:bg-black/10"
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-[2px] px-[6px] h-[46px]">
+            <button
+              onPointerDown={() => {
+                sound("mod");
+                setPage("abc");
+              }}
+              className="h-[34px] px-[10px] rounded-[6px] text-[15px] font-medium"
+              style={modStyle}
+            >
+              {lang === "ko" ? "가" : "ABC"}
+            </button>
+            <div className="flex-1 flex justify-around">
+              {EMOJI.map(([ic], i) => (
+                <button key={ic} onPointerDown={() => setCat(i)} className="w-[30px] h-[30px] rounded-full text-[18px] flex items-center justify-center" style={{ background: i === cat ? "rgba(0,0,0,0.12)" : undefined, filter: i === cat ? "none" : "grayscale(1)", opacity: i === cat ? 1 : 0.6 }}>
+                  {ic}
+                </button>
+              ))}
+            </div>
+            <button aria-label="지우기" onPointerDown={() => holdDel(true)} onPointerUp={() => holdDel(false)} onPointerLeave={() => holdDel(false)} className="w-[38px] h-[34px] flex items-center justify-center">
+              <svg width="24" height="18" viewBox="0 0 24 18">
+                <path d="M8 1.5h13a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H8L1.5 9z" fill="none" stroke="#000" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M11.5 5.5l7 7m0-7l-7 7" stroke="#000" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="px-[3px] pt-[8px] flex flex-col gap-[11px]">
         {rows.map((row, ri) => (
           <div key={ri} className="flex justify-center gap-[6px]" style={{ paddingLeft: ri === 1 && page === "abc" ? 19 : 0, paddingRight: ri === 1 && page === "abc" ? 19 : 0 }}>
@@ -327,7 +396,16 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
           >
             {page === "abc" ? "123" : lang === "ko" ? "가" : "ABC"}
           </button>
-          <button onPointerDown={() => sound("mod")} className={key} style={{ ...modStyle, width: 42, height: 42 }} aria-label="이모지">
+          <button
+            onPointerDown={() => {
+              sound("mod");
+              comp.current = null;
+              setPage("emoji");
+            }}
+            className={key}
+            style={{ ...modStyle, width: 42, height: 42 }}
+            aria-label="이모지"
+          >
             <svg width="22" height="22" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="9.5" fill="none" stroke="#000" strokeWidth="1.5" />
               <circle cx="8.7" cy="10" r="1.2" />
@@ -364,8 +442,9 @@ export function IosKeyboard({ target, muted, onHide }: { target: HTMLInputElemen
           </button>
         </div>
       </div>
+      )}
       {/* 아래: 언어 바꾸기(🌐) · 받아쓰기(🎤) */}
-      <div className="absolute left-0 right-0 flex justify-between px-[22px]" style={{ bottom: 40 }}>
+      <div className="absolute left-0 right-0 flex justify-between px-[22px]" style={{ bottom: 40, display: page === "emoji" ? "none" : undefined }}>
         <button
           aria-label="언어 바꾸기"
           onPointerDown={() => {

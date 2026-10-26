@@ -24,7 +24,7 @@ export function usePhoneTouchFeel(root: React.RefObject<HTMLElement>, layoutKey?
       if (e.pointerType !== "mouse" || e.button !== 0) return;
       const t = e.target as Element;
       // 직접 끌기를 처리하는 곳(키보드 · 사진 넘기기 · 슬라이더 등)과 입력칸은 그대로
-      if (t.closest("input, textarea, select, .touch-none, [data-nodrag]")) return;
+      if (t.closest("input, textarea, select, [data-nodrag]") || (t.closest(".touch-none") && !t.closest("[data-dragscroll]"))) return;
       const box = scrollable(t, el);
       if (!box) return;
       drag = { box, x: e.clientX, y: e.clientY, sl: box.scrollLeft, st: box.scrollTop, moved: false, vx: 0, vy: 0, t: performance.now(), lx: e.clientX, ly: e.clientY };

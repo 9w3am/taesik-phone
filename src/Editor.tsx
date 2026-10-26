@@ -2497,16 +2497,16 @@ export default function Editor() {
     <div className="ed min-h-full bg-[#F2F2F7] text-black" style={{ fontFamily: "var(--font)" }}>
       <header className="sticky top-0 z-20 bg-white/85 backdrop-blur border-b border-black/[0.06]">
         <div className="max-w-[1600px] mx-auto px-4 h-[56px] flex items-center gap-3">
-          <button onClick={goPhone} className="flex items-center gap-1 text-[#007AFF] text-[15px]">
-            <ArrowLeft size={18} /> 폰 보기
+          <button onClick={goPhone} className="flex items-center gap-1 text-[#007AFF] text-[15px] whitespace-nowrap shrink-0" aria-label="폰 보기">
+            <ArrowLeft size={18} /> <span className="hidden sm:inline">폰 보기</span>
           </button>
-          <div className="font-semibold text-[16px] ml-2">최태식 폰 편집기</div>
+          <div className="font-semibold text-[16px] ml-1 sm:ml-2 whitespace-nowrap truncate min-w-0">폰 편집기</div>
           <span className="text-[12px] text-black/40 hidden md:inline">수정 즉시 자동 저장 · 오른쪽 미리보기에 바로 반영</span>
           <span className="flex-1" />
           <UndoBar />
           {!wide && (
             <Btn kind="primary" onClick={() => setShowPrev(true)}>
-              <Smartphone size={15} /> 미리보기
+              <Smartphone size={15} /> <span className="whitespace-nowrap">미리보기</span>
             </Btn>
           )}
         </div>
