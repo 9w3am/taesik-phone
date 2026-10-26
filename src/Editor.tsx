@@ -1,7 +1,7 @@
 /* 제작자용 편집 화면 (/editor 또는 #/editor) */
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, Download, Upload, RotateCcw, Sparkles, Cloud, Check, Copy, Smartphone } from "lucide-react";
-import { useData, update, setData, resetData, sanitize, uid, undo, redo, canUndo, canRedo, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song, type CustomApp, type CustomItem, type Page } from "./store";
+import { useData, update, setData, resetData, sanitize, cleanAuto, uid, undo, redo, canUndo, canRedo, DAYS, type PhoneData, type Msg, type Thread, type AppKind, type Song, type CustomApp, type CustomItem, type Page, type LaterEv } from "./store";
 import { defaultData, blankData } from "./data";
 import { photoSrc, shrinkImage } from "./photos";
 import { fromLink, searchSong, fetchLyrics, isSpCollection, songYtId, LYRIC_LEAD, parseLyrics, fmtTime, parseDur, showDur } from "./songMeta";
@@ -134,6 +134,9 @@ function Rows<X>({ items, set, make, render, label = "추가" }: { items: X[]; s
       setOpen((s) => new Set(s).add(fresh[0]));
     }
   }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 접힌 줄은 끌어서 순서 바꾸기
+  const drag = useRef<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
   const toggle = (k: string) => setOpen((s) => (s.has(k) ? (s.delete(k), new Set(s)) : new Set(s).add(k)));
   useEffect(() => {
     if (!lastAdded.current) return;
@@ -157,7 +160,29 @@ function Rows<X>({ items, set, make, render, label = "추가" }: { items: X[]; s
         const k = keyOf(it, i);
         const isOpen = open.has(k);
         return (
-          <div key={k} data-row-key={k} className={`relative border border-black/[0.08] rounded-[12px] bg-[#FAFAFC] ${isOpen ? "p-3 pr-11" : "pr-11"}`}>
+          <div
+            key={k}
+            data-row-key={k}
+            draggable={!isOpen}
+            onDragStart={() => (drag.current = i)}
+            onDragOver={(e) => {
+              if (drag.current === null) return;
+              e.preventDefault();
+              setOver(i);
+            }}
+            onDragEnd={() => ((drag.current = null), setOver(null))}
+            onDrop={() => {
+              const from = drag.current;
+              drag.current = null;
+              setOver(null);
+              if (from === null || from === i) return;
+              const next = items.slice();
+              const [m] = next.splice(from, 1);
+              next.splice(i, 0, m);
+              set(next);
+            }}
+            className={`relative border rounded-[12px] bg-[#FAFAFC] ${over === i ? "border-[#007AFF]" : "border-black/[0.08]"} ${isOpen ? "p-3 pr-11" : "pr-11 cursor-grab"}`}
+          >
             {isOpen ? (
               <>
                 {render(it, (v) => set(items.map((x, j) => (j === i ? { ...x, ...v } : x))), i)}
@@ -441,6 +466,110 @@ function Events({ d }: { d: PhoneData }) {
           </F>
         </div>
       </Card>
+      <Card title="나중에 일어나는 일 (시간 지나면 오는 메시지 · 전화 · 입금)">
+        <p className="text-[13px] text-black/50 mb-3 leading-[20px]">
+          폰을 보는 중에 저절로 일어나는 일이에요. 예: 잠금 풀고 60초 뒤 새 번호로 문자가 옴 · 어떤 방을 읽고 10초 뒤 전화가 옴 · 입금되면 메모 장부 줄이 저절로 체크됨. 보는 사람이 폰을 새로 열 때마다 처음부터 다시 일어나고, 파일로 내보낼 때는 저절로 들어온 것은 빠져요.
+        </p>
+        <Rows
+          items={d.later ?? []}
+          set={(v) => update((x) => void (x.later = v))}
+          make={(): LaterEv => ({ id: uid(), on: true, when: "start", afterSec: 60, kind: "msg", thread: "", newApp: "messages", newName: "", texts: [], banner: true })}
+          label="일 추가"
+          render={(ev, put) => {
+            const rooms = d.threads.filter((t) => !t.auto);
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <C label="사용" value={ev.on} onChange={(v) => put({ on: v })} />
+                <F label="언제">
+                  <select value={ev.when} onChange={(e) => put({ when: e.target.value as LaterEv["when"] })}>
+                    <option value="start">잠금 풀고</option>
+                    <option value="read">어떤 대화방을 열면</option>
+                  </select>
+                </F>
+                <F label="몇 초 뒤">
+                  <N value={ev.afterSec} onChange={(v) => put({ afterSec: v })} />
+                </F>
+                {ev.when === "read" && (
+                  <F label="이 방을 열면" className="col-span-full">
+                    <select value={ev.readThread ?? ""} onChange={(e) => put({ readThread: e.target.value })}>
+                      <option value="">— 고르기 —</option>
+                      {rooms.filter((t) => t.app !== "insta").map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {(t.app === "kakao" ? "카톡 · " : "메시지 · ") + t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </F>
+                )}
+                <F label="무슨 일">
+                  <select value={ev.kind} onChange={(e) => put({ kind: e.target.value as LaterEv["kind"] })}>
+                    <option value="msg">메시지가 옴</option>
+                    <option value="call">전화가 옴</option>
+                    <option value="deposit">은행 입금</option>
+                  </select>
+                </F>
+                <C label="배너 알림" value={ev.banner !== false} onChange={(v) => put({ banner: v })} />
+                {ev.kind === "msg" && (
+                  <>
+                    <F label="어느 방으로">
+                      <select value={ev.thread ?? ""} onChange={(e) => put({ thread: e.target.value })}>
+                        <option value="">새 방 (새 번호 등)</option>
+                        {rooms.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {(t.app === "kakao" ? "카톡 · " : t.app === "insta" ? "인스타 · " : "메시지 · ") + t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </F>
+                    {!ev.thread && (
+                      <>
+                        <F label="새 방 앱">
+                          <select value={ev.newApp ?? "messages"} onChange={(e) => put({ newApp: e.target.value as AppKind })}>
+                            {APP_OPTS.slice(0, 2).map(([v, l]) => (
+                              <option key={v} value={v}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                        </F>
+                        <F label="새 방 이름 (번호도 됨)">
+                          <T value={ev.newName ?? ""} ph="예: +82 10-0000-0000" onChange={(v) => put({ newName: v })} />
+                        </F>
+                      </>
+                    )}
+                    <F label="상대가 보내는 말 (한 줄 = 말풍선 하나, 차례로 도착)" className="col-span-full">
+                      <textarea rows={3} value={ev.texts.join("\n")} onChange={(e) => put({ texts: e.target.value.split("\n") })} />
+                    </F>
+                  </>
+                )}
+                {ev.kind === "call" && (
+                  <>
+                    <F label="발신자 표시">
+                      <T value={ev.callName ?? ""} onChange={(v) => put({ callName: v })} />
+                    </F>
+                    <F label="상대 대사 (한 줄 = 한 문장)" className="col-span-full">
+                      <textarea rows={3} value={(ev.lines ?? []).join("\n")} onChange={(e) => put({ lines: e.target.value.split("\n") })} />
+                    </F>
+                  </>
+                )}
+                {ev.kind === "deposit" && (
+                  <>
+                    <F label="입금자 이름">
+                      <T value={ev.depositName ?? ""} onChange={(v) => put({ depositName: v })} />
+                    </F>
+                    <F label="금액 (원)">
+                      <N value={ev.amount ?? 0} onChange={(v) => put({ amount: v })} />
+                    </F>
+                    <F label="메모에서 저절로 체크할 줄 (그 줄에 들어간 글)" className="col-span-full">
+                      <T value={ev.checkNote ?? ""} ph="예: 1103" onChange={(v) => put({ checkNote: v })} />
+                    </F>
+                  </>
+                )}
+              </div>
+            );
+          }}
+        />
+      </Card>
       <Card title="숨은 장치 (키패드 번호 → 전화)">
         <p className="text-[13px] text-black/50 mb-3">전화 앱 키패드에 정한 번호를 누르고 통화 버튼을 누르면 전화가 연결되거나(받음), 끊긴 뒤 그쪽에서 다시 걸려옵니다(걸려옴). 트위터 공지에 힌트로 쓰기 좋아요.</p>
         <Rows
@@ -647,7 +776,7 @@ function MsgEditor({ t }: { t: Thread }) {
 function Threads({ d }: { d: PhoneData }) {
   const want = (window as unknown as { __editThread?: { app: AppKind; id: string | null } }).__editThread;
   const [app, setApp] = useState<AppKind>(want?.app ?? "messages");
-  const list = d.threads.filter((t) => t.app === app);
+  const list = d.threads.filter((t) => t.app === app && !t.auto);
   const [sel, setSel] = useState<string | null>(want?.id ?? list[0]?.id ?? null);
   const t = d.threads.find((x) => x.id === sel && x.app === app) ?? list[0];
   useEffect(() => {
@@ -2242,7 +2371,7 @@ function Episodes({ d, download }: { d: PhoneData; download: (name: string, obj:
         <Btn
           kind="primary"
           onClick={() => {
-            save([{ id: uid(), name: name.trim() || `${eps.length + 1}화`, at: Date.now(), data: structuredClone(d) }, ...eps]);
+            save([{ id: uid(), name: name.trim() || `${eps.length + 1}화`, at: Date.now(), data: cleanAuto(d) }, ...eps]);
             setName("");
           }}
         >
@@ -2279,7 +2408,9 @@ function Backup({ d }: { d: PhoneData }) {
   const [sess, setSess] = useState(getSession());
   const download = (name: string, obj: unknown) => {
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" }));
+    // 폰을 보다가 '나중에 일어나는 일'로 들어온 메시지 · 입금은 빼고 원래 내용만
+    const o = obj && typeof obj === "object" && "threads" in obj ? { ...cleanAuto(obj as PhoneData), _rev: (obj as { _rev?: number })._rev } : obj;
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(o, null, 2)], { type: "application/json" }));
     a.download = name;
     a.click();
     URL.revokeObjectURL(a.href);
@@ -2351,7 +2482,7 @@ function Backup({ d }: { d: PhoneData }) {
                     kind="primary"
                     onClick={async () => {
                       try {
-                        await publish(d);
+                        await publish(cleanAuto(d));
                         setMsg("게시 완료! 방문자 화면에 반영됩니다.");
                       } catch (e) {
                         setMsg((e as Error).message);

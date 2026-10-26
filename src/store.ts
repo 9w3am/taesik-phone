@@ -14,6 +14,7 @@ export type Msg = {
   photo?: string; // 사진 id
   tap?: string; // 아이메시지 반응 (heart/like/dislike/haha/emph/q)
   replyTo?: string; // 답장한 말풍선 내용
+  auto?: string; // '나중에 일어나는 일'로 들어온 말 (새로 열면 사라지고 다시 일어남)
 };
 export type Thread = {
   id: string;
@@ -29,6 +30,33 @@ export type Thread = {
   draft?: string; // 보내지 않은 초안 (전송 버튼으로 보낼 수 있음)
   last?: string; // 목록에 보이는 날짜 표기 (예: 어제, 목요일)
   messages: Msg[];
+  auto?: string; // '나중에 일어나는 일'로 새로 생긴 방
+};
+/** 나중에 일어나는 일: 시간이 지나거나 어떤 방을 읽으면 메시지 · 전화 · 입금이 옴 */
+export type LaterEv = {
+  id: string;
+  on: boolean;
+  /** start: 잠금 풀고 몇 초 뒤 / read: 정한 대화방을 열고 몇 초 뒤 */
+  when: "start" | "read";
+  readThread?: string;
+  afterSec: number;
+  kind: "msg" | "call" | "deposit";
+  /** 메시지: 보낼 방 (비우면 새 방) */
+  thread?: string;
+  newApp?: AppKind;
+  newName?: string;
+  /** 메시지 여러 줄 = 말풍선 여러 개 (차례로 도착) */
+  texts: string[];
+  /** 전화 */
+  callName?: string;
+  lines?: string[];
+  /** 입금 */
+  depositName?: string;
+  amount?: number;
+  /** 입금되면 메모에서 이 글이 들어간 체크 줄을 자동 체크 */
+  checkNote?: string;
+  /** 배너 알림 띄우기 */
+  banner?: boolean;
 };
 export type Call = {
   id: string;
@@ -43,7 +71,7 @@ export type Call = {
 export type Contact = { id: string; name: string; phone: string; label: string; note?: string; fav?: boolean };
 export type Note = { id: string; folder: string; title: string; body: string; pinned?: boolean; lockCode?: string; when: string };
 export type CalEvent = { id: string; days: number[]; time: string; end?: string; title: string; place?: string; color: string };
-export type Tx = { id: string; when: string; name: string; amount: number; memo: string };
+export type Tx = { id: string; when: string; name: string; amount: number; memo: string; auto?: string };
 /* ───── 흔히 쓰는 앱들 (메일 · 미리 알림 · 지갑 · 유튜브 · 넷플릭스 · X · 쿠팡 · 배민 · 카카오 T) ───── */
 export type Mail = { id: string; from: string; addr: string; subject: string; body: string; when: string; unread: boolean; box: "inbox" | "sent" | "junk" | "trash"; flag?: boolean };
 export type Reminder = { id: string; text: string; note: string; due: string; done: boolean; list: string };
@@ -151,6 +179,8 @@ export type PhoneData = {
   kakaoProfile: { status: string };
   /** 숨은 장치: 키패드에 번호를 누르면 전화 (out: 걸면 받음 / in: 끊기면 잠시 뒤 걸려옴) */
   triggers?: { id: string; code: string; name: string; mode: "out" | "in"; lines: string[] }[];
+  /** 나중에 일어나는 일 (시간 지나면 오는 메시지 · 전화 · 입금) */
+  later?: LaterEv[];
   /** '업무' 앱: 들어온 의뢰와 진행 단계 */
   jobs: Job[];
   /** 스크린 타임 */
@@ -195,7 +225,7 @@ export function sanitize(o: unknown): PhoneData | null {
     if (k in x && x[k] !== undefined && typeof x[k] === typeof base[k]) out[k] = x[k];
   }
   // 기본값에 없는 선택 항목들
-  for (const k of ["sounds", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen"]) if (k in x) out[k] = x[k];
+  for (const k of ["sounds", "later", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen"]) if (k in x) out[k] = x[k];
   // 직접 만든 앱: 칸마다 모양 검사
   const pick = <T extends string>(v: unknown, ok: readonly T[], d: T): T => (ok.includes(v as T) ? (v as T) : d);
   out.customApps = (Array.isArray(x.customApps) ? x.customApps : [])
@@ -254,13 +284,64 @@ export function sanitize(o: unknown): PhoneData | null {
   return out as unknown as PhoneData;
 }
 
+/** '나중에 일어나는 일'로 생긴 것들을 걷어 냄 (새로 열 때마다 다시 일어나게 · 내보낼 땐 원래 내용만) */
+function AUTO_KEY() {
+  return "taesik-phone:auto-checked";
+}
+export function cleanAuto(src: PhoneData): PhoneData {
+  const d = structuredClone(src);
+  d.threads = d.threads.filter((t) => !t.auto);
+  for (const t of d.threads) t.messages = t.messages.filter((m) => !m.auto);
+  const gone = d.bank.txs.filter((t) => t.auto);
+  d.bank.balance -= gone.reduce((a, t) => a + t.amount, 0);
+  d.bank.txs = d.bank.txs.filter((t) => !t.auto);
+  // 자동으로 체크했던 메모 줄 되돌리기
+  try {
+    const ck = JSON.parse(localStorage.getItem(AUTO_KEY()) || "[]") as { note: string; line: string }[];
+    for (const c of ck) {
+      const n = d.notes.find((x) => x.id === c.note);
+      if (n) n.body = n.body.split("\n").map((l) => (l === "[x] " + c.line ? "[ ] " + c.line : l)).join("\n");
+    }
+  } catch {
+    /* 무시 */
+  }
+  return d;
+}
+/** 메모에서 글이 들어간 체크 줄을 체크 (되돌릴 수 있게 기록) */
+export function autoCheck(d: PhoneData, text: string) {
+  if (!text.trim()) return;
+  for (const n of d.notes) {
+    const ls = n.body.split("\n");
+    let hit = false;
+    ls.forEach((l, i) => {
+      if (l.startsWith("[ ] ") && l.includes(text.trim())) {
+        ls[i] = "[x] " + l.slice(4);
+        hit = true;
+        try {
+          const ck = JSON.parse(localStorage.getItem(AUTO_KEY()) || "[]");
+          ck.push({ note: n.id, line: l.slice(4) });
+          localStorage.setItem(AUTO_KEY(), JSON.stringify(ck));
+        } catch {
+          /* 무시 */
+        }
+      }
+    });
+    if (hit) n.body = ls.join("\n");
+  }
+}
+
 function load(): PhoneData {
   const base = defaultData();
   try {
     const raw = localStorage.getItem(KEY);
     const ver = localStorage.getItem(KEY + ":ver");
     // 기본 콘텐츠가 바뀌면(DATA_VERSION 증가) 예전 저장본 대신 새 내용으로 시작
-    if (raw && ver === String(DATA_VERSION)) return sanitize(JSON.parse(raw)) ?? base;
+    if (raw && ver === String(DATA_VERSION)) {
+      const d = sanitize(JSON.parse(raw));
+      const out = d ? cleanAuto(d) : base;
+      localStorage.removeItem(AUTO_KEY());
+      return out;
+    }
   } catch {
     /* 비공개 창 등 */
   }

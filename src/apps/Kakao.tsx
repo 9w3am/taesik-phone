@@ -237,7 +237,11 @@ export default function Kakao() {
   const [pw, setPw] = useState("");
   const [pwBad, setPwBad] = useState(false);
   const [openId, setOpenId] = useState<string | null>((appArg as string) || null);
-  useEffect(() => void ((window as unknown as { __phoneThread?: string | null }).__phoneThread = openId), [openId]);
+  useEffect(() => {
+    (window as unknown as { __phoneThread?: string | null }).__phoneThread = openId;
+    // '나중에 일어나는 일' 중 "이 방을 읽으면"에 알림
+    if (openId) window.dispatchEvent(new CustomEvent("phone:thread", { detail: openId }));
+  }, [openId]);
   const list = d.threads.filter((t) => t.app === "kakao");
   useEffect(() => {
     if (openId) markRead(openId);

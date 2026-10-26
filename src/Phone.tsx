@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Flashlight, Camera, Lock, MapPin, Cloud, Search, Phone as PhoneIcon, PhoneOff, MessageCircle, AlarmClock, Play, Pause, FastForward, Rewind, Airplay, Volume2, Volume1, VolumeX } from "lucide-react";
-import { useData, update, DAYS, type PhoneData, type Song } from "./store";
+import { useData, update, getData, autoCheck, DAYS, type PhoneData, type Song } from "./store";
 import { AppIcon } from "./icons";
 import { Avatar, Ctx, hm, useNow, type PhoneCtx } from "./ui";
 import { APPS, syncCustomApps } from "./apps";
@@ -1055,6 +1055,77 @@ function PhoneInner({ embedded = false, previewScale = 0.78, bare = false, editM
       );
     return () => ts.forEach(clearTimeout);
   }, [phase, d.events, d.threads]);
+
+  // 나중에 일어나는 일: 시간 지나면(또는 정한 방을 읽으면) 메시지 · 전화 · 입금이 옴 (방문할 때마다 한 번씩)
+  const laterT = useRef<Map<string, number>>(new Map());
+  const fireLater = useCallback((id: string) => {
+    const ev = (getData().later ?? []).find((x) => x.id === id);
+    if (!ev || !ev.on || fired.current.has("L" + id)) return;
+    fired.current.add("L" + id);
+    if (ev.kind === "call") {
+      setCall((c) => c ?? { name: ev.callName || "알 수 없음", lines: (ev.lines ?? []).filter(Boolean), mode: "in", ringing: true });
+      return;
+    }
+    if (ev.kind === "deposit") {
+      const amt = Math.round(ev.amount ?? 0);
+      update((x) => {
+        if (x.bank.txs.some((t) => t.auto === id)) return;
+        x.bank.txs.unshift({ id: "auto-" + id, when: "오늘", name: ev.depositName || "입금", amount: amt, memo: "", auto: id });
+        x.bank.balance += amt;
+        if (ev.checkNote) autoCheck(x, ev.checkNote);
+      });
+      if (ev.banner !== false) {
+        setBanner({ app: "bank", title: "입금 " + amt.toLocaleString("ko-KR") + "원", text: (ev.depositName || "입금") + " · 잔액 " + (getData().bank.balance).toLocaleString("ko-KR") + "원" });
+        setTimeout(() => setBanner(null), 5000);
+      }
+      return;
+    }
+    const texts = ev.texts.map((t) => t.trim()).filter(Boolean);
+    const cur = getData();
+    const old = ev.thread ? cur.threads.find((t) => t.id === ev.thread) : undefined;
+    const tid = old ? old.id : "auto-" + id;
+    const app = old ? old.app : ev.newApp || "messages";
+    const name = old ? old.name : ev.newName || "알 수 없음";
+    texts.forEach((text, i) =>
+      setTimeout(() => {
+        update((x) => {
+          let t = x.threads.find((y) => y.id === tid);
+          if (!t) {
+            t = { id: tid, app, name, unread: 0, last: "오늘", sms: app === "messages", messages: [], auto: id };
+            x.threads.unshift(t);
+          } else {
+            // 새 말이 오면 목록 맨 위로
+            x.threads = [t, ...x.threads.filter((y) => y !== t)];
+          }
+          if (t.messages.some((m) => m.id === "auto-" + id + "-" + i)) return;
+          t.messages.push({ id: "auto-" + id + "-" + i, from: "them", text, auto: id });
+          t.unread += 1;
+          t.last = "오늘";
+        });
+        if (i === 0 && ev.banner !== false) {
+          setBanner({ app, title: name, text, target: tid });
+          setTimeout(() => setBanner(null), 5000);
+        }
+      }, i * 1800),
+    );
+  }, []);
+  useEffect(() => {
+    if (phase !== "home" || embedded) return;
+    for (const ev of d.later ?? [])
+      if (ev.on && ev.when === "start" && !fired.current.has("L" + ev.id) && !laterT.current.has(ev.id))
+        laterT.current.set(ev.id, window.setTimeout(() => fireLater(ev.id), Math.max(0, ev.afterSec) * 1000));
+  }, [phase, d.later, embedded, fireLater]);
+  useEffect(() => {
+    if (embedded) return;
+    const f = (e: Event) => {
+      const tid = (e as CustomEvent<string>).detail;
+      for (const ev of getData().later ?? [])
+        if (ev.on && ev.when === "read" && ev.readThread === tid && !fired.current.has("L" + ev.id) && !laterT.current.has(ev.id))
+          laterT.current.set(ev.id, window.setTimeout(() => fireLater(ev.id), Math.max(0, ev.afterSec) * 1000));
+    };
+    window.addEventListener("phone:thread", f);
+    return () => window.removeEventListener("phone:thread", f);
+  }, [embedded, fireLater]);
 
   const unlock = () => (d.passcode ? setPhase("code") : setPhase("home"));
   const goEditor = () => {
