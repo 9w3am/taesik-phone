@@ -251,7 +251,9 @@ export function BoardPage({ p }: { p: P<"board"> }) {
     <div className="bg-white min-h-full pb-8">
       <div className="h-[48px] flex items-center gap-[10px] px-[12px] text-white" style={{ background: "#3B4890" }}>
         <Menu size={22} />
-        <span className="text-[16px] font-bold">{p.gallery}</span>
+        {/* 디시인사이드 모바일: 왼쪽 로고 + 갤러리 이름 */}
+        <span className="text-[17px] font-black tracking-[-0.04em]">dcinside</span>
+        <span className="text-[13px] font-semibold text-white/80 truncate">{p.gallery}</span>
         <span className="flex-1" />
         <Search size={20} />
       </div>

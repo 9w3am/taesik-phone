@@ -461,7 +461,13 @@ export function NetflixApp() {
                       <button onClick={() => setOpen(hero)} className="absolute inset-0" aria-label="자세히" />
                       <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.85))" }} />
                       <div className="absolute left-0 right-0 bottom-[16px] px-[16px] text-center">
+                        {/* 실제 넷플릭스처럼: 위에 N 시리즈 표시 · 아래에 짧은 소개 줄 */}
+                        <div className="flex items-center justify-center gap-[4px] mb-[6px]">
+                          <span className="text-[#E50914] font-black text-[20px] leading-none" style={{ fontFamily: "Arial Black, sans-serif" }}>N</span>
+                          <span className="text-[11px] font-bold tracking-[0.3em] text-white/85">{hero.eps && hero.eps > 1 ? "시리즈" : "영화"}</span>
+                        </div>
                         <div className="text-[32px] font-black leading-[36px]">{hero.title}</div>
+                        {hero.desc && <div className="text-[12px] text-white/80 mt-[8px] line-clamp-1">{hero.desc}</div>}
                         <div className="flex gap-[10px] mt-[14px]">
                           <button onClick={() => setOpen(hero)} className="flex-1 h-[40px] rounded-[4px] bg-white text-black text-[16px] font-bold flex items-center justify-center gap-[6px]">
                             <Play size={20} fill="#000" /> 재생

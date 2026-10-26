@@ -2041,7 +2041,7 @@ function AutoField({ value, onChange, label, depth = 0, k }: { value: unknown; o
 /* ───────── 사파리: 열린 탭(웹사이트) 고르기 · 만들기 ───────── */
 type PageType = Page["type"];
 /** 웹사이트 종류마다 예시 내용 (새 탭을 만들면 이걸로 시작 → 고쳐 쓰면 됨) */
-const PAGE_TPL: Record<Exclude<PageType, "blank">, { name: string; url: string; title: string; page: Page }> = {
+export const PAGE_TPL: Record<Exclude<PageType, "blank">, { name: string; url: string; title: string; page: Page }> = {
   search: { name: "검색 결과 (네이버 · 구글)", url: "m.search.naver.com", title: "검색어 : 네이버 검색", page: { type: "search", engine: "naver", query: "검색어", results: [{ title: "검색 결과 제목", url: "example.com", desc: "검색 결과 설명", source: "블로그" }] } },
   cafe: { name: "카페 글", url: "m.cafe.naver.com", title: "카페 글 제목", page: { type: "cafe", cafe: "카페 이름", board: "자유게시판", title: "글 제목", author: "닉네임", views: 120, body: "글 내용", comments: [{ who: "댓글러", text: "댓글 내용" }] } },
   board: { name: "커뮤니티 글 (갤러리 · 게시판)", url: "m.dcinside.com", title: "글 제목 - 갤러리", page: { type: "board", site: "커뮤니티", gallery: "갤러리 이름", title: "글 제목", author: "ㅇㅇ", views: 300, recommend: 5, body: "글 내용", comments: [{ who: "ㅇㅇ", text: "댓글" }] } },
