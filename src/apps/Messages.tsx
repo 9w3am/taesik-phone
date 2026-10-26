@@ -159,7 +159,6 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
     el.style.height = "auto";
     el.style.height = Math.min(110, Math.max(30, el.scrollHeight)) + "px";
   }, [c.text, sc?.typed]);
-  const lastMine = [...tm].map((m, i) => [m, i] as const).filter(([m]) => m.from === "me").pop()?.[1];
   const [menu, setMenu] = useState<string | null>(null);
   const [focus, setFocus] = useState(false);
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -229,7 +228,6 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
           return (
             <div key={m.id} data-mid={m.id} className={fresh(m.id) ? "bubble-in" : ""} style={{ marginTop: gap, transformOrigin: m.from === "me" ? "100% 100%" : "0 100%" }}>
               <Bubble m={m} tail={tail} sms={t.sms} onHold={setMenu} />
-              {i === lastMine && <div className="text-right text-[11px] text-[#8e8e93] font-medium mt-[3px] mr-1">읽음</div>}
             </div>
           );
         })}
