@@ -1,4 +1,4 @@
-/* iOS 앱 아이콘 — 전부 SVG로 직접 그림 (이모지/외부 이미지 없음) */
+/* iOS 앱 아이콘 — 앱스토어의 진짜 아이콘 이미지 + 못 불러올 때 쓰는 직접 그린 SVG */
 import { useEffect, useState } from "react";
 import { DAYS } from "./store";
 
@@ -340,6 +340,56 @@ export const ICONS: Record<string, () => React.ReactElement> = {
   ),
 };
 
+/** 진짜 앱 아이콘 (앱스토어 공식 이미지). 불러오지 못하면 직접 그린 아이콘이 보임.
+ *  시계 · 캘린더는 실제 아이폰처럼 지금 시각/날짜가 움직여야 해서 직접 그린 것을 씀 */
+const REAL: Record<string, string> = {
+  messages: "Purple221/v4/fc/8d/32/fc8d32a0-86a7-83d8-7045-57b4b3e71a0b/messagesCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  phone: "Purple211/v4/a3/68/84/a36884f9-3c1d-7424-aa64-eb9523b99c33/phoneCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  safari: "Purple211/v4/9b/4a/12/9b4a12c2-7ea9-9e38-4d4f-f1342b310519/safariCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  camera: "Purple211/v4/fd/d6/b2/fdd6b24d-071d-b41d-045c-b72aa99cf9fa/cameraCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  photos: "Purple221/v4/72/6e/79/726e7943-4a7d-091d-3c55-1d46477cdf08/photosCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  wallet: "Purple211/v4/18/81/b7/1881b7e2-7323-4b41-9c34-43911b53c9d6/walletCalistoga-0-0-1x_U007ephone-0-1-0-85-220.png",
+  music: "Purple221/v4/c2/74/89/c27489c2-2c63-2e32-efee-b0f59b3184ef/musicCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  mail: "Purple221/v4/6e/20/b2/6e20b217-8f80-9b20-136f-50ee09e2937c/mailCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  reminders: "Purple211/v4/4b/b4/39/4bb43986-4714-adc7-459a-1b7c7aafff1d/remindersCalistoga-0-0-1x_U007epad-0-1-0-0-85-220.png",
+  notes: "Purple221/v4/bc/b1/1c/bcb11c9d-ea61-089f-3b84-0f8911dd175d/notesCalistoga-0-0-1x_U007epad-0-1-85-220.png",
+  contacts: "Purple211/v4/db/00/f5/db00f5fc-c446-f84c-29b9-1a46bb028ca6/contactsCalistoga-0-0-1x_U007epad-0-1-0-0-85-220.png",
+  maps: "Purple221/v4/ca/4d/f5/ca4df539-d60c-6a55-1423-49723876b1b0/mapsCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  calculator: "Purple211/v4/f4/35/37/f435379c-2c09-a52a-1bbc-326d8cd54853/calculatorCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  weather: "Purple211/v4/66/d6/cf/66d6cf2c-91a7-6c10-8bd6-54b2dc7b558e/weatherCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  voicememos: "Purple221/v4/6c/83/7e/6c837e02-a3f3-d035-1d29-436281c11d08/voice.memosCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  health: "Purple221/v4/c4/38/d1/c438d148-1fe2-67a3-c768-6158621cc13f/healthCalistoga-0-0-1x_U007epad-0-1-0-85-220.png",
+  kakao: "Purple221/v4/57/29/03/572903d9-dde2-3750-92e0-5c43f5822f3f/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-85-220.png",
+  insta: "Purple211/v4/01/2d/b1/012db1a7-249a-86e8-f025-72491c2a6475/Prod-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-85-220.png",
+  youtube: "Purple221/v4/11/1f/1e/111f1e29-ab13-355b-4ed2-b1b97abc2200/logo_youtube_2024_q4_color-0-0-1x_U007emarketing-0-0-0-7-0-0-0-85-220.png",
+  netflix: "Purple221/v4/17/ac/4e/17ac4efb-a0a4-e618-c58b-79a2fa4b544d/AppIcon-0-0-1x_U007epad-0-1-0-sRGB-0-85-220.png",
+  x: "Purple221/v4/8a/c8/0d/8ac80d53-9d93-b659-94b3-6b7a87379b90/ProductionAppIcon-0-0-1x_U007emarketing-0-8-0-0-0-85-220.png",
+  coupang: "Purple211/v4/f3/bc/f5/f3bcf54e-d531-6885-e07e-ef329db9b12a/AppIcon-0-0-1x_U007emarketing-0-11-0-sRGB-85-220.png",
+  baemin: "Purple211/v4/64/84/ce/6484ce6d-2599-1ae8-ce97-6e369cf23f88/AppIcon-Default-0-0-1x_U007ephone-0-1-0-sRGB-85-220.png",
+  kakaot: "Purple221/v4/7b/04/58/7b0458b6-a923-83f5-5259-4dfaa890827e/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png",
+  cashwalk: "Purple211/v4/c4/6c/53/c46c53dc-5296-89ce-a52f-47471c6cc9db/AppIcon-0-0-1x_U007emarketing-0-6-0-85-220.png"
+};
+export const realIcon = (id: string) => (REAL[id] ? `https://is1-ssl.mzstatic.com/image/thumb/${REAL[id]}/256x256bb.jpg` : null);
+const failed = new Set<string>();
+function RealImg({ id }: { id: string }) {
+  const src = realIcon(id);
+  const [ok, setOk] = useState(!!src && !failed.has(id));
+  if (!src || !ok) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      draggable={false}
+      referrerPolicy="no-referrer"
+      className="absolute inset-0 w-full h-full object-cover"
+      onError={() => {
+        failed.add(id);
+        setOk(false);
+      }}
+    />
+  );
+}
+
 /** 직접 만든 앱 아이콘 정보 (apps/index.ts의 syncCustomApps가 채움) */
 export const CUSTOM_ICONS: Record<string, { name: string; iconBg: string; iconText: string; iconImg?: string }> = {};
 export function AppIcon({ id, size = 60 }: { id: string; size?: number }) {
@@ -352,8 +402,9 @@ export function AppIcon({ id, size = 60 }: { id: string; size?: number }) {
     );
   const I = ICONS[id] ?? (() => <S bg={fill("#8E8E93")}>{null}</S>);
   return (
-    <div className="app-icon" style={{ width: size, height: size }}>
+    <div className="app-icon relative" style={{ width: size, height: size }}>
       <I />
+      <RealImg id={id} />
     </div>
   );
 }
