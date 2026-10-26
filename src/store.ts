@@ -35,7 +35,7 @@ export type Thread = {
   scene?: SceneStep[];
 };
 /** 연출 한 단계: 상대(또는 나) 말이 옴 · 입력창에 글을 침 · 잠깐 기다림 */
-export type SceneStep = { kind: "msg"; text: string; from?: "them" | "me"; sec?: number } | { kind: "type"; text: string; /** 한 타 간격(ms) — 클수록 천천히 */ ms?: number } | { kind: "wait"; sec: number };
+export type SceneStep = { kind: "msg"; text: string; from?: "them" | "me" | "system"; sec?: number } | { kind: "send"; sec?: number } | { kind: "type"; text: string; /** 한 타 간격(ms) — 클수록 천천히 */ ms?: number } | { kind: "wait"; sec: number };
 /** 나중에 일어나는 일: 시간이 지나거나 어떤 방을 읽으면 메시지 · 전화 · 입금이 옴 */
 export type LaterEv = {
   id: string;
@@ -310,7 +310,16 @@ export function sanitize(o: unknown): PhoneData | null {
       mine.sms = undefined;
     }
   }
-  out.sceneVer = 4;
+  // 연출 방 2 · 3 (돈 앞에서 태세 전환 · 그래도 목숨이 먼저): 예전 저장본에 한 번 넣어 줌
+  if (((x.sceneVer as number) ?? 0) < 5) {
+    const o = out as unknown as PhoneData;
+    const add = (base as unknown as PhoneData).threads.filter((t) => (t.id === "scene_money" || t.id === "scene_risk") && !o.threads.some((y) => y.id === t.id));
+    if (add.length) {
+      const at = Math.max(0, o.threads.findIndex((t) => t.id === "scene_req") + 1);
+      o.threads = [...o.threads.slice(0, at), ...add, ...o.threads.slice(at)];
+    }
+  }
+  out.sceneVer = 5;
   // 노래: 칸마다 모양 검사 (이상한 값이 들어 있으면 고쳐서 받음 — 앱이 멈추지 않게)
   const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);

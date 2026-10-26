@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Megaphone, ChevronDown, ChevronRight, Info, Search, MessageCirclePlus, Settings, UserPlus, ChevronLeft, Menu, Plus, Smile, Hash, BellOff, User, MessageCircle, ShoppingBag, MoreHorizontal, Music, Mail, CalendarDays, Wallet, FolderClosed, Gift, Ticket } from "lucide-react";
 import { useData, won, type Thread, type Msg } from "../store";
 import { SenderChip, MsgEditSheet, RenameSheet, EditHint } from "../editKit";
-import { useScene } from "../scene";
+import { useScene, setSceneTyped, sendScene } from "../scene";
 import { photoSrc } from "../photos";
 import { KakaoAvatar, TabBar, useStatusBar, usePhoneCtx, Img } from "../ui";
 import { markRead, preview, useAutoBottom, useComposer, useFresh } from "./Messages";
@@ -177,11 +177,12 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           <textarea
             rows={1}
             value={sc ? sc.typed : c.text}
-            readOnly={!c.editable || !!sc}
-            onChange={(e) => c.setText(e.target.value)}
+            readOnly={sc ? !sc.done : !c.editable}
+            onChange={(e) => (sc ? setSceneTyped(t.id, e.target.value) : c.setText(e.target.value))}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
+                if (sc) return sendScene(t.id);
                 c.send();
               }
             }}
@@ -192,8 +193,8 @@ function Room({ t, onBack, unread }: { t: Thread; onBack: () => void; unread: nu
           />
           <Smile size={23} strokeWidth={1.6} className="text-[#555] shrink-0" />
         </div>
-        {(sc ? !!sc.typed : c.canSend) ? (
-          <button onClick={() => !sc && c.send()} className="h-[36px] px-[12px] rounded-[18px] text-[15px] font-semibold shrink-0" style={{ background: "#FEE500", color: "#191919" }}>
+        {(sc ? !!sc.typed.trim() : c.canSend) ? (
+          <button onClick={() => (sc ? sendScene(t.id) : c.send())} className="h-[36px] px-[12px] rounded-[18px] text-[15px] font-semibold shrink-0" style={{ background: "#FEE500", color: "#191919" }}>
             전송
           </button>
         ) : (

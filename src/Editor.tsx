@@ -778,7 +778,7 @@ function MsgEditor({ t }: { t: Thread }) {
 /** 대화방 연출: 보는 사람이 방에 들어가면 저절로 흘러가는 장면 (보기 전용) */
 function SceneEd({ t, put }: { t: Thread; put: (v: Partial<Thread>) => void }) {
   const steps = t.scene ?? [];
-  const label = { msg: "상대 말이 옴", type: "입력창에 침 (안 보냄)", wait: "잠깐 기다림" } as const;
+  const label = { msg: "말풍선이 옴", type: "입력창에 침", send: "입력창 글 보내기", wait: "잠깐 기다림" } as const;
   return (
     <div className="mt-5 rounded-[12px] border border-[#007AFF]/30 bg-[#F3F8FF] p-3">
       <div className="flex items-center gap-2">
@@ -793,7 +793,7 @@ function SceneEd({ t, put }: { t: Thread; put: (v: Partial<Thread>) => void }) {
         </Btn>
       </div>
       <p className="text-[12px] text-black/55 mt-1 mb-2 leading-[18px]">
-        보는 사람이 알림을 누르거나 목록에서 <b>직접 이 방에 들어가야</b> 시작해요. 저장되지 않아서 새로 열 때마다 처음부터 다시 나오고, 이 방에선 보는 사람이 글을 칠 수 없어요. 비워 두면 연출 없음.
+        보는 사람이 알림을 누르거나 목록에서 <b>직접 이 방에 들어가야</b> 시작해요. 연출이 흘러가는 동안만 입력창을 못 건드리고, <b>끝나면 마음대로 지우고 고치고 보낼 수 있어요.</b> 저장되지 않아서 새로 열 때마다 처음부터 다시 나와요. 비워 두면 연출 없음.
       </p>
       <Rows
         items={steps}
@@ -807,7 +807,7 @@ function SceneEd({ t, put }: { t: Thread; put: (v: Partial<Thread>) => void }) {
                 value={s.kind}
                 onChange={(e) => {
                   const k = e.target.value as SceneStep["kind"];
-                  putS((k === "wait" ? { kind: "wait", sec: 1 } : k === "type" ? { kind: "type", text: "" } : { kind: "msg", text: "", sec: 0.35 }) as Partial<SceneStep>);
+                  putS((k === "wait" ? { kind: "wait", sec: 1 } : k === "type" ? { kind: "type", text: "" } : k === "send" ? { kind: "send", sec: 0.5 } : { kind: "msg", text: "", sec: 0.35 }) as Partial<SceneStep>);
                 }}
               >
                 {(Object.keys(label) as SceneStep["kind"][]).map((k) => (
@@ -817,8 +817,17 @@ function SceneEd({ t, put }: { t: Thread; put: (v: Partial<Thread>) => void }) {
                 ))}
               </select>
             </F>
-            {s.kind !== "wait" && (
-              <F label={s.kind === "type" ? "입력창에 칠 글 (앞에 쓴 건 지우고 새로 침)" : "말 (여러 줄 가능)"} className="md:col-span-2">
+            {s.kind === "msg" && (
+              <F label="누가">
+                <select value={s.from ?? "them"} onChange={(e) => putS({ from: e.target.value } as Partial<SceneStep>)}>
+                  <option value="them">상대</option>
+                  <option value="me">나</option>
+                  <option value="system">회색 안내 문구 (예: 차단했습니다)</option>
+                </select>
+              </F>
+            )}
+            {(s.kind === "msg" || s.kind === "type") && (
+              <F label={s.kind === "type" ? "입력창에 칠 글 (앞에 쓴 건 지우고 새로 침 · 비우면 지우기만)" : "말 (여러 줄 가능)"} className="md:col-span-2">
                 <textarea rows={s.kind === "msg" ? 2 : 1} value={s.text} onChange={(e) => putS({ text: e.target.value } as Partial<SceneStep>)} />
               </F>
             )}

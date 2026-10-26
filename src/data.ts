@@ -48,6 +48,38 @@ export const sceneThread = () => ({
     { kind: "type", text: "미친놈인가", ms: 100 },
   ] as SceneStep[],
 });
+/* 연출 방 2: 돈 앞에서 태세 전환 — "안 받습니" 치는 중에 "착수금 두 배" → 바로 지우고 "언제요" */
+export const sceneMoney = () => ({
+  id: "scene_money",
+  app: "messages" as const,
+  name: "+82 10-****-2291",
+  unread: 2,
+  last: "오늘",
+  messages: [day("오늘"), th("소개받고 연락드렸습니다."), th("의뢰 하나 가능하세요?")],
+  scene: [
+    { kind: "wait", sec: 1.2 },
+    { kind: "type", text: "안 받습니", ms: 100 },
+    { kind: "msg", text: "착수금 두 배 드릴게요.", sec: 0.6 },
+    { kind: "type", text: "언제요", ms: 100 },
+  ] as SceneStep[],
+});
+/* 연출 방 3: 그래도 목숨이 먼저 — "얼마" 쳤다가 다 지우고 "안 함" 보내고 차단 */
+export const sceneRisk = () => ({
+  id: "scene_risk",
+  app: "messages" as const,
+  name: "+82 10-****-5103",
+  unread: 2,
+  last: "오늘",
+  messages: [day("오늘"), th("좀 위험한 건인데"), th("페이 세게 드림. 생각 있으면 연락 주세요")],
+  scene: [
+    { kind: "wait", sec: 1.2 },
+    { kind: "type", text: "얼마", ms: 100 },
+    { kind: "wait", sec: 1.3 },
+    { kind: "type", text: "안 함", ms: 100 },
+    { kind: "send", sec: 0.9 },
+    { kind: "msg", from: "system", text: "이 연락처를 차단했습니다.", sec: 0.3 },
+  ] as SceneStep[],
+});
 const pay = (from: "me" | "them", amount: number, text = ""): Msg => ({ id: id(), from, text, kind: "pay", amount });
 
 export function defaultData(): PhoneData {
@@ -88,6 +120,8 @@ export function defaultData(): PhoneData {
       /* ── 메시지 (iMessage / 문자) ── */
       // 연출 방: 들어가면 저절로 — "의뢰..." 다음 입력창에 "받" → 스팸이 와다닥 → 입력창이 "미친놈인가"
       sceneThread(),
+      sceneMoney(),
+      sceneRisk(),
       {
         id: "yuno",
         app: "messages",

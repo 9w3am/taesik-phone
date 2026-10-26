@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight, SquarePen, Video, Plus, Mic, ArrowUp, ChevronLeft, Heart, ThumbsUp, ThumbsDown, Reply, Copy, Undo2 } from "lucide-react";
 import { useData, update, uid, type Thread, type Msg } from "../store";
 import { appendMsg, SenderChip, MsgEditSheet, RenameSheet, EditHint } from "../editKit";
-import { useScene } from "../scene";
+import { useScene, setSceneTyped, sendScene } from "../scene";
 import { photoSrc } from "../photos";
 import { Avatar, LargeTitle, NavBar, SearchField, useScrolled, usePhoneCtx, Img } from "../ui";
 
@@ -312,12 +312,13 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
           <textarea
             rows={1}
             value={sc ? sc.typed : c.text}
-            readOnly={!c.editable || !!sc}
+            readOnly={sc ? !sc.done : !c.editable}
             ref={taRef}
-            onChange={(e) => c.setText(e.target.value)}
+            onChange={(e) => (sc ? setSceneTyped(t.id, e.target.value) : c.setText(e.target.value))}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
+                if (sc) return sendScene(t.id);
                 c.send(replyTo ?? undefined);
                 setReplyTo(null);
               }
@@ -327,8 +328,8 @@ function Conversation({ t, onBack, unreadOthers }: { t: Thread; onBack: () => vo
             onBlur={() => setFocus(false)}
             className="flex-1 resize-none outline-none bg-transparent text-[17px] leading-[22px] py-[4px] max-h-[110px] placeholder:text-[#A1A1A6]"
           />
-          {(sc ? !!sc.typed : c.canSend) ? (
-            <button onClick={() => !sc && (c.send(replyTo ?? undefined), setReplyTo(null))} aria-label="보내기" className="w-[30px] h-[30px] mb-[0px] rounded-full flex items-center justify-center shrink-0" style={{ background: t.sms ? "#34C759" : "#007AFF" }}>
+          {(sc ? !!sc.typed.trim() : c.canSend) ? (
+            <button onClick={() => (sc ? sendScene(t.id) : (c.send(replyTo ?? undefined), setReplyTo(null)))} aria-label="보내기" className="w-[30px] h-[30px] mb-[0px] rounded-full flex items-center justify-center shrink-0" style={{ background: t.sms ? "#34C759" : "#007AFF" }}>
               <svg width="14" height="16" viewBox="0 0 14 16">
                 <path d="M7 14.5V2M1.5 7.2L7 1.7l5.5 5.5" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
