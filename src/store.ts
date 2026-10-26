@@ -112,8 +112,8 @@ export type Page =
   | { type: "cafe"; cafe: string; board: string; title: string; author: string; views: number; body: string; comments: Comment[] }
   | { type: "board"; site: string; gallery: string; title: string; author: string; views: number; recommend: number; body: string; comments: Comment[] }
   | { type: "market"; site: "daangn" | "bunjang" | "joongna"; title: string; price: string; area: string; seller: string; temp: number; body: string; photo: string; meta: string }
-  | { type: "car"; title: string; price: string; specs: [string, string][]; body: string; dealer: string }
-  | { type: "shop"; name: string; price: string; discount: string; rating: number; reviews: number; delivery: string; seller: string }
+  | { type: "car"; photo?: string; title: string; price: string; specs: [string, string][]; body: string; dealer: string }
+  | { type: "shop"; photo?: string; name: string; price: string; discount: string; rating: number; reviews: number; delivery: string; seller: string }
   | { type: "wiki"; title: string; updated: string; sections: { h: string; body: string }[] }
   | { type: "video"; title: string; channel: string; subs: string; views: string; when: string; duration: string; desc: string; comments: Comment[] }
   | { type: "sns"; query: string; posts: { name: string; handle: string; text: string; when: string; replies: number; reposts: number; likes: number }[] }
@@ -171,6 +171,8 @@ export type PhoneData = {
   kakaot: Ride[];
   /** 홈 화면 배치 버전 (새 앱 폴더가 생겼을 때 예전 저장본에도 넣어 주려고) */
   homeVer?: number;
+  /** 기본 사진(무료 사진) 채움 버전 */
+  photoVer?: number;
   photos: Photo[];
   ig: { me: IgUser; users: IgUser[]; feed: Post[]; stories: string[]; storyItems: Story[]; notes: { user: string; text: string }[]; seen?: string[] };
   safari: { tabs: SafariTab[]; history: string[]; favorites: { title: string; url: string }[] };
@@ -225,7 +227,7 @@ export function sanitize(o: unknown): PhoneData | null {
     if (k in x && x[k] !== undefined && typeof x[k] === typeof base[k]) out[k] = x[k];
   }
   // 기본값에 없는 선택 항목들
-  for (const k of ["sounds", "later", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen"]) if (k in x) out[k] = x[k];
+  for (const k of ["sounds", "later", "triggers", "decoyCode", "vault", "quickWords", "autoLockSec", "phoneSeen", "photoVer"]) if (k in x) out[k] = x[k];
   // 직접 만든 앱: 칸마다 모양 검사
   const pick = <T extends string>(v: unknown, ok: readonly T[], d: T): T => (ok.includes(v as T) ? (v as T) : d);
   out.customApps = (Array.isArray(x.customApps) ? x.customApps : [])
@@ -262,6 +264,26 @@ export function sanitize(o: unknown): PhoneData | null {
     }
   }
   out.homeVer = 2;
+  // 예전 저장본: 비어 있던 사진 칸을 기본 사진으로 채움 (직접 넣은 사진은 그대로)
+  if (!x.photoVer) {
+    const b = base as unknown as PhoneData;
+    const fill = <T extends { photo?: string }>(list: unknown, defs: T[], key: (t: T) => string) => {
+      if (!Array.isArray(list)) return;
+      for (const it of list as T[]) {
+        if (!it || it.photo) continue;
+        const m = defs.find((d) => key(d) === key(it));
+        if (m?.photo) it.photo = m.photo;
+      }
+    };
+    const o = out as unknown as PhoneData;
+    fill(o.youtube?.feed, b.youtube.feed, (t) => t.title);
+    fill(o.youtube?.history, b.youtube.history, (t) => t.title);
+    fill(o.coupang, b.coupang, (t) => t.name);
+    fill(o.baemin, b.baemin, (t) => t.store);
+    const pages = (o.safari?.tabs ?? []).map((t) => t.page as { photo?: string; title?: string; name?: string });
+    fill(pages, b.safari.tabs.map((t) => t.page as { photo?: string; title?: string; name?: string }), (p) => p.title ?? p.name ?? "");
+  }
+  out.photoVer = 1;
   // 노래: 칸마다 모양 검사 (이상한 값이 들어 있으면 고쳐서 받음 — 앱이 멈추지 않게)
   const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);

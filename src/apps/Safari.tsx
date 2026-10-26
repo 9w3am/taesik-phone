@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Share, BookOpen, Copy, RotateCw, Lock, Search, Plus, X, Heart, Home, MoreVertical, Eye, MessageSquare, Clock, Menu, User } from "lucide-react";
 import { useData, update, uid, type Page, type SafariTab } from "../store";
 import { photoSrc } from "../photos";
-import { Img, useStatusBar } from "../ui";
+import { Img, useStatusBar, usePhoneCtx } from "../ui";
 import { GooglePage, WikiPage, VideoPage, SnsPage, BoardPage, CarPage, ShopPage, NoImage } from "./SafariPages";
 
 const NAVER = "#03C75A";
@@ -356,7 +356,9 @@ function PageView({ page, onGo }: { page: Page; onGo: (q: string) => void }) {
 export default function Safari() {
   useStatusBar(true);
   const d = useData();
-  const [cur, setCur] = useState<string>(d.safari.tabs[0]?.id ?? "");
+  const { appArg } = usePhoneCtx();
+  // 다른 곳에서 특정 탭을 열 수 있게 (탭 번호 또는 id)
+  const [cur, setCur] = useState<string>(() => (typeof appArg === "number" ? d.safari.tabs[appArg]?.id : d.safari.tabs.find((t) => t.id === appArg)?.id) ?? d.safari.tabs[0]?.id ?? "");
   const [overview, setOverview] = useState(false);
   const [priv, setPriv] = useState(false); // 비공개 탭 그룹
   const [hist, setHist] = useState(false); // 방문 기록

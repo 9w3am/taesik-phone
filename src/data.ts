@@ -542,13 +542,13 @@ export function defaultData(): PhoneData {
     ],
     youtube: {
       feed: [
-        { id: id(), title: "무분할 하체 루틴 40분 같이 해요", channel: "OO 피트니스", views: "조회수 32만회", when: "3일 전", duration: "41:08", hue: 10, photo: "", progress: 0 },
-        { id: id(), title: "중고차 살 때 이것만 보세요 (사고 이력 확인법)", channel: "정비소 일상", views: "조회수 118만회", when: "1개월 전", duration: "14:22", hue: 210, photo: "", progress: 0 },
-        { id: id(), title: "새벽 6시 러닝 브이로그", channel: "러닝하는 사람", views: "조회수 4.1만회", when: "1주 전", duration: "9:51", hue: 150, photo: "", progress: 0 },
+        { id: id(), title: "무분할 하체 루틴 40분 같이 해요", channel: "OO 피트니스", views: "조회수 32만회", when: "3일 전", duration: "41:08", hue: 10, photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Serhii_Dukhota_performing_a_squat_in_a_gym.jpg/500px-Serhii_Dukhota_performing_a_squat_in_a_gym.jpg", progress: 0 },
+        { id: id(), title: "중고차 살 때 이것만 보세요 (사고 이력 확인법)", channel: "정비소 일상", views: "조회수 118만회", when: "1개월 전", duration: "14:22", hue: 210, photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Used_car_lot_-_geograph.org.uk_-_1036517.jpg/500px-Used_car_lot_-_geograph.org.uk_-_1036517.jpg", progress: 0 },
+        { id: id(), title: "새벽 6시 러닝 브이로그", channel: "러닝하는 사람", views: "조회수 4.1만회", when: "1주 전", duration: "9:51", hue: 150, photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Runner_on_the_hill.jpg/500px-Runner_on_the_hill.jpg", progress: 0 },
       ],
       history: [
-        { id: id(), title: "데드리프트 허리 안 다치는 자세", channel: "OO 피트니스", views: "조회수 210만회", when: "2년 전", duration: "11:40", hue: 25, photo: "", progress: 1 },
-        { id: id(), title: "닭가슴살 질리지 않게 먹는 법", channel: "벌크업 식단", views: "조회수 56만회", when: "8개월 전", duration: "8:03", hue: 40, photo: "", progress: 0.6 },
+        { id: id(), title: "데드리프트 허리 안 다치는 자세", channel: "OO 피트니스", views: "조회수 210만회", when: "2년 전", duration: "11:40", hue: 25, photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Fit_young_man_doing_deadlift_exercise_in_gym.jpg/500px-Fit_young_man_doing_deadlift_exercise_in_gym.jpg", progress: 1 },
+        { id: id(), title: "닭가슴살 질리지 않게 먹는 법", channel: "벌크업 식단", views: "조회수 56만회", when: "8개월 전", duration: "8:03", hue: 40, photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Wild_rice%2C_hard-boiled_egg%2C_and_chopped_chicken_breast%2C_with_curry_powder%2C_soy_sauce%2C_and_black_pepper_-_Massachusetts.jpg/500px-Wild_rice%2C_hard-boiled_egg%2C_and_chopped_chicken_breast%2C_with_curry_powder%2C_soy_sauce%2C_and_black_pepper_-_Massachusetts.jpg", progress: 0.6 },
         { id: id(), title: "오늘 밤 비 소식 · 날씨", channel: "뉴스 OO", views: "조회수 1.2만회", when: "5시간 전", duration: "2:10", hue: 200, photo: "", progress: 1 },
       ],
       searches: ["하체 루틴", "중고차 사고 이력", "공기계 개통"],
@@ -575,13 +575,13 @@ export function defaultData(): PhoneData {
       ],
     },
     coupang: [
-      { id: id(), name: "검정 가죽 장갑 (손목 밴드형)", option: "L / 블랙 · 1개", price: "18,900원", when: "2026. 10. 23", status: "배송완료", photo: "" },
-      { id: id(), name: "생수 2L × 12병", option: "1개", price: "8,640원", when: "2026. 10. 23", status: "배송완료", photo: "" },
-      { id: id(), name: "분리유청 단백질 2kg 초코", option: "1개", price: "54,900원", when: "2026. 10. 15", status: "배송완료", photo: "" },
+      { id: id(), name: "검정 가죽 장갑 (손목 밴드형)", option: "L / 블랙 · 1개", price: "18,900원", when: "2026. 10. 23", status: "배송완료", photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Black_Half-Finger_Leather_Gloves_SAF.jpg/500px-Black_Half-Finger_Leather_Gloves_SAF.jpg" },
+      { id: id(), name: "생수 2L × 12병", option: "1개", price: "8,640원", when: "2026. 10. 23", status: "배송완료", photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Water_bottle_in_room.jpg/500px-Water_bottle_in_room.jpg" },
+      { id: id(), name: "분리유청 단백질 2kg 초코", option: "1개", price: "54,900원", when: "2026. 10. 15", status: "배송완료", photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Protein_shake.jpg/500px-Protein_shake.jpg" },
     ],
     baemin: [
-      { id: id(), store: "OO포케 본점", menu: "연어 포케 (밥 반, 소스 따로) 외 1개", price: "18,900원", when: "10. 24 (금)", status: "배달완료", photo: "" },
-      { id: id(), store: "닭가슴살 도시락 전문점", menu: "훈제 닭가슴살 도시락 × 3", price: "23,700원", when: "10. 21 (화)", status: "배달완료", photo: "" },
+      { id: id(), store: "OO포케 본점", menu: "연어 포케 (밥 반, 소스 따로) 외 1개", price: "18,900원", when: "10. 24 (금)", status: "배달완료", photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/Poke_Bowl_Losos_Zlaty_Klas_2025.jpg/500px-Poke_Bowl_Losos_Zlaty_Klas_2025.jpg" },
+      { id: id(), store: "닭가슴살 도시락 전문점", menu: "훈제 닭가슴살 도시락 × 3", price: "23,700원", when: "10. 21 (화)", status: "배달완료", photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Chicken_breast%2C_roasted_with_garlic_olive_oil_and_black_pepper%2C_on_fried_rice_and_peas_with_soy_sauce_-_Massachusetts.jpg/500px-Chicken_breast%2C_roasted_with_garlic_olive_oil_and_black_pepper%2C_on_fried_rice_and_peas_with_soy_sauce_-_Massachusetts.jpg" },
     ],
     kakaot: [
       { id: id(), kind: "택시 · 일반호출", from: "OO역", to: "OO동 주차장", when: "10. 24 (금) 오전 3:12", price: "14,300원" },
@@ -680,7 +680,7 @@ export function defaultData(): PhoneData {
             seller: "집주인직거래",
             temp: 38.1,
             meta: "부동산 · 1일 전 · 관심 22 · 채팅 9",
-            photo: "",
+            photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Studio_apartment_in_Finland.jpg/500px-Studio_apartment_in_Finland.jpg",
             body: "풀옵션 원룸. 단기 가능합니다.\n계약서 따로 안 쓰고 현금으로 하셔도 됩니다.\n주차 1대 가능. 입구 따로라 출입 편해요.",
           },
         },
@@ -691,6 +691,7 @@ export function defaultData(): PhoneData {
           page: {
             type: "car",
             title: "현대 그랜저 IG 3.0 익스클루시브",
+            photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/0_Hyundai_Grandeur_%28IG%29_1.jpg/500px-0_Hyundai_Grandeur_%28IG%29_1.jpg",
             price: "1,890만원",
             specs: [
               ["연식", "19/03식"],
@@ -717,7 +718,7 @@ export function defaultData(): PhoneData {
             seller: "폰정리",
             temp: 0,
             meta: "4시간 전 · 찜 3 · 조회 87",
-            photo: "",
+            photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Apple_iPhone_13_Pro_and_13_Pro_Max.jpg/500px-Apple_iPhone_13_Pro_and_13_Pro_Max.jpg",
             body: "둘 다 초기화 완료.\n공기계라 개통 이력 없음. 박스 없습니다.\n직거래만. 현금만.",
           },
         },
@@ -725,7 +726,7 @@ export function defaultData(): PhoneData {
           id: id(),
           title: "검정 가죽 장갑 : 쿠팡",
           url: "m.coupang.com",
-          page: { type: "shop", name: "남성 양가죽 장갑 슬림핏 블랙, 1켤레", price: "29,800원", discount: "31%", rating: 4.5, reviews: 3812, delivery: "내일(월) 도착 보장", seller: "로켓배송" },
+          page: { type: "shop", name: "남성 양가죽 장갑 슬림핏 블랙, 1켤레", photo: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Black_Half-Finger_Leather_Gloves_SAF.jpg/500px-Black_Half-Finger_Leather_Gloves_SAF.jpg", price: "29,800원", discount: "31%", rating: 4.5, reviews: 3812, delivery: "내일(월) 도착 보장", seller: "로켓배송" },
         },
         {
           id: id(),

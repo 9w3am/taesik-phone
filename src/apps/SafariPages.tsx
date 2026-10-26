@@ -1,6 +1,15 @@
 /* 사파리 안의 모바일 웹사이트들 — 구글 · 나무위키 · 유튜브 · X · 디시 · 엔카 · 쿠팡 */
 import { Search, Mic, Menu, ThumbsUp, ThumbsDown, Share2, Download, MessageCircle, Repeat2, Heart, BarChart2, Bookmark, ChevronRight, Star, Image as ImageIcon, ShoppingCart, Home, User, Play, MoreVertical, Bell, Phone } from "lucide-react";
-import type { Page } from "../store";
+import { useData, type Page } from "../store";
+import { photoSrc } from "../photos";
+import { Img } from "../ui";
+
+/** 사진이 있으면 사진, 없으면 빈 칸 */
+function PagePhoto({ src, className }: { src?: string; className: string }) {
+  const d = useData();
+  const u = photoSrc(src ?? "", d.photos);
+  return u ? <Img src={u} className={className} /> : <NoImage className={className} />;
+}
 
 type P<T extends Page["type"]> = Extract<Page, { type: T }>;
 
@@ -290,7 +299,7 @@ export function CarPage({ p }: { p: P<"car"> }) {
         <Search size={21} />
         <Menu size={22} />
       </div>
-      <NoImage className="w-full aspect-[4/3]" />
+      <PagePhoto src={p.photo} className="w-full aspect-[4/3]" />
       <div className="bg-white px-[16px] py-[16px]">
         <div className="text-[18px] font-bold">{p.title}</div>
         <div className="text-[24px] font-extrabold mt-[6px]" style={{ color: "#F15A24" }}>
@@ -338,7 +347,7 @@ export function ShopPage({ p }: { p: P<"shop"> }) {
         <div className="flex-1 h-[34px] rounded-[4px] border-2 border-[#346aff] flex items-center px-[8px] text-[13px] text-black/40">쿠팡에서 검색하세요!</div>
         <ShoppingCart size={22} />
       </div>
-      <NoImage className="w-full aspect-square" />
+      <PagePhoto src={p.photo} className="w-full aspect-square" />
       <div className="px-[14px] pt-[14px]">
         <div className="text-[13px] text-[#346aff]">{p.seller === "로켓배송" ? "브랜드샵 >" : p.seller}</div>
         <div className="text-[16px] leading-[22px] mt-[4px]">{p.name}</div>

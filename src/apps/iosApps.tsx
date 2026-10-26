@@ -404,7 +404,7 @@ export function WalletApp() {
   const cur = cards.find((c) => c.id === openId);
   const isBank = cur && cards[0]?.id === cur.id; // 첫 카드 = 뱅킹 앱 통장과 연결된 카드
   const Card = ({ c, big }: { c: (typeof cards)[number]; big?: boolean }) => (
-    <div className="rounded-[16px] p-[16px] text-white flex flex-col" style={{ height: big ? 215 : 215, background: `linear-gradient(145deg, ${c.color}, ${c.color}cc)`, boxShadow: "0 -1px 0 rgba(255,255,255,0.15) inset, 0 4px 18px rgba(0,0,0,0.18)" }}>
+    <div className="rounded-[16px] p-[16px] text-white flex flex-col" style={{ height: big ? 215 : 215, background: `linear-gradient(145deg, rgba(255,255,255,0.10), rgba(0,0,0,0.16)), ${c.color}`, boxShadow: "0 -1px 0 rgba(255,255,255,0.15) inset, 0 4px 18px rgba(0,0,0,0.18)" }}>
       <div className="flex justify-between items-start">
         <span className="text-[17px] font-semibold">{c.name}</span>
         <Wifi size={18} className="rotate-90 opacity-80" />

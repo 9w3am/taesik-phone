@@ -212,11 +212,20 @@ export function Weather() {
   const d = useData();
   const w = d.weather;
   const now = new Date();
+  // 시간별 기온: 오후 3시쯤 가장 높고 새벽 5시쯤 가장 낮게 · 지금 칸은 현재 기온과 같게
+  const shape = (h: number) => (1 + Math.cos(((h - 15) / 24) * Math.PI * 2)) / 2;
+  const base = (h: number) => w.lo + (w.hi - w.lo) * shape(h);
+  const shift = w.temp - base(now.getHours());
   const hours = Array.from({ length: 10 }, (_, i) => {
     const h = (now.getHours() + i) % 24;
-    const t = Math.round(w.temp + Math.sin(((h - 15) / 24) * Math.PI * 2) * ((w.hi - w.lo) / 2));
+    const t = i === 0 ? w.temp : Math.round(Math.min(w.hi, Math.max(w.lo, base(h) + shift * (1 - i / 10))));
     return { h, t, night: h < 6 || h >= 18 };
   });
+  // 10일 예보: 오늘은 최고/최저 그대로, 다른 날은 조금씩 다르게
+  const days = Array.from({ length: 10 }, (_, i) => (i === 0 ? { lo: w.lo, hi: w.hi } : { lo: w.lo + ((i * 3) % 5) - 2, hi: w.hi + ((i * 7) % 5) - 2 }));
+  const minAll = Math.min(...days.map((x) => x.lo));
+  const maxAll = Math.max(...days.map((x) => x.hi));
+  const pct = (t: number) => ((t - minAll) / Math.max(1, maxAll - minAll)) * 100;
   return (
     <div className="absolute inset-0 text-white" style={{ background: "linear-gradient(180deg,#3E4651 0%,#2A3038 45%,#1B1F25 100%)" }}>
       <div className="absolute inset-0 scroll px-[16px]" style={{ paddingTop: "calc(var(--sat) + 30px)", paddingBottom: 90 }}>
@@ -247,15 +256,16 @@ export function Weather() {
           <div className="text-[13px] opacity-60 pb-[6px] font-semibold">10일간의 일기예보</div>
           {Array.from({ length: 10 }, (_, i) => {
             const day = new Date(now.getTime() + i * 86400000);
-            const lo = w.lo + ((i * 3) % 4) - 1,
-              hi = w.hi + ((i * 5) % 5) - 2;
+            const { lo, hi } = days[i];
             return (
               <div key={i} className="flex items-center gap-[10px] py-[10px] text-[18px] font-medium" style={{ boxShadow: "inset 0 0.5px 0 rgba(255,255,255,0.15)" }}>
                 <span className="w-[50px]">{i === 0 ? "오늘" : DAYS[day.getDay()]}</span>
                 <span className="w-[30px]">{i === 2 || i === 5 ? <CloudRain size={22} /> : <Cloud size={22} fill="#fff" strokeWidth={0} />}</span>
                 <span className="w-[38px] text-right opacity-55">{lo}°</span>
-                <span className="flex-1 h-[5px] rounded-full bg-black/25 relative overflow-hidden">
-                  <span className="absolute top-0 bottom-0 rounded-full" style={{ left: `${(lo - w.lo + 2) * 8}%`, right: `${100 - (hi - w.lo + 4) * 8}%`, background: "linear-gradient(90deg,#9BD1E5,#E8C66A)" }} />
+                <span className="flex-1 h-[5px] rounded-full bg-black/25 relative">
+                  <span className="absolute top-0 bottom-0 rounded-full" style={{ left: `${pct(lo)}%`, right: `${100 - pct(hi)}%`, background: "linear-gradient(90deg,#9BD1E5,#E8C66A)" }} />
+                  {/* 오늘: 지금 기온 위치에 흰 점 */}
+                  {i === 0 && <span className="absolute top-1/2 w-[7px] h-[7px] rounded-full bg-white -translate-y-1/2 -translate-x-1/2" style={{ left: `${pct(w.temp)}%`, boxShadow: "0 0 0 1.5px rgba(0,0,0,0.35)" }} />}
                 </span>
                 <span className="w-[38px]">{hi}°</span>
               </div>
